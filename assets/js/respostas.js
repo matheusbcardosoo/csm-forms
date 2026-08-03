@@ -1,10 +1,13 @@
 /* ==========================================================
    respostas.js
-   Gate de login (magic link) + listagem e detalhe das respostas
-   já enviadas, lidas direto do Postgres via Supabase.
+   Gate de login (e-mail + senha, com troca obrigatória no primeiro
+   acesso) + listagem e detalhe das respostas já enviadas, lidas
+   direto do Postgres via Supabase.
    ========================================================== */
 
 (function () {
+  const DEFAULT_PASSWORD = 'SaoMarcos';
+
   const params = new URLSearchParams(window.location.search);
   const formId = params.get('form') || 'visitas';
 
@@ -15,13 +18,25 @@
   const modalBox = document.getElementById('modal-box');
 
   const authGate = document.getElementById('auth-gate');
+  const changePasswordGate = document.getElementById('change-password-gate');
   const accessDenied = document.getElementById('access-denied');
   const responsesContent = document.getElementById('responses-content');
+
   const loginEmailInput = document.getElementById('login-email');
   const loginEmailGroup = document.getElementById('login-email-group');
-  const loginErrorMessage = document.getElementById('login-error-message');
+  const loginEmailErrorMessage = document.getElementById('login-email-error-message');
+  const loginPasswordInput = document.getElementById('login-password');
+  const loginPasswordGroup = document.getElementById('login-password-group');
+  const loginPasswordErrorMessage = document.getElementById('login-password-error-message');
   const loginBtn = document.getElementById('login-btn');
-  const loginSentMessage = document.getElementById('login-sent-message');
+
+  const newPasswordInput = document.getElementById('new-password');
+  const newPasswordGroup = document.getElementById('new-password-group');
+  const newPasswordErrorMessage = document.getElementById('new-password-error-message');
+  const confirmPasswordInput = document.getElementById('confirm-password');
+  const confirmPasswordGroup = document.getElementById('confirm-password-group');
+  const changePasswordBtn = document.getElementById('change-password-btn');
+
   const logoutBtn = document.getElementById('logout-btn');
   const deniedLogoutBtn = document.getElementById('denied-logout-btn');
 
@@ -33,16 +48,25 @@
 
   /* ---------- Estados de tela ---------- */
   function showOnly(el) {
-    [authGate, accessDenied, responsesContent].forEach(section => {
+    [authGate, changePasswordGate, accessDenied, responsesContent].forEach(section => {
       section.classList.toggle('hidden', section !== el);
     });
   }
 
   function showGate() {
+    loginPasswordInput.value = '';
     showOnly(authGate);
   }
 
-  async function handleAuthenticated() {
+  async function handleAuthenticated(session) {
+    const mustChange = !!(session && session.user && session.user.user_metadata && session.user.user_metadata.must_change_password);
+    if (mustChange) {
+      newPasswordInput.value = '';
+      confirmPasswordInput.value = '';
+      showOnly(changePasswordGate);
+      return;
+    }
+
     let authorized = false;
     try {
       authorized = await SM.isAuthorizedStaff();
@@ -63,7 +87,7 @@
     try {
       const session = await SM.getSession();
       if (session) {
-        await handleAuthenticated();
+        await handleAuthenticated(session);
       } else {
         showGate();
       }
@@ -72,43 +96,88 @@
       showGate();
     }
 
-    SM.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') handleAuthenticated();
+    SM.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') handleAuthenticated(session);
       if (event === 'SIGNED_OUT') showGate();
     });
   }
 
-  /* ---------- Envio do magic link ---------- */
+  /* ---------- Login (e-mail + senha) ---------- */
   loginBtn.addEventListener('click', async () => {
     const email = loginEmailInput.value.trim();
+    const password = loginPasswordInput.value;
     loginEmailGroup.classList.remove('invalid');
-    loginSentMessage.classList.add('hidden');
+    loginPasswordGroup.classList.remove('invalid');
 
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!emailOk) {
-      loginErrorMessage.textContent = 'Informe um e-mail válido.';
+      loginEmailErrorMessage.textContent = 'Informe um e-mail válido.';
       loginEmailGroup.classList.add('invalid');
+      return;
+    }
+    if (!password) {
+      loginPasswordErrorMessage.textContent = 'Informe sua senha.';
+      loginPasswordGroup.classList.add('invalid');
       return;
     }
 
     loginBtn.disabled = true;
     const originalLabel = loginBtn.innerHTML;
-    loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+    loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Entrando...';
 
     try {
-      const redirectTo = window.location.origin + window.location.pathname + window.location.search;
-      await SM.signInWithMagicLink(email, redirectTo);
-      loginSentMessage.innerHTML = `<i class="fa-solid fa-envelope-circle-check"></i> Link enviado! Confira a caixa de entrada de ${SM.escapeHtml(email)}.`;
-      loginSentMessage.classList.remove('hidden');
+      const session = await SM.signInWithPassword(email, password);
+      await handleAuthenticated(session);
     } catch (err) {
-      console.error('Erro ao enviar magic link:', err);
-      loginErrorMessage.textContent = err && err.message
-        ? err.message
-        : 'Não foi possível enviar o link. Tente novamente.';
-      loginEmailGroup.classList.add('invalid');
+      console.error('Erro ao entrar:', err);
+      loginPasswordErrorMessage.textContent = 'E-mail ou senha incorretos.';
+      loginPasswordGroup.classList.add('invalid');
     } finally {
       loginBtn.disabled = false;
       loginBtn.innerHTML = originalLabel;
+    }
+  });
+
+  [loginEmailInput, loginPasswordInput].forEach(input => {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loginBtn.click();
+    });
+  });
+
+  /* ---------- Troca de senha obrigatória (1º acesso) ---------- */
+  changePasswordBtn.addEventListener('click', async () => {
+    const newPassword = newPasswordInput.value;
+    const confirmPassword = confirmPasswordInput.value;
+    newPasswordGroup.classList.remove('invalid');
+    confirmPasswordGroup.classList.remove('invalid');
+
+    if (newPassword.length < 8 || newPassword === DEFAULT_PASSWORD) {
+      newPasswordErrorMessage.textContent = newPassword === DEFAULT_PASSWORD
+        ? 'Escolha uma senha diferente da padrão.'
+        : 'A senha precisa ter ao menos 8 caracteres.';
+      newPasswordGroup.classList.add('invalid');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      confirmPasswordGroup.classList.add('invalid');
+      return;
+    }
+
+    changePasswordBtn.disabled = true;
+    const originalLabel = changePasswordBtn.innerHTML;
+    changePasswordBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+
+    try {
+      await SM.updatePassword(newPassword);
+      const session = await SM.getSession();
+      await handleAuthenticated(session);
+    } catch (err) {
+      console.error('Erro ao trocar senha:', err);
+      newPasswordErrorMessage.textContent = err && err.message ? err.message : 'Não foi possível salvar a nova senha.';
+      newPasswordGroup.classList.add('invalid');
+    } finally {
+      changePasswordBtn.disabled = false;
+      changePasswordBtn.innerHTML = originalLabel;
     }
   });
 
@@ -121,7 +190,7 @@
     }
     responses = [];
     loginEmailInput.value = '';
-    loginSentMessage.classList.add('hidden');
+    loginPasswordInput.value = '';
     showGate();
   }
 
