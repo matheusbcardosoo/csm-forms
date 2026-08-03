@@ -496,6 +496,7 @@ body {
 .field-group input[type="text"],
 .field-group input[type="date"],
 .field-group input[type="tel"],
+.field-group input[type="email"],
 .field-group select,
 .field-group textarea {
   width: 100%;
@@ -642,12 +643,19 @@ body {
 }
 
 .remove-student-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   background: none;
   border: none;
   color: var(--accent);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.remove-student-btn i {
+  font-size: 13px;
 }
 
 .add-student-btn {
