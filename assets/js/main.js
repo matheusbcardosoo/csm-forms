@@ -83,9 +83,17 @@ const SM = {
     }
     const client = SM._requireClient();
 
-    const { data: inserted, error } = await client
+    // Gera o id no navegador e evita usar .select() no insert: quem
+    // envia o formulário (anon) não tem permissão de SELECT nas
+    // respostas, então pedir a linha de volta (RETURNING) seria
+    // barrado pela mesma RLS que protege a leitura.
+    const visitaId = crypto.randomUUID();
+    const submittedAt = new Date().toISOString();
+
+    const { error } = await client
       .from('visita_respostas')
       .insert({
+        id: visitaId,
         escola_nome: data.escola.nome,
         escola_cidade_estado: data.escola.cidadeEstado,
         pai_nome: data.responsaveis.pai.nome || null,
@@ -98,14 +106,12 @@ const SM = {
         indicado: data.extras.indicado,
         indicacao_nome: data.extras.indicacaoNome || null,
         observacoes: data.extras.observacoes || null
-      })
-      .select()
-      .single();
+      });
 
     if (error) throw error;
 
     const alunosPayload = (data.students || []).map((s, i) => ({
-      visita_id: inserted.id,
+      visita_id: visitaId,
       nome: s.nome,
       nascimento: s.nascimento || null,
       turma: s.turma,
@@ -117,7 +123,7 @@ const SM = {
       if (alunosError) throw alunosError;
     }
 
-    return { id: inserted.id, submittedAt: inserted.submitted_at, data };
+    return { id: visitaId, submittedAt, data };
   },
 
   formatDate(iso) {

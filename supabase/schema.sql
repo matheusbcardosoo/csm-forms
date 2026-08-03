@@ -69,16 +69,26 @@ create policy "self_select_staff_emails"
 -- insert into staff_emails (email, nome) values ('secretaria@saomarcos.com.br', 'Secretaria');
 
 -- ---------- RLS: visita_respostas / visita_alunos ----------
--- O envio do formulário continua público (chave "anon" pode inserir).
+-- O envio do formulário é público: qualquer pessoa pode enviar,
+-- esteja ela logada (ex: um funcionário testando) ou não — por isso
+-- o insert é liberado tanto pra "anon" quanto "authenticated".
 -- A leitura das respostas exige login (magic link) E e-mail presente
 -- em staff_emails.
 alter table visita_respostas enable row level security;
 alter table visita_alunos enable row level security;
 
+-- Garante os privilégios de base nas tabelas (o Supabase costuma
+-- configurar isso automaticamente, mas reforçar não tem efeito colateral).
+grant usage on schema public to anon, authenticated;
+grant select, insert on visita_respostas to anon, authenticated;
+grant select, insert on visita_alunos to anon, authenticated;
+grant select on staff_emails to authenticated;
+
 drop policy if exists "anon_insert_visita_respostas" on visita_respostas;
-create policy "anon_insert_visita_respostas"
+drop policy if exists "public_insert_visita_respostas" on visita_respostas;
+create policy "public_insert_visita_respostas"
   on visita_respostas for insert
-  to anon
+  to anon, authenticated
   with check (true);
 
 drop policy if exists "anon_select_visita_respostas" on visita_respostas;
@@ -91,9 +101,10 @@ create policy "staff_select_visita_respostas"
   ));
 
 drop policy if exists "anon_insert_visita_alunos" on visita_alunos;
-create policy "anon_insert_visita_alunos"
+drop policy if exists "public_insert_visita_alunos" on visita_alunos;
+create policy "public_insert_visita_alunos"
   on visita_alunos for insert
-  to anon
+  to anon, authenticated
   with check (true);
 
 drop policy if exists "anon_select_visita_alunos" on visita_alunos;
