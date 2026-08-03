@@ -154,7 +154,7 @@ const SM = {
     return div.innerHTML;
   },
 
-  /* ---------- Autenticação (magic link) ---------- */
+  /* ---------- Autenticação (e-mail + senha) ---------- */
 
   /**
    * @returns {Promise<import('@supabase/supabase-js').Session | null>}
@@ -167,15 +167,27 @@ const SM = {
   },
 
   /**
-   * Envia o link mágico de login para o e-mail informado.
-   * Não cria conta com privilégio nenhum: quem recebe acesso de fato
+   * Login com e-mail e senha. A conta precisa já existir (criada via
+   * scripts/provision-staff-users.mjs) — quem recebe acesso de fato
    * às respostas é controlado pela tabela staff_emails (via RLS).
    */
-  async signInWithMagicLink(email, redirectTo) {
+  async signInWithPassword(email, password) {
     const client = SM._requireClient();
-    const { error } = await client.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo }
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data.session;
+  },
+
+  /**
+   * Troca a senha do usuário logado e limpa a flag de "precisa trocar
+   * a senha" (usada no primeiro acesso, quando todo mundo entra com
+   * a senha padrão).
+   */
+  async updatePassword(newPassword) {
+    const client = SM._requireClient();
+    const { error } = await client.auth.updateUser({
+      password: newPassword,
+      data: { must_change_password: false }
     });
     if (error) throw error;
   },
