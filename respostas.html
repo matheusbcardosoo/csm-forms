@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Respostas anteriores | Colégio São Marcos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a class="logo-container" href="index.html">
+    <span class="logo-title">COLÉGIO</span>
+    <span class="logo-sub">são marcos</span>
+  </a>
+  <p class="header-text">
+    Respostas Anteriores <br>
+    Colégio São Marcos
+  </p>
+</header>
+
+<main class="page">
+
+  <!-- ===================== GATE DE LOGIN (magic link) ===================== -->
+  <div class="wizard-card auth-card" id="auth-gate">
+    <div class="auth-icon"><i class="fa-solid fa-lock"></i></div>
+    <h2 class="wizard-title">Acesso restrito</h2>
+    <p class="wizard-desc">Informe seu e-mail institucional. Vamos te enviar um link de acesso — sem senha.</p>
+
+    <div class="field-group" id="login-email-group">
+      <label for="login-email">E-mail</label>
+      <input type="email" id="login-email" placeholder="seuemail@saomarcos.com.br">
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> <span id="login-error-message">Informe um e-mail válido.</span></div>
+    </div>
+
+    <button type="button" class="btn btn-primary" id="login-btn" style="width:100%;">
+      <i class="fa-solid fa-paper-plane"></i> Enviar link de acesso
+    </button>
+
+    <p class="hint hidden" id="login-sent-message"></p>
+  </div>
+
+  <!-- ===================== ACESSO NEGADO ===================== -->
+  <div class="wizard-card auth-card hidden" id="access-denied">
+    <div class="auth-icon denied"><i class="fa-solid fa-user-lock"></i></div>
+    <h2 class="wizard-title">E-mail não autorizado</h2>
+    <p class="wizard-desc">Seu login funcionou, mas esse e-mail não tem permissão para ver as respostas. Fale com a administração do colégio para ser liberado.</p>
+    <button type="button" class="btn btn-secondary" id="denied-logout-btn" style="width:100%;">Sair</button>
+  </div>
+
+  <!-- ===================== CONTEÚDO (só após login autorizado) ===================== -->
+  <div class="hidden" id="responses-content" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+    <div class="page-header">
+      <a class="back-link" href="index.html">&larr; Voltar</a>
+      <div class="page-header-row">
+        <div>
+          <h1 id="responses-title">Respostas anteriores</h1>
+          <p>Consulte as respostas já enviadas para este formulário.</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sair</button>
+      </div>
+    </div>
+
+    <div class="form-list" id="responses-list" style="max-width:760px;">
+      <!-- preenchido via JS -->
+    </div>
+  </div>
+</main>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/review-renderer.js"></script>
+<script src="assets/js/respostas.js"></script>
+</body>
+</html>

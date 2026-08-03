@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formulário de Visita | Colégio São Marcos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<main class="page">
+  <div class="wizard-card">
+
+    <div style="text-align:center;margin-bottom:20px;align-items:center;display:flex;justify-content:center;">
+      <img src="./assets/images/logo.jpg" alt="Logotipo do Colégio São Marcos" class="header-logo">
+    </div>
+
+    <!-- STEP INDICATOR -->
+    <div class="stepper" id="stepper" role="list" aria-label="Progresso do formulário">
+      <div class="step-node" data-step="1" role="listitem">
+        <div class="step-circle"><i class="fa-solid fa-user-graduate"></i></div>
+        <span class="step-name">Aluno</span>
+      </div>
+      <div class="step-connector" data-connector="1"><span class="step-connector-fill"></span></div>
+
+      <div class="step-node" data-step="2" role="listitem">
+        <div class="step-circle"><i class="fa-solid fa-school"></i></div>
+        <span class="step-name">Escola</span>
+      </div>
+      <div class="step-connector" data-connector="2"><span class="step-connector-fill"></span></div>
+
+      <div class="step-node" data-step="3" role="listitem">
+        <div class="step-circle"><i class="fa-solid fa-people-roof"></i></div>
+        <span class="step-name">Responsáveis</span>
+      </div>
+      <div class="step-connector" data-connector="3"><span class="step-connector-fill"></span></div>
+
+      <div class="step-node" data-step="4" role="listitem">
+        <div class="step-circle"><i class="fa-solid fa-comment-dots"></i></div>
+        <span class="step-name">Extras</span>
+      </div>
+      <div class="step-connector" data-connector="4"><span class="step-connector-fill"></span></div>
+
+      <div class="step-node" data-step="5" role="listitem">
+        <div class="step-circle"><i class="fa-solid fa-clipboard-check"></i></div>
+        <span class="step-name">Revisão</span>
+      </div>
+    </div>
+    <div class="wizard-step-label" id="step-label">Passo 1/5</div>
+
+    <form id="visita-form" novalidate>
+
+      <!-- ===================== STEP 1: ALUNO(S) ===================== -->
+      <section class="wizard-step" data-step="1">
+        <h2 class="wizard-title">Dados do aluno</h2>
+        <p class="wizard-desc">Informe os dados do aluno interessado na vaga. Você pode adicionar mais de um aluno, se necessário.</p>
+
+        <div id="students-container"></div>
+
+        <button type="button" class="add-student-btn" id="add-student-btn">+ Adicionar mais um aluno</button>
+      </section>
+
+      <!-- ===================== STEP 2: ESCOLA DE ORIGEM ===================== -->
+      <section class="wizard-step hidden" data-step="2">
+        <h2 class="wizard-title">Escola de origem</h2>
+        <p class="wizard-desc">Dados da escola em que o aluno está matriculado atualmente.</p>
+
+        <div class="field-group">
+          <label for="escola-nome">Nome da escola</label>
+          <input type="text" id="escola-nome" name="escola-nome" placeholder="Ex: Colégio Exemplo">
+          <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe o nome da escola.</div>
+        </div>
+
+        <div class="field-group">
+          <label for="escola-cidade">Cidade / Estado</label>
+          <input type="text" id="escola-cidade" name="escola-cidade" placeholder="Ex: São Paulo / SP">
+          <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe a cidade e o estado.</div>
+        </div>
+      </section>
+
+      <!-- ===================== STEP 3: RESPONSÁVEIS ===================== -->
+      <section class="wizard-step hidden" data-step="3">
+        <h2 class="wizard-title">Dados dos responsáveis</h2>
+        <p class="wizard-desc">Informe os dados de contato do pai e da mãe (ou responsáveis).</p>
+
+        <div class="student-block">
+          <div class="student-block-header"><span>Pai</span></div>
+          <div class="field-group">
+            <label for="pai-nome">Nome completo</label>
+            <input type="text" id="pai-nome" placeholder="Nome completo do pai">
+            <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe o nome completo (nome e sobrenome).</div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label for="pai-whatsapp">WhatsApp</label>
+              <input type="tel" id="pai-whatsapp" inputmode="tel" placeholder="(11) 91234-5678 ou +1 234 567 8900">
+              <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe um telefone válido (nacional ou internacional).</div>
+            </div>
+            <div class="field-group">
+              <label for="pai-profissao">Profissão</label>
+              <input type="text" id="pai-profissao" placeholder="Ex: Engenheiro">
+              <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe a profissão.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="student-block">
+          <div class="student-block-header"><span>Mãe</span></div>
+          <div class="field-group">
+            <label for="mae-nome">Nome completo</label>
+            <input type="text" id="mae-nome" placeholder="Nome completo da mãe">
+            <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe o nome completo (nome e sobrenome).</div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label for="mae-whatsapp">WhatsApp</label>
+              <input type="tel" id="mae-whatsapp" inputmode="tel" placeholder="(11) 91234-5678 ou +1 234 567 8900">
+              <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe um telefone válido (nacional ou internacional).</div>
+            </div>
+            <div class="field-group">
+              <label for="mae-profissao">Profissão</label>
+              <input type="text" id="mae-profissao" placeholder="Ex: Advogada">
+              <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe a profissão.</div>
+            </div>
+          </div>
+        </div>
+        <div class="hint">Preencha ao menos um dos responsáveis com todos os dados solicitados.</div>
+        <div class="error-banner hidden" id="responsaveis-error">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          Preencha ao menos os dados de um responsável (pai ou mãe).
+        </div>
+      </section>
+
+      <!-- ===================== STEP 4: INFORMAÇÕES EXTRAS ===================== -->
+      <section class="wizard-step hidden" data-step="4">
+        <h2 class="wizard-title">Informações complementares</h2>
+        <p class="wizard-desc">Nos ajude a entender melhor o seu contexto.</p>
+
+        <div class="field-group">
+          <label for="motivo">Qual o principal motivo que o trouxe até o Colégio São Marcos?</label>
+          <textarea id="motivo" placeholder="Conte um pouco sobre o que motivou a busca pelo colégio"></textarea>
+          <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Conte um pouco sobre o motivo da visita.</div>
+        </div>
+
+        <div class="field-group">
+          <span class="field-legend">Foi indicado por alguém?</span>
+          <div class="choice-group" id="indicacao-choice">
+            <button type="button" class="choice-pill" data-value="sim"><span class="check">✓</span> Sim</button>
+            <button type="button" class="choice-pill" data-value="nao"><span class="check">✓</span> Não</button>
+          </div>
+          <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Selecione uma opção.</div>
+        </div>
+
+        <div class="field-group hidden" id="indicacao-nome-group">
+          <label for="indicacao-nome">Nome de quem indicou</label>
+          <input type="text" id="indicacao-nome" placeholder="Nome completo da pessoa que indicou">
+          <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe o nome completo (nome e sobrenome).</div>
+        </div>
+
+        <div class="field-group">
+          <label for="observacoes">Observações <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
+          <textarea id="observacoes" placeholder="Se quiser, deixe alguma observação adicional"></textarea>
+        </div>
+      </section>
+
+      <!-- ===================== STEP 5: REVISÃO ===================== -->
+      <section class="wizard-step hidden" data-step="5">
+        <h2 class="wizard-title">Revise suas respostas</h2>
+        <p class="wizard-desc">Confira se está tudo certo antes de enviar.</p>
+
+        <div id="review-container"></div>
+
+        <div class="error-banner hidden" id="submit-error">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span id="submit-error-message">Não foi possível enviar o formulário. Verifique sua conexão e tente novamente.</span>
+        </div>
+      </section>
+
+      <!-- ===================== SUCESSO ===================== -->
+      <section class="wizard-step hidden" data-step="success">
+        <div class="success-box">
+          <div class="success-icon">✓</div>
+          <h2 class="wizard-title">Formulário enviado!</h2>
+          <p class="wizard-desc">Recebemos os dados da visita com sucesso. Em breve nossa equipe entrará em contato.</p>
+          <a href="index.html" class="btn btn-primary">Voltar ao início</a>
+        </div>
+      </section>
+
+      <!-- ===================== NAV ===================== -->
+      <div class="wizard-nav" id="wizard-nav">
+        <button type="button" class="btn btn-secondary" id="back-btn">Voltar</button>
+        <button type="button" class="btn btn-primary" id="next-btn">Próximo</button>
+      </div>
+
+    </form>
+  </div>
+</main>
+
+<template id="student-block-template">
+  <div class="student-block" data-student-index="">
+    <div class="student-block-header">
+      <span>Aluno</span>
+      <button type="button" class="remove-student-btn">Remover</button>
+    </div>
+    <div class="field-group">
+      <label>Nome completo</label>
+      <input type="text" class="student-nome" placeholder="Nome completo do aluno">
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe o nome completo (nome e sobrenome).</div>
+    </div>
+    <div class="field-row">
+      <div class="field-group">
+        <label>Data de nascimento</label>
+        <input type="date" class="student-nascimento">
+        <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe a data de nascimento.</div>
+      </div>
+      <div class="field-group">
+        <label>Turma desejada</label>
+        <select class="student-turma">
+          <option value="">Selecione</option>
+          <option>Educação Infantil - Maternal</option>
+          <option>Educação Infantil - Jardim I</option>
+          <option>Educação Infantil - Jardim II</option>
+          <option>Fundamental I - 1º ano</option>
+          <option>Fundamental I - 2º ano</option>
+          <option>Fundamental I - 3º ano</option>
+          <option>Fundamental I - 4º ano</option>
+          <option>Fundamental I - 5º ano</option>
+          <option>Fundamental II - 6º ano</option>
+          <option>Fundamental II - 7º ano</option>
+          <option>Fundamental II - 8º ano</option>
+          <option>Fundamental II - 9º ano</option>
+          <option>Ensino Médio - 1ª série</option>
+          <option>Ensino Médio - 2ª série</option>
+          <option>Ensino Médio - 3ª série</option>
+        </select>
+        <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Selecione a turma desejada.</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/review-renderer.js"></script>
+<script src="assets/js/wizard.js"></script>
+</body>
+</html>
