@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<title>Formulários | Colégio São Marcos</title>
+<%- include('partials/head') %>
+</head>
+<body>
+
+<%- include('partials/header', { logoHref: '/', headerTitle: 'Central de Formulários' }) %>
+
+<main class="page">
+  <div class="page-header">
+    <h1>Formulários disponíveis</h1>
+    <p>Selecione um formulário para preencher ou consulte respostas já enviadas.</p>
+  </div>
+
+  <div class="form-list" id="form-list">
+    <!-- preenchido via JS -->
+  </div>
+</main>
+
+<script src="/js/main.js"></script>
+</body>
+</html>
