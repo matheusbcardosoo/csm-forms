@@ -1,109 +1,131 @@
-Central de formulários do Colégio São Marcos, com um fluxo de cadastro para visitas e uma área de visualização de respostas para a equipe autorizada.
+Central de formulários do Colégio São Marcos com servidor Node.js/Express. Oferece um fluxo de cadastro para visitas e uma área de visualização de respostas para a equipe autorizada.
 
 ## Visão geral
 
-Este projeto é uma aplicação web estática em HTML/CSS/JavaScript que:
+Aplicação web full-stack que:
 
 - exibe uma página inicial com os formulários disponíveis;
 - oferece um formulário multi-etapas para cadastro de visitas;
-- envia os dados para o Supabase;
-- permite que membros da equipe autorizados consultem as respostas via login por magic link.
+- envia os dados para o Supabase (Postgres);
+- permite que membros da equipe autorizados consultem as respostas após login.
 
 ## Funcionalidades
 
-- Formulário de visitas com wizard em etapas:
-  - dados do aluno;
-  - escola de origem;
-  - dados dos responsáveis;
-  - informações extras;
-  - revisão antes do envio.
-- Armazenamento das respostas em tabelas do Supabase.
-- Acesso restrito para visualização de respostas, controlado por lista de e-mails autorizados.
+- Formulário de visitas com wizard em etapas (aluno, escola, responsáveis, extras, revisão);
+- Armazenamento seguro de respostas no Supabase;
+- Autenticação de equipe com senha obrigatória na primeira vez;
+- Acesso restrito por lista de e-mails (`staff_emails`);
+- Renderização de templates lado do servidor com EJS;
+- Sessões seguras com cookies httpOnly.
 
 ## Tecnologias
 
-- HTML, CSS e JavaScript puro
-- Supabase (Postgres + Auth)
-- Arquivos estáticos servidos por qualquer web server simples
+- **Backend:** Node.js + Express
+- **Frontend:** EJS templates, CSS, JavaScript
+- **Banco:** Supabase (Postgres)
+- **Autenticação:** Supabase Auth com email/password
 
 ## Pré-requisitos
 
-- Node.js/NPM não é obrigatório para rodar a interface, mas pode ser útil para servir arquivos localmente.
-- Uma instância ou projeto no Supabase com:
+- Node.js 18+
+- Uma instância no Supabase com:
   - URL do projeto;
   - chave anônima;
+  - chave de serviço (service role);
   - schema aplicado no SQL Editor.
 
 ## Configuração
 
-1. Copie o arquivo de exemplo de variáveis de ambiente:
+1. Clone e instale as dependências:
 
    ```bash
-   copy .env.example .env
+   git clone <repo>
+   cd csm-forms
+   npm install
    ```
 
-2. Preencha as variáveis no arquivo `.env`:
+2. Copie e configure o arquivo `.env`:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Preencha as variáveis:
 
    ```env
    SUPABASE_URL=https://seu-projeto.supabase.co
    SUPABASE_ANON_KEY=sua-chave-anonima
+   SUPABASE_SERVICE_ROLE_KEY=sua-chave-servico
+   COOKIE_SECRET=gere-uma-string-aleatoria-longa-aqui
+   PORT=3000
    ```
 
-3. Gere o arquivo de configuração do frontend:
+3. Aplique o schema do banco:
 
-   ```bash
-   sh scripts/generate-config.sh
-   ```
-
-4. Aplique o schema do banco no Supabase:
-
-   - abra o SQL Editor do Supabase;
+   - Abra o SQL Editor do Supabase;
    - execute o conteúdo de [supabase/schema.sql](supabase/schema.sql).
 
-5. Libere o acesso para a equipe autorizada:
+4. (Opcional) Provisione membros da equipe:
 
-   - insira e-mails na tabela `staff_emails` do Supabase.
+   ```bash
+   node scripts/provision-staff-users.mjs email@saomarcos.com.br "Nome Completo"
+   ```
+
+   Senha padrão: `SaoMarcos` (obrigatório trocar no primeiro login).
 
 ## Executando localmente
 
-Como o projeto é estático, você pode servir a pasta raiz com qualquer servidor simples, por exemplo:
-
 ```bash
-python -m http.server 8000
+npm start
 ```
 
-Em seguida, abra no navegador:
-
-- http://localhost:8000/index.html
+Acesse em http://localhost:3000
 
 ## Estrutura do projeto
 
 ```text
 .
-├── assets/
+├── lib/
+│   └── supabase.js          # Cliente Supabase
+├── public/
 │   ├── css/
 │   ├── images/
 │   └── js/
+├── routes/
+│   ├── api.js               # Endpoints da API
+│   └── pages.js             # Rotas de páginas
+├── views/
+│   ├── form-visitas.ejs     # Formulário multi-etapas
+│   ├── respostas.ejs        # Visualização de respostas
+│   ├── index.ejs            # Página inicial
+│   └── partials/            # Componentes reutilizáveis
 ├── scripts/
+│   └── provision-staff-users.mjs  # Script de provisioning
 ├── supabase/
-├── form-visitas.html
-├── index.html
-├── respostas.html
-└── README.md
+│   └── schema.sql           # Schema do banco
+├── server.js                # Entrada do app
+├── package.json
+└── .env.example
 ```
 
 ## Fluxo principal
 
-- Página inicial: lista os formulários disponíveis.
-- Formulário de visitas: coleta os dados do interessado e salva a resposta no Supabase.
-- Página de respostas: autentica a equipe via magic link e exibe as respostas aprovadas para o e-mail autorizado.
+1. **Página inicial:** Lista formulários disponíveis;
+2. **Formulário de visitas:** Coleta dados em etapas e salva no Supabase;
+3. **Página de respostas:** Requer login e exibe respostas da equipe autorizada.
 
 ## Implantação
 
-A geração do arquivo `assets/js/config.js` é feita automaticamente a partir das variáveis de ambiente. Em ambientes como EasyPanel, basta definir `SUPABASE_URL` e `SUPABASE_ANON_KEY` e configurar o build command para:
+Defina as variáveis de ambiente no seu hosting e execute:
 
 ```bash
-sh scripts/generate-config.sh
+npm start
+```
+
+Ou configure um process manager como PM2:
+
+```bash
+pm2 start server.js --name csm-forms
 ```
 
 ## Licença
