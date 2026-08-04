@@ -240,7 +240,7 @@ router.get('/responses', async (req, res) => {
 function toTitleCase(str) {
   if (!str) return str;
   const particles = new Set(['da', 'das', 'de', 'do', 'dos', 'e', 'a', 'o', 'ao', 'i']);
-  return String(str).trim().toLowerCase().split(/s+/).map((w, i) =>
+  return String(str).trim().toLowerCase().split(/\s+/).map((w, i) =>
     w && (i === 0 || !particles.has(w)) ? w[0].toUpperCase() + w.slice(1) : w
   ).join(' ') || null;
 }
@@ -250,6 +250,28 @@ function capFirst(str) {
   if (!str) return str;
   const s = String(str).trim();
   return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+// Title Case "cru" (sem excecao de particulas) - usado pra nome de cidade,
+// onde "Das", "Do" etc. devem ficar maiusculos mesmo no meio da frase.
+function toWordTitleCase(str) {
+  if (!str) return str;
+  return String(str).trim().toLowerCase().split(/\s+/).map(w =>
+    w ? w[0].toUpperCase() + w.slice(1) : w
+  ).join(' ');
+}
+
+// "Cidade/Estado": aceita "-" ou "/" como separador, remove os espacos ao
+// redor dele (evita desvio de padrao tipo "Mogi das Cruzes / SP" vs
+// "Mogi das Cruzes/SP") e deixa a sigla do estado em maiusculo.
+function toCityState(str) {
+  if (!str) return str;
+  const s = String(str).trim();
+  if (!s) return null;
+  const parts = s.split(/\s*[\/-]\s*/);
+  const cidade = toWordTitleCase(parts[0]);
+  const estado = parts[1] ? parts[1].trim().toUpperCase() : '';
+  return estado ? `${cidade}/${estado}` : cidade;
 }
 
 router.post('/responses', async (req, res) => {
@@ -262,7 +284,7 @@ router.post('/responses', async (req, res) => {
     const { error } = await client.from('visita_respostas').insert({
       id: visitaId,
       escola_nome:          toTitleCase(data.escola.nome),
-      escola_cidade_estado: data.escola.cidadeEstado,
+      escola_cidade_estado: toCityState(data.escola.cidadeEstado),
       pai_nome:             toTitleCase(data.responsaveis.pai.nome) || null,
       pai_whatsapp:         data.responsaveis.pai.whatsapp || null,
       pai_profissao:        toTitleCase(data.responsaveis.pai.profissao) || null,

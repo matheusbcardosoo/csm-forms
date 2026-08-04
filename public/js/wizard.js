@@ -121,6 +121,26 @@
     return s ? s[0].toUpperCase() + s.slice(1) : s;
   }
 
+  // Title Case "cru" (sem excecao de particulas) - usado pra nome de cidade,
+  // onde "Das", "Do" etc. devem ficar maiusculos mesmo no meio da frase.
+  function toWordTitleCase(str) {
+    if (!str) return '';
+    return str.trim().toLowerCase().split(/\s+/).map(w =>
+      w ? w[0].toUpperCase() + w.slice(1) : w
+    ).join(' ');
+  }
+
+  // "Cidade/Estado": aceita "-" ou "/" como separador, remove os espacos
+  // ao redor dele (evita "Mogi das Cruzes / SP" x "Mogi das Cruzes/SP")
+  // e deixa a sigla do estado em maiusculo.
+  function toCityState(str) {
+    if (!str) return '';
+    const parts = str.trim().split(/\s*[\/-]\s*/);
+    const cidade = toWordTitleCase(parts[0]);
+    const estado = parts[1] ? parts[1].trim().toUpperCase() : '';
+    return estado ? cidade + '/' + estado : cidade;
+  }
+
   function bindTitleCase(el) {
     if (!el) return;
     el.addEventListener('blur', () => { if (el.value) el.value = toTitleCase(el.value); });
@@ -129,6 +149,11 @@
   function bindCapFirst(el) {
     if (!el) return;
     el.addEventListener('blur', () => { if (el.value) el.value = capFirst(el.value); });
+  }
+
+  function bindCityState(el) {
+    if (!el) return;
+    el.addEventListener('blur', () => { if (el.value) el.value = toCityState(el.value); });
   }
 
   /* ---------- Alunos ---------- */
@@ -215,6 +240,7 @@
   });
   bindLiveValidation(document.getElementById('indicacao-nome'), isFullName);
   bindTitleCase(document.getElementById('escola-nome'));
+  bindCityState(document.getElementById('escola-cidade'));
   bindTitleCase(document.getElementById('indicacao-nome'));
   bindCapFirst(document.getElementById('motivo'));
   bindCapFirst(document.getElementById('observacoes'));
