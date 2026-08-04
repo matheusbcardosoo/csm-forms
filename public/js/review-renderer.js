@@ -22,6 +22,14 @@
     </div>`;
   }
 
+  // Grid de 3 colunas numa linha só, usado no modo compact (PDF) para
+  // agrupar nome/data/turma (ou nome/whatsapp/profissao) sem quebrar linha.
+  function gridRow3(...items) {
+    return `<div class="review-grid" style="grid-template-columns:repeat(3,1fr);">
+      ${items.join('')}
+    </div>`;
+  }
+
   function cardHeader(icon, title, gotoStep, editable) {
     const editBtn = editable
       ? `<button type="button" class="review-edit-btn" data-goto="${gotoStep}"><i class="fa-solid fa-pen"></i> Editar</button>`
@@ -39,28 +47,36 @@
    * @param {object} data - dados no formato retornado por collectData()
    * @param {boolean} editable - se true, inclui botões "Editar" com data-goto
    */
-  function buildReviewCards(data, editable) {
+  function buildReviewCards(data, editable, compact) {
     let html = '';
 
     /* ---- Aluno(s) ---- */
-    html += `<div class="review-card">
+    html += `<div class="review-card"${compact ? ' style="margin-bottom:14px;"' : ''}>
       ${cardHeader('fa-user-graduate', 'Aluno(s)', 1, editable)}
       <div class="review-card-body">`;
     (data.students || []).forEach((s, i) => {
+      const nascimento = s.nascimento ? SM.formatDateOnly(s.nascimento) : '';
       html += `<div class="review-student">
         <div class="review-student-header"><i class="fa-solid fa-child-reaching"></i> Aluno ${i + 1}</div>
-        <div class="review-grid">
-          ${item('Nome completo', s.nome, true)}
-          ${item('Data de nascimento', s.nascimento ? SM.formatDateOnly(s.nascimento) : '')}
-          ${item('Turma desejada', s.turma)}
-        </div>
+        ${compact
+          ? gridRow3(
+              item('Nome completo', s.nome),
+              item('Data de nascimento', nascimento),
+              item('Turma desejada', s.turma)
+            )
+          : `<div class="review-grid">
+              ${item('Nome completo', s.nome, true)}
+              ${item('Data de nascimento', nascimento)}
+              ${item('Turma desejada', s.turma)}
+            </div>`
+        }
       </div>`;
     });
     html += `</div></div>`;
 
     /* ---- Escola de origem ---- */
     const escola = data.escola || {};
-    html += `<div class="review-card">
+    html += `<div class="review-card"${compact ? ' style="margin-bottom:14px;"' : ''}>
       ${cardHeader('fa-school', 'Escola de origem', 2, editable)}
       <div class="review-card-body">
         <div class="review-grid">
@@ -73,24 +89,38 @@
     /* ---- Responsáveis ---- */
     const pai = (data.responsaveis && data.responsaveis.pai) || {};
     const mae = (data.responsaveis && data.responsaveis.mae) || {};
-    html += `<div class="review-card">
+    html += `<div class="review-card"${compact ? ' style="margin-bottom:14px;"' : ''}>
       ${cardHeader('fa-people-roof', 'Responsáveis', 3, editable)}
       <div class="review-card-body">
         <div class="review-student">
           <div class="review-student-header"><i class="fa-solid fa-mars"></i> Pai</div>
-          <div class="review-grid">
-            ${item('Nome completo', pai.nome, true)}
-            ${item('WhatsApp', pai.whatsapp)}
-            ${item('Profissão', pai.profissao)}
-          </div>
+          ${compact
+            ? gridRow3(
+                item('Nome completo', pai.nome),
+                item('WhatsApp', pai.whatsapp),
+                item('Profissão', pai.profissao)
+              )
+            : `<div class="review-grid">
+                ${item('Nome completo', pai.nome, true)}
+                ${item('WhatsApp', pai.whatsapp)}
+                ${item('Profissão', pai.profissao)}
+              </div>`
+          }
         </div>
         <div class="review-student">
           <div class="review-student-header"><i class="fa-solid fa-venus"></i> Mãe</div>
-          <div class="review-grid">
-            ${item('Nome completo', mae.nome, true)}
-            ${item('WhatsApp', mae.whatsapp)}
-            ${item('Profissão', mae.profissao)}
-          </div>
+          ${compact
+            ? gridRow3(
+                item('Nome completo', mae.nome),
+                item('WhatsApp', mae.whatsapp),
+                item('Profissão', mae.profissao)
+              )
+            : `<div class="review-grid">
+                ${item('Nome completo', mae.nome, true)}
+                ${item('WhatsApp', mae.whatsapp)}
+                ${item('Profissão', mae.profissao)}
+              </div>`
+          }
         </div>
       </div>
     </div>`;
@@ -103,7 +133,7 @@
         ? '<span class="review-badge no"><i class="fa-solid fa-xmark"></i> Não</span>'
         : '<span class="review-item-value muted">-</span>';
 
-    html += `<div class="review-card">
+    html += `<div class="review-card"${compact ? ' style="margin-bottom:14px;"' : ''}>
       ${cardHeader('fa-comment-dots', 'Informações complementares', 4, editable)}
       <div class="review-card-body">
         <div class="review-grid">

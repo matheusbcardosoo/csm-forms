@@ -27,6 +27,8 @@
   const responsaveisError = document.getElementById('responsaveis-error');
   const submitError = document.getElementById('submit-error');
   const submitErrorMessage = document.getElementById('submit-error-message');
+  const consentCheckbox = document.getElementById('consent-checkbox');
+  const consentGroup    = document.getElementById('consent-group');
 
   /* ---------- Validadores ---------- */
   // Exige nome + sobrenome (ao menos 2 palavras com 2+ letras cada, sem números/símbolos).
@@ -103,6 +105,32 @@
     });
   }
 
+  /* ---------- Formatacao automatica ---------- */
+  const PARTICLES = new Set(['da', 'das', 'de', 'do', 'dos', 'e', 'a', 'o', 'ao', 'i']);
+
+  function toTitleCase(str) {
+    if (!str) return '';
+    return str.trim().toLowerCase().split(/s+/).map((w, i) =>
+      w && (i === 0 || !PARTICLES.has(w)) ? w[0].toUpperCase() + w.slice(1) : w
+    ).join(' ');
+  }
+
+  function capFirst(str) {
+    if (!str) return '';
+    const s = str.trim();
+    return s ? s[0].toUpperCase() + s.slice(1) : s;
+  }
+
+  function bindTitleCase(el) {
+    if (!el) return;
+    el.addEventListener('blur', () => { if (el.value) el.value = toTitleCase(el.value); });
+  }
+
+  function bindCapFirst(el) {
+    if (!el) return;
+    el.addEventListener('blur', () => { if (el.value) el.value = capFirst(el.value); });
+  }
+
   /* ---------- Alunos ---------- */
   function addStudentBlock() {
     studentCount++;
@@ -122,6 +150,7 @@
     }
 
     bindLiveValidation(block.querySelector('.student-nome'), isFullName);
+    bindTitleCase(block.querySelector('.student-nome'));
     bindLiveValidation(block.querySelector('.student-nascimento'));
     bindLiveValidation(block.querySelector('.student-turma'));
 
@@ -156,6 +185,7 @@
   /* ---------- Responsáveis: campos com validação em tempo real ---------- */
   ['pai-nome', 'mae-nome'].forEach(id => {
     bindLiveValidation(document.getElementById(id), isFullName);
+    bindTitleCase(document.getElementById(id));
   });
   ['pai-profissao', 'mae-profissao'].forEach(id => {
     bindLiveValidation(document.getElementById(id));
@@ -172,11 +202,22 @@
     });
   });
 
+  /* ---------- Consentimento LGPD ---------- */
+  if (consentCheckbox) {
+    consentCheckbox.addEventListener('change', () => {
+      if (consentCheckbox.checked) consentGroup.classList.remove('invalid');
+    });
+  }
+
   /* ---------- Demais campos com validação em tempo real ---------- */
   ['escola-nome', 'escola-cidade', 'motivo'].forEach(id => {
     bindLiveValidation(document.getElementById(id));
   });
   bindLiveValidation(document.getElementById('indicacao-nome'), isFullName);
+  bindTitleCase(document.getElementById('escola-nome'));
+  bindTitleCase(document.getElementById('indicacao-nome'));
+  bindCapFirst(document.getElementById('motivo'));
+  bindCapFirst(document.getElementById('observacoes'));
 
   /* ---------- Validação por etapa ---------- */
   function clearErrors(scope) {
@@ -354,6 +395,13 @@
       return;
     }
 
+    // validacao do consentimento LGPD
+    if (!consentCheckbox.checked) {
+      consentGroup.classList.add('invalid');
+      consentGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
     // envio final
     const data = collectData();
     submitError.classList.add('hidden');
@@ -363,7 +411,15 @@
     nextBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
 
     try {
-      await SM.saveResponse(FORM_ID, data);
+      const apiRes = await fetch('/api/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!apiRes.ok) {
+        const errData = await apiRes.json();
+        throw new Error(errData.error || 'Erro ao enviar formulario.');
+      }
       wizardNav.classList.add('hidden');
       form.querySelectorAll('.wizard-step').forEach(s => s.classList.add('hidden'));
       form.querySelector('.wizard-step[data-step="success"]').classList.remove('hidden');

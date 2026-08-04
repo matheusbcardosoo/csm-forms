@@ -276,6 +276,7 @@ body {
   cursor: pointer;
   transition: filter 0.15s ease, transform 0.05s ease;
   font-family: inherit;
+  text-decoration: none;
 }
 
 .btn:active {
@@ -489,6 +490,7 @@ body {
 .field-group input[type="date"],
 .field-group input[type="tel"],
 .field-group input[type="email"],
+.field-group input[type="password"],
 .field-group select,
 .field-group textarea {
   width: 100%;
@@ -1125,4 +1127,137 @@ body {
     font-size: 10px;
     padding: 2px 8px;
   }
+}
+
+/* ==========================================================
+   Consentimento LGPD (step 5 do wizard)
+   ========================================================== */
+.consent-group {
+  margin-top: 24px;
+  padding: 16px 18px;
+  background: rgba(15, 56, 90, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.consent-group.invalid {
+  background: rgba(197, 37, 26, 0.04);
+  border-color: var(--accent);
+}
+
+.field-group.consent-group label.consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--text-main);
+  line-height: 1.5;
+  margin-bottom: 0;
+}
+
+.consent-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.consent-label a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.consent-label a:hover {
+  text-decoration: underline;
+}
+
+/* ==========================================================
+   Pagina de Politica de Privacidade
+   ========================================================== */
+.policy-page {
+  width: 100%;
+  max-width: 760px;
+}
+
+.policy-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 36px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+@media (max-width: 640px) {
+  .policy-card {
+    padding: 24px 20px;
+  }
+}
+
+.policy-section {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.policy-section:first-child {
+  padding-top: 0;
+}
+
+.policy-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.policy-section h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.policy-section h2 i {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.policy-section p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-main);
+}
+
+.policy-section p:last-child {
+  margin-bottom: 0;
+}
+
+.policy-section ul {
+  margin: 8px 0 10px 0;
+  padding-left: 20px;
+}
+
+.policy-section li {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.policy-section a {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.policy-section a:hover {
+  text-decoration: underline;
 }
