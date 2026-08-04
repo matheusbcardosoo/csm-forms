@@ -110,7 +110,7 @@
 
   function toTitleCase(str) {
     if (!str) return '';
-    return str.trim().toLowerCase().split(/s+/).map((w, i) =>
+    return str.trim().toLowerCase().split(/\s+/).map((w, i) =>
       w && (i === 0 || !PARTICLES.has(w)) ? w[0].toUpperCase() + w.slice(1) : w
     ).join(' ');
   }
