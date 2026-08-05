@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+  /* Pagina isolada so pra impressao via Puppeteer — sem chrome de app */
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+
+  /* Bordas dos cards de revisao no tom de azul escuro do titulo do
+     documento (#0F385A), so nesta pagina — nao mexe no restante do site
+     (modal "Ver detalhes", wizard), que continua com --border-color. */
+  #pdf-root .review-card { border-color: #0F385A; }
+  #pdf-root .review-card-header { border-bottom-color: #0F385A; }
+
+  /* Espacamento vertical mais enxuto so no PDF (eixo Y) — o site normal
+     (modal "Ver detalhes", wizard) continua com o padding original. */
+  #pdf-root .review-card-header { padding-top: 7px; padding-bottom: 7px; }
+  #pdf-root .review-card-body { padding-top: 12px; padding-bottom: 12px; }
+  #pdf-root .review-grid { row-gap: 10px; }
+  #pdf-root .review-student + .review-student {
+    border-top-color: #0F385A;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<!--
+  Este markup e uma copia fiel (mesmas classes, mesmo CSS, mesmos textos)
+  do bloco montado em printForSignature() em public/js/respostas.js.
+  Qualquer ajuste visual deve ser feito nos dois lugares — ou, melhor,
+  usar esta pagina como a unica fonte de verdade e apontar o botao
+  "Baixar PDF" pra ela (ja e o que a rota GET /api/responses/:id/pdf faz).
+-->
+<div id="pdf-root" style="width:794px;background:#ffffff;padding:10px 12px;box-sizing:border-box;font-family:Inter, Segoe UI, Arial, sans-serif;font-size:13px;color:#1a2530;">
+  <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #e2e8f0;">
+    <img src="/images/logo.jpg" alt="Colégio São Marcos" style="max-height:60px;display:block;justify-self:start;">
+    <h1 style="text-align:center;font-size:15px;font-weight:700;color:#0F385A;margin:0;white-space:nowrap;">Ficha de Registro de Visita</h1>
+    <img src="/images/logo-brasao.png" alt="São Marcos School" style="max-height:60px;display:block;justify-self:end;">
+  </div>
+
+  <div id="pdf-review-cards"></div>
+
+  <div style="margin-top:22px;">
+    <p style="font-size:11px;margin:0 0 28px;">Mogi das Cruzes, <span id="pdf-date-extenso"></span>.</p>
+    <div style="display:flex;justify-content:space-between;gap:40px;">
+      <div style="flex:1;text-align:center;">
+        <div style="border-top:1px solid #1a2530;margin-bottom:6px;"></div>
+        <p style="font-size:11px;color:#7a8794;margin:0;" id="pdf-sig-pai">Assinatura do Pai</p>
+      </div>
+      <div style="flex:1;text-align:center;">
+        <div style="border-top:1px solid #1a2530;margin-bottom:6px;"></div>
+        <p style="font-size:11px;color:#7a8794;margin:0;" id="pdf-sig-mae">Assinatura da Mãe</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.__VISITA_DATA__ = <%- JSON.stringify(data) %>;
+  window.__VISITA_SUBMITTED_AT__ = <%- JSON.stringify(submittedAt) %>;
+</script>
+<script src="/js/main.js"></script>
+<script src="/js/review-renderer.js"></script>
+<script>
+  (function () {
+    var data = window.__VISITA_DATA__ || {};
+    var pai = (data.responsaveis && data.responsaveis.pai) || {};
+    var mae = (data.responsaveis && data.responsaveis.mae) || {};
+
+    // Mesma chamada usada no modal de "Ver detalhes" e no PDF antigo
+    // (SMReview.buildReviewCards(data, false, true)) — garante que o
+    // HTML dos cards seja identico ao que ja existia.
+    document.getElementById('pdf-review-cards').innerHTML =
+      SMReview.buildReviewCards(data, false, true);
+
+    document.getElementById('pdf-date-extenso').textContent =
+      SM.formatDateExtenso(window.__VISITA_SUBMITTED_AT__);
+
+    if (pai.nome) {
+      document.getElementById('pdf-sig-pai').innerHTML =
+        'Assinatura do Pai<br><strong>' + SM.escapeHtml(pai.nome) + '</strong>';
+    }
+    if (mae.nome) {
+      document.getElementById('pdf-sig-mae').innerHTML =
+        'Assinatura da Mãe<br><strong>' + SM.escapeHtml(mae.nome) + '</strong>';
+    }
+
+    // Sinaliza pro Puppeteer que pode chamar page.pdf() — so depois que
+    // a logo (unica imagem da pagina) tiver carregado ou falhado.
+    function waitForImages() {
+      var imgs = document.querySelectorAll('img');
+      return Promise.all(Array.prototype.map.call(imgs, function (img) {
+        if (img.complete) return Promise.resolve();
+        return new Promise(function (resolve) {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      }));
+    }
+
+    waitForImages().then(function () {
+      window.__PDF_READY__ = true;
+    });
+  })();
+</script>
+</body>
+</html>

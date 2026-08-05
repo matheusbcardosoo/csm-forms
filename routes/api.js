@@ -2,6 +2,9 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
 const { getAnonClient, getAuthenticatedClient } = require('../lib/supabase');
+const { shapeVisitaRow, pdfFilename } = require('../lib/visita');
+const { renderVisitaPdf } = require('../lib/pdf');
+const { notifyN8n } = require('../lib/n8n');
 
 const router = express.Router();
 
@@ -201,32 +204,47 @@ router.get('/responses', async (req, res) => {
 
     if (error) throw error;
 
-    const responses = (rows || []).map(r => ({
-      id: r.id,
-      submittedAt: r.submitted_at,
-      data: {
-        students: (r.visita_alunos || [])
-          .slice()
-          .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
-          .map(a => ({ nome: a.nome, nascimento: a.nascimento, turma: a.turma })),
-        escola: {
-          nome: r.escola_nome,
-          cidadeEstado: r.escola_cidade_estado
-        },
-        responsaveis: {
-          pai: { nome: r.pai_nome, whatsapp: r.pai_whatsapp, profissao: r.pai_profissao },
-          mae: { nome: r.mae_nome, whatsapp: r.mae_whatsapp, profissao: r.mae_profissao }
-        },
-        extras: {
-          motivo: r.motivo,
-          indicado: r.indicado,
-          indicacaoNome: r.indicacao_nome,
-          observacoes: r.observacoes
-        }
-      }
-    }));
+    res.json((rows || []).map(shapeVisitaRow));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-    res.json(responses);
+// PDF de uma resposta — usada pelo botao "Baixar PDF" na tela de respostas.
+// Reaproveita a mesma renderVisitaPdf() (Puppeteer) usada no envio
+// automatico ao n8n, entao o arquivo baixado aqui e sempre identico ao
+// que o workflow recebe.
+router.get('/responses/:id/pdf', async (req, res) => {
+  const client = await requireAuth(req, res);
+  if (!client) return;
+
+  try {
+    const { data: staffData } = await client
+      .from('staff_emails')
+      .select('email')
+      .maybeSingle();
+    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+
+    const { data: row, error } = await client
+      .from('visita_respostas')
+      .select('*, visita_alunos(*)')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) return res.status(404).json({ error: 'Resposta não encontrada.' });
+
+    const visita = shapeVisitaRow(row);
+    const pdfBuffer = await renderVisitaPdf({
+      baseUrl: process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
+      visitaId: visita.id,
+      internalToken: process.env.INTERNAL_PDF_SECRET
+    });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${pdfFilename(visita)}"`
+    });
+    res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -314,6 +332,13 @@ router.post('/responses', async (req, res) => {
     }
 
     res.status(201).json({ id: visitaId, submittedAt });
+
+    // Dispara depois de responder ao visitante — geracao de PDF + envio ao
+    // n8n nao pode atrasar nem quebrar a confirmacao do cadastro. Erros
+    // aqui so vao pro log do servidor.
+    notifyN8n(visitaId).catch(err => {
+      console.error(`[n8n] Falha ao notificar workflow para visita ${visitaId}:`, err.message);
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

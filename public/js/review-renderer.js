@@ -51,7 +51,7 @@
     let html = '';
 
     /* ---- Aluno(s) ---- */
-    html += `<div class="review-card"${compact ? ' style="margin-bottom:14px;"' : ''}>
+    html += `<div class="review-card"${compact ? ' style="margin-bottom:10px;"' : ''}>
       ${cardHeader('fa-user-graduate', 'Aluno(s)', 1, editable)}
       <div class="review-card-body">`;
     (data.students || []).forEach((s, i) => {
@@ -76,7 +76,7 @@
 
     /* ---- Escola de origem ---- */
     const escola = data.escola || {};
-    html += `<div class="review-card"${compact ? ' style="margin-bottom:14px;"' : ''}>
+    html += `<div class="review-card"${compact ? ' style="margin-bottom:10px;"' : ''}>
       ${cardHeader('fa-school', 'Escola de origem', 2, editable)}
       <div class="review-card-body">
         <div class="review-grid">
@@ -89,7 +89,7 @@
     /* ---- Responsáveis ---- */
     const pai = (data.responsaveis && data.responsaveis.pai) || {};
     const mae = (data.responsaveis && data.responsaveis.mae) || {};
-    html += `<div class="review-card"${compact ? ' style="margin-bottom:14px;"' : ''}>
+    html += `<div class="review-card"${compact ? ' style="margin-bottom:10px;"' : ''}>
       ${cardHeader('fa-people-roof', 'Responsáveis', 3, editable)}
       <div class="review-card-body">
         <div class="review-student">
@@ -133,7 +133,7 @@
         ? '<span class="review-badge no"><i class="fa-solid fa-xmark"></i> Não</span>'
         : '<span class="review-item-value muted">-</span>';
 
-    html += `<div class="review-card"${compact ? ' style="margin-bottom:14px;"' : ''}>
+    html += `<div class="review-card"${compact ? ' style="margin-bottom:10px;"' : ''}>
       ${cardHeader('fa-comment-dots', 'Informações complementares', 4, editable)}
       <div class="review-card-body">
         <div class="review-grid">

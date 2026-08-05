@@ -251,7 +251,7 @@
       '</div>';
     overlay.classList.remove('hidden');
     document.getElementById('close-modal-btn').addEventListener('click', closeModal);
-    document.getElementById('print-modal-btn').addEventListener('click', () => printForSignature(record));
+    document.getElementById('print-modal-btn').addEventListener('click', () => downloadPdf(record));
   }
 
   function closeModal() {
@@ -261,31 +261,13 @@
 
   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
-  /* ---------- PDF (html2pdf.js) ---------- */
-  function generatePdfFilename(record) {
-    const firstStudent =
-      record.data.students && record.data.students[0]
-        ? record.data.students[0].nome
-        : 'visita';
-    const d = new Date(record.submittedAt);
-    const dd   = String(d.getDate()).padStart(2, '0');
-    const mm   = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    const slug = firstStudent
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    return slug + '-' + dd + '-' + mm + '-' + yyyy + '.pdf';
-  }
-
-  function printForSignature(record) {
-    const data = record.data || {};
-    const pai  = (data.responsaveis && data.responsaveis.pai) || {};
-    const mae  = (data.responsaveis && data.responsaveis.mae) || {};
-
-    // Feedback de carregamento no botao
+  /* ---------- PDF (gerado no servidor via Puppeteer) ----------
+     A geracao em si (layout, estilizacao) agora vive so no servidor
+     (views/pdf-visita.ejs + lib/pdf.js), reaproveitando a mesma
+     SMReview.buildReviewCards() que ja era usada aqui. Isso garante que
+     o PDF baixado por este botao seja sempre identico ao que e enviado
+     automaticamente pro n8n a cada nova visita. */
+  async function downloadPdf(record) {
     const pdfBtn = document.getElementById('print-modal-btn');
     const pdfBtnLabel = pdfBtn ? pdfBtn.innerHTML : '';
     if (pdfBtn) {
@@ -293,145 +275,31 @@
       pdfBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Gerando PDF...';
     }
 
-    // Sem position:fixed/absolute nem z-index negativo: o modal (que
-    // fica aberto o tempo todo aqui) ja cobre a viewport inteira com
-    // um overlay, entao um elemento em fluxo normal no fim do <body>
-    // ja fica visualmente escondido atras dele — sem precisar de
-    // nenhum truque de coordenada que confunda o html2canvas.
-    const el = document.createElement('div');
-    const cs = el.style;
-    cs.width      = '794px';
-    cs.background = '#ffffff';
-    cs.padding    = '20px 28px';
-    cs.boxSizing  = 'border-box';
-    cs.fontFamily = 'Inter, Segoe UI, Arial, sans-serif';
-    cs.fontSize   = '13px';
-    cs.color      = '#1a2530';
+    try {
+      const res = await fetch('/api/responses/' + record.id + '/pdf');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Falha ao gerar PDF.');
+      }
 
-    const paiSig = pai.nome
-      ? 'Assinatura do Pai<br><strong>' + SM.escapeHtml(pai.nome) + '</strong>'
-      : 'Assinatura do Pai';
-    const maeSig = mae.nome
-      ? 'Assinatura da Mae<br><strong>' + SM.escapeHtml(mae.nome) + '</strong>'
-      : 'Assinatura da Mae';
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      const filename = match ? match[1] : 'visita.pdf';
 
-    el.innerHTML = [
-      '<div style="display:flex;align-items:center;justify-content:space-between;',
-          'gap:20px;margin-bottom:16px;padding-bottom:12px;',
-          'border-bottom:1px solid #e2e8f0;">',
-        '<img src="/images/logo.jpg" alt="Colegio Sao Marcos"',
-        '     style="max-height:60px;display:block;">',
-        '<h1 style="text-align:right;font-size:15px;font-weight:700;',
-            'color:#0F385A;margin:0;">Ficha de Registro de Visita</h1>',
-      '</div>',
-      '<div>', SMReview.buildReviewCards(data, false, true), '</div>',
-      '<div style="margin-top:44px;">',
-        '<p style="font-size:11px;margin:0 0 50px;">',
-          'Mogi das Cruzes, ', SM.formatDateExtenso(record.submittedAt), '.',
-        '</p>',
-        '<div style="display:flex;justify-content:space-between;gap:40px;">',
-          '<div style="flex:1;text-align:center;">',
-            '<div style="border-top:1px solid #1a2530;margin-bottom:6px;"></div>',
-            '<p style="font-size:11px;color:#7a8794;margin:0;">', paiSig, '</p>',
-          '</div>',
-          '<div style="flex:1;text-align:center;">',
-            '<div style="border-top:1px solid #1a2530;margin-bottom:6px;"></div>',
-            '<p style="font-size:11px;color:#7a8794;margin:0;">', maeSig, '</p>',
-          '</div>',
-        '</div>',
-      '</div>'
-    ].join('');
-
-    document.body.appendChild(el);
-
-    const cleanup = () => {
-      document.body.removeChild(el);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      alert('Nao foi possivel gerar o PDF. Tente novamente.');
+    } finally {
       if (pdfBtn) { pdfBtn.disabled = false; pdfBtn.innerHTML = pdfBtnLabel; }
-    };
-
-    // html2canvas captura a logo antes dela terminar de carregar se a
-    // gente nao esperar — o img pode ainda estar em branco no instante
-    // do .from(el). Espera todas as imagens do bloco carregarem (ou
-    // falharem) antes de gerar o PDF.
-    const waitForImages = () => {
-      const imgs = el.querySelectorAll('img');
-      return Promise.all(Array.from(imgs).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(resolve => {
-          img.addEventListener('load', resolve, { once: true });
-          img.addEventListener('error', resolve, { once: true });
-        });
-      }));
-    };
-
-    waitForImages()
-      .then(() => {
-        // Sem windowWidth: o elemento ja tem largura fixa propria (794px),
-        // simular outra largura de "janela" so bagunca o layout do clone
-        // e desalinha a captura em relacao ao elemento real.
-        const worker = html2pdf().set({
-          image:       { type: 'jpeg', quality: 0.97 },
-          html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false }
-        }).from(el);
-
-        // worker.toCanvas() nao resolve com o canvas em si (o passo interno
-        // do html2pdf.js 0.10.2 nao retorna valor) - precisa buscar via
-        // .get('canvas'), senao "canvas" chega undefined aqui.
-        return worker.toCanvas().then(() => worker.get('canvas')).then(canvas => {
-          // O bundle do html2pdf.js nao expoe um global limpo pra classe
-          // jsPDF (window.jspdf/window.jsPDF nao existem nessa versao), entao
-          // pegamos a classe a partir de uma instancia que o proprio worker
-          // ja sabe criar, reaproveitando o canvas que acabamos de capturar.
-          return worker.toPdf().get('pdf').then(pdf => {
-            // Monta o PDF na mao em vez de confiar no auto-fit do html2pdf.js:
-            // ele pagina automaticamente quando o conteudo "acha" que nao
-            // cabe, e foi isso que cortava o texto e gerava 2 paginas.
-            // O objeto "pdf" aqui ja e uma instancia jsPDF valida (o bundle
-            // do html2pdf.js nao expoe a classe como global, entao a gente
-            // reaproveita essa instancia em vez de tentar construir uma nova).
-            // Apaga qualquer pagina extra que o auto-fit tenha criado.
-            while (pdf.internal.getNumberOfPages() > 1) {
-              pdf.deletePage(pdf.internal.getNumberOfPages());
-            }
-
-            const pageW   = pdf.internal.pageSize.getWidth();
-            const pageH   = pdf.internal.pageSize.getHeight();
-            const marginX = 10;
-            const marginY = 6;
-            const maxW    = pageW - marginX * 2;
-            const maxH    = pageH - marginY * 2;
-
-            // px -> mm a 96dpi, desfazendo o scale:2 do html2canvas
-            const scale     = 2;
-            const contentWMM = (canvas.width  / scale) / 96 * 25.4;
-            const contentHMM = (canvas.height / scale) / 96 * 25.4;
-
-            const fit = Math.min(maxW / contentWMM, maxH / contentHMM, 1);
-            const drawW = contentWMM * fit;
-            const drawH = contentHMM * fit;
-            const x = (pageW - drawW) / 2;
-            // Ancora no topo (y = marginY) em vez de centralizar verticalmente:
-            // como o conteudo normalmente e mais curto que a pagina inteira,
-            // centralizar deixava uma faixa enorme de espaco em branco em
-            // cima E embaixo (as duas metades do sobra). Ancorando no topo
-            // com uma margem estreita, o documento comeca logo no topo da
-            // pagina como um documento normal.
-            const y = marginY;
-
-            // Cobre a pagina 1 de branco pra apagar o que o auto-fit ja
-            // tinha desenhado nela antes da gente redesenhar por cima,
-            // corretamente encaixado e centralizado.
-            pdf.setPage(1);
-            pdf.setFillColor(255, 255, 255);
-            pdf.rect(0, 0, pageW, pageH, 'F');
-
-            const imgData = canvas.toDataURL('image/jpeg', 0.97);
-            pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
-            pdf.save(generatePdfFilename(record));
-          });
-        });
-      })
-      .then(cleanup)
-      .catch(err => { console.error('Erro ao gerar PDF:', err); cleanup(); });
+    }
   }
 })();
