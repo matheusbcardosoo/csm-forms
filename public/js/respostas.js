@@ -247,11 +247,13 @@
       '<div class="modal-review">' + SMReview.buildReviewCards(record.data, false) + '</div>' +
       '<div class="modal-footer">' +
         '<button class="btn btn-secondary" id="close-modal-btn">Fechar</button>' +
+        '<button class="btn btn-secondary" id="whatsapp-modal-btn"><i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp</button>' +
         '<button class="btn btn-primary" id="print-modal-btn"><i class="fa-solid fa-file-pdf"></i> Baixar PDF</button>' +
       '</div>';
     overlay.classList.remove('hidden');
     document.getElementById('close-modal-btn').addEventListener('click', closeModal);
     document.getElementById('print-modal-btn').addEventListener('click', () => downloadPdf(record));
+    document.getElementById('whatsapp-modal-btn').addEventListener('click', () => sendWhatsapp(record));
   }
 
   function closeModal() {
@@ -300,6 +302,33 @@
       alert('Nao foi possivel gerar o PDF. Tente novamente.');
     } finally {
       if (pdfBtn) { pdfBtn.disabled = false; pdfBtn.innerHTML = pdfBtnLabel; }
+    }
+  }
+
+  /* ---------- Envio manual por WhatsApp (via workflow n8n) ---------- */
+  async function sendWhatsapp(record) {
+    const btn = document.getElementById('whatsapp-modal-btn');
+    const origLabel = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+    }
+
+    try {
+      const res = await fetch('/api/responses/' + record.id + '/whatsapp', { method: 'POST' });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Falha ao enviar pelo WhatsApp.');
+
+      if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Enviado!';
+        setTimeout(() => { btn.innerHTML = origLabel; }, 2500);
+      }
+    } catch (err) {
+      console.error('Erro ao enviar pelo WhatsApp:', err);
+      alert(err.message || 'Não foi possível enviar pelo WhatsApp. Tente novamente.');
+      if (btn) btn.innerHTML = origLabel;
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 })();

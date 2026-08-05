@@ -250,6 +250,42 @@ router.get('/responses/:id/pdf', async (req, res) => {
   }
 });
 
+// Envio manual pelo botao "Enviar por WhatsApp" na tela de respostas.
+// Reaproveita o mesmo notifyN8n() usado no envio automatico logo apos o
+// cadastro (routes/api.js POST /responses) — mesma geracao de PDF, mesmo
+// payload pro webhook do n8n. Diferente do automatico, aqui o erro deve
+// voltar pro botao (nao e so log de servidor), entao aguardamos e
+// respondemos o resultado.
+router.post('/responses/:id/whatsapp', async (req, res) => {
+  const client = await requireAuth(req, res);
+  if (!client) return;
+
+  try {
+    const { data: staffData } = await client
+      .from('staff_emails')
+      .select('email')
+      .maybeSingle();
+    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+
+    const { data: row, error } = await client
+      .from('visita_respostas')
+      .select('id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) return res.status(404).json({ error: 'Resposta não encontrada.' });
+
+    if (!process.env.N8N_WEBHOOK_URL) {
+      return res.status(503).json({ error: 'Integração com WhatsApp não está configurada (N8N_WEBHOOK_URL vazio).' });
+    }
+
+    await notifyN8n(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ================================================================
    HELPERS DE SANITIZACAO — aplicados antes de gravar no banco
    ================================================================ */
