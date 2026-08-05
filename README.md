@@ -116,7 +116,11 @@ Acesse em http://localhost:3000
 
 ## Implantação
 
-Defina as variáveis de ambiente no seu hosting e execute:
+O projeto tem um `Dockerfile` na raiz — use-o em vez de um template genérico de Node.js. Ele instala o Chromium do sistema (via apt) e configura o Puppeteer pra usá-lo em vez de tentar baixar o próprio Chrome, evitando problemas de rede no build e incompatibilidade com imagens Alpine. No EasyPanel, escolha o modo "Dockerfile" ao criar/editar o app.
+
+Defina as variáveis de ambiente do `.env.example` no seu hosting — `PUPPETEER_SKIP_DOWNLOAD` e `PUPPETEER_EXECUTABLE_PATH` já vêm fixadas no Dockerfile, não precisa duplicar.
+
+Sem Docker (ex.: rodando `npm start` direto num VPS), execute:
 
 ```bash
 npm start
