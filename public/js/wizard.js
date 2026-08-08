@@ -451,6 +451,12 @@
       form.querySelector('.wizard-step[data-step="success"]').classList.remove('hidden');
       stepLabel.classList.add('hidden');
       stepper.classList.add('hidden');
+
+      // "Voltar ao início" nunca deve sair da própria página do formulário
+      // (ex.: pra listagem de formulários ou qualquer área administrativa) —
+      // é um link público, então só recarrega este mesmo formulário do zero.
+      const successBackLink = document.getElementById('success-back-link');
+      if (successBackLink) successBackLink.href = window.location.pathname;
     } catch (err) {
       console.error('Erro ao enviar formulário:', err);
       submitErrorMessage.textContent = err && err.message

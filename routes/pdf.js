@@ -34,4 +34,17 @@ router.get('/internal/pdf/visita/:id', async (req, res) => {
   }
 });
 
+/* ================================================================
+   Rota interna do modelo de ficha EM BRANCO — mesma logica de acesso
+   da rota acima (token compartilhado, nunca chamada pelo navegador do
+   usuario), so que sem consulta ao banco: e um HTML estatico.
+   ================================================================ */
+router.get('/internal/pdf/visita-blank', (req, res) => {
+  const secret = process.env.INTERNAL_PDF_SECRET;
+  if (!secret || req.query.token !== secret) {
+    return res.status(403).send('Forbidden');
+  }
+  res.render('pdf-visita-blank');
+});
+
 module.exports = router;

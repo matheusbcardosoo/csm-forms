@@ -3,7 +3,7 @@ const express = require('express');
 const { randomUUID } = require('crypto');
 const { getAnonClient, getAuthenticatedClient } = require('../lib/supabase');
 const { shapeVisitaRow, pdfFilename } = require('../lib/visita');
-const { renderVisitaPdf } = require('../lib/pdf');
+const { renderVisitaPdf, renderVisitaBlankPdf } = require('../lib/pdf');
 const { notifyN8n } = require('../lib/n8n');
 
 const router = express.Router();
@@ -281,6 +281,38 @@ router.post('/responses/:id/whatsapp', async (req, res) => {
 
     await notifyN8n(req.params.id);
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modelo de ficha de visita EM BRANCO, pra imprimir e deixar disponivel a
+// quem prefere preencher a mao em vez do formulario online. Fica atras do
+// mesmo requireAuth() das respostas — nao e o link publico do formulario,
+// e uma ferramenta da secretaria — e reaproveita o mesmo Puppeteer usado
+// pra gerar o PDF de uma resposta (lib/pdf.js), so que apontando pra uma
+// pagina estatica sem dados de nenhuma visita.
+router.get('/blank/visita/pdf', async (req, res) => {
+  const client = await requireAuth(req, res);
+  if (!client) return;
+
+  try {
+    const { data: staffData } = await client
+      .from('staff_emails')
+      .select('email')
+      .maybeSingle();
+    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+
+    const pdfBuffer = await renderVisitaBlankPdf({
+      baseUrl: process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
+      internalToken: process.env.INTERNAL_PDF_SECRET
+    });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename="modelo-visita-em-branco.pdf"'
+    });
+    res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
