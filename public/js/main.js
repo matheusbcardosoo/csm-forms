@@ -72,4 +72,7 @@ function renderFormList() {
   `).join('');
 }
 
-document.addEventListener('DOMContentLoaded', renderFormList);
+// Não é mais chamado automaticamente no DOMContentLoaded — a home agora
+// fica atrás do gate de login (ver public/js/index.js), que so chama isso
+// depois de confirmar sessão autorizada.
+SM.renderFormList = renderFormList;

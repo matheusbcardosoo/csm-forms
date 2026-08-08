@@ -4,8 +4,6 @@
    ========================================================== */
 
 (function () {
-  const DEFAULT_PASSWORD = 'SaoMarcos';
-
   const params = new URLSearchParams(window.location.search);
   const formId = params.get('form') || 'visitas';
   const form = SM.getForm(formId);
@@ -14,184 +12,19 @@
   const listEl         = document.getElementById('responses-list');
   const overlay        = document.getElementById('modal-overlay');
   const modalBox       = document.getElementById('modal-box');
-  const authGate       = document.getElementById('auth-gate');
-  const changePwGate   = document.getElementById('change-password-gate');
-  const accessDenied   = document.getElementById('access-denied');
   const responsesCont  = document.getElementById('responses-content');
-
-  const loginEmailInput        = document.getElementById('login-email');
-  const loginEmailGroup        = document.getElementById('login-email-group');
-  const loginEmailErrMsg       = document.getElementById('login-email-error-message');
-  const loginPasswordInput     = document.getElementById('login-password');
-  const loginPasswordGroup     = document.getElementById('login-password-group');
-  const loginPasswordErrMsg    = document.getElementById('login-password-error-message');
-  const loginBtn               = document.getElementById('login-btn');
-
-  const newPasswordInput    = document.getElementById('new-password');
-  const newPasswordGroup    = document.getElementById('new-password-group');
-  const newPasswordErrMsg   = document.getElementById('new-password-error-message');
-  const confirmPasswordInput = document.getElementById('confirm-password');
-  const confirmPasswordGroup = document.getElementById('confirm-password-group');
-  const changePasswordBtn   = document.getElementById('change-password-btn');
-
-  const logoutBtn      = document.getElementById('logout-btn');
-  const deniedLogoutBtn = document.getElementById('denied-logout-btn');
 
   let responses = [];
 
   if (form) titleEl.textContent = 'Respostas: ' + form.nome;
 
-  /* ---------- Visibilidade de telas ---------- */
-  function showOnly(el) {
-    [authGate, changePwGate, accessDenied, responsesCont].forEach(s => {
-      s.classList.toggle('hidden', s !== el);
-    });
-  }
-
-  function showGate() {
-    loginPasswordInput.value = '';
-    showOnly(authGate);
-  }
-
-  function showChangePassword() {
-    newPasswordInput.value = '';
-    confirmPasswordInput.value = '';
-    showOnly(changePwGate);
-  }
-
-  /* ---------- Init ---------- */
-  async function init() {
-    try {
-      const res = await fetch('/api/auth/session');
-      const session = await res.json();
-      if (!session.loggedIn) return showGate();
-      if (session.mustChangePassword) return showChangePassword();
-      if (!session.authorized) return showOnly(accessDenied);
-      showOnly(responsesCont);
-      loadResponses();
-    } catch (err) {
-      console.error('Erro ao verificar sessao:', err);
-      showGate();
-    }
-  }
-
-  /* ---------- Login ---------- */
-  loginBtn.addEventListener('click', async () => {
-    const email    = loginEmailInput.value.trim();
-    const password = loginPasswordInput.value;
-    loginEmailGroup.classList.remove('invalid');
-    loginPasswordGroup.classList.remove('invalid');
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      loginEmailErrMsg.textContent = 'Informe um e-mail válido.';
-      loginEmailGroup.classList.add('invalid');
-      return;
-    }
-    if (!password) {
-      loginPasswordErrMsg.textContent = 'Informe sua senha.';
-      loginPasswordGroup.classList.add('invalid');
-      return;
-    }
-
-    loginBtn.disabled = true;
-    const origLabel = loginBtn.innerHTML;
-    loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Entrando...';
-
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const result = await res.json();
-
-      if (!res.ok) {
-        loginPasswordErrMsg.textContent = result.error || 'E-mail ou senha incorretos.';
-        loginPasswordGroup.classList.add('invalid');
-        return;
-      }
-      if (result.mustChangePassword) return showChangePassword();
-      if (!result.authorized) return showOnly(accessDenied);
-      showOnly(responsesCont);
-      loadResponses();
-    } catch (err) {
-      console.error('Erro ao entrar:', err);
-      loginPasswordErrMsg.textContent = 'Erro de conexao. Tente novamente.';
-      loginPasswordGroup.classList.add('invalid');
-    } finally {
-      loginBtn.disabled = false;
-      loginBtn.innerHTML = origLabel;
-    }
+  // Login/senha/acesso-negado ficam em public/js/auth-gate.js (mesmo gate
+  // usado na home) — aqui só reagimos a autenticado/deslogado.
+  const gate = SMAuthGate.mount({
+    contentEl: responsesCont,
+    onAuthorized: loadResponses,
+    onLoggedOut: () => { responses = []; }
   });
-
-  [loginEmailInput, loginPasswordInput].forEach(el => {
-    el.addEventListener('keydown', e => { if (e.key === 'Enter') loginBtn.click(); });
-  });
-
-  /* ---------- Troca de senha ---------- */
-  changePasswordBtn.addEventListener('click', async () => {
-    const newPw  = newPasswordInput.value;
-    const confPw = confirmPasswordInput.value;
-    newPasswordGroup.classList.remove('invalid');
-    confirmPasswordGroup.classList.remove('invalid');
-
-    if (newPw.length < 8 || newPw === DEFAULT_PASSWORD) {
-      newPasswordErrMsg.textContent = newPw === DEFAULT_PASSWORD
-        ? 'Escolha uma senha diferente da padrao.'
-        : 'A senha precisa ter ao menos 8 caracteres.';
-      newPasswordGroup.classList.add('invalid');
-      return;
-    }
-    if (newPw !== confPw) {
-      confirmPasswordGroup.classList.add('invalid');
-      return;
-    }
-
-    changePasswordBtn.disabled = true;
-    const origLabel = changePasswordBtn.innerHTML;
-    changePasswordBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
-
-    try {
-      const res = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPw })
-      });
-      const result = await res.json();
-
-      if (!res.ok) {
-        newPasswordErrMsg.textContent = result.error || 'Nao foi possivel salvar a nova senha.';
-        newPasswordGroup.classList.add('invalid');
-        return;
-      }
-
-      const sessionRes = await fetch('/api/auth/session');
-      const session = await sessionRes.json();
-      if (!session.loggedIn || !session.authorized) return showOnly(accessDenied);
-      showOnly(responsesCont);
-      loadResponses();
-    } catch (err) {
-      console.error('Erro ao trocar senha:', err);
-      newPasswordErrMsg.textContent = 'Erro de conexao. Tente novamente.';
-      newPasswordGroup.classList.add('invalid');
-    } finally {
-      changePasswordBtn.disabled = false;
-      changePasswordBtn.innerHTML = origLabel;
-    }
-  });
-
-  /* ---------- Logout ---------- */
-  async function doLogout() {
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (_) {}
-    responses = [];
-    loginEmailInput.value = '';
-    showGate();
-  }
-
-  logoutBtn.addEventListener('click', doLogout);
-  deniedLogoutBtn.addEventListener('click', doLogout);
-
-  init();
 
   /* ---------- Lista de respostas ---------- */
   function renderList() {
@@ -217,7 +50,7 @@
     listEl.innerHTML = '<div class="empty-state"><p><i class="fa-solid fa-spinner fa-spin"></i> Carregando respostas...</p></div>';
     try {
       const res = await fetch('/api/responses?form=' + formId);
-      if (res.status === 401) { doLogout(); return; }
+      if (res.status === 401) { gate.logout(); return; }
       if (!res.ok) throw new Error((await res.json()).error);
       responses = await res.json();
       renderList();

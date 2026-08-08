@@ -9,16 +9,84 @@
 <%- include('partials/header', { logoHref: '/', headerTitle: 'Central de Formulários' }) %>
 
 <main class="page">
-  <div class="page-header">
-    <h1>Formulários disponíveis</h1>
-    <p>Selecione um formulário para preencher ou consulte respostas já enviadas.</p>
+
+  <!-- ===================== GATE DE LOGIN ===================== -->
+  <div class="wizard-card auth-card" id="auth-gate">
+    <div class="auth-icon"><i class="fa-solid fa-lock"></i></div>
+    <h2 class="wizard-title">Acesso restrito</h2>
+    <p class="wizard-desc">Entre com seu e-mail institucional. No primeiro acesso, use a senha padrão <strong>SaoMarcos</strong> — você vai trocar em seguida.</p>
+
+    <div class="field-group" id="login-email-group">
+      <label for="login-email">E-mail</label>
+      <input type="email" id="login-email" placeholder="seuemail@saomarcos.com.br" autocomplete="username">
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> <span id="login-email-error-message">Informe um e-mail válido.</span></div>
+    </div>
+
+    <div class="field-group" id="login-password-group">
+      <label for="login-password">Senha</label>
+      <input type="password" id="login-password" placeholder="Sua senha" autocomplete="current-password">
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> <span id="login-password-error-message">E-mail ou senha incorretos.</span></div>
+    </div>
+
+    <button type="button" class="btn btn-primary" id="login-btn" style="width:100%;">
+      <i class="fa-solid fa-right-to-bracket"></i> Entrar
+    </button>
   </div>
 
-  <div class="form-list" id="form-list">
-    <!-- preenchido via JS -->
+  <!-- ===================== TROCA DE SENHA ===================== -->
+  <div class="wizard-card auth-card hidden" id="change-password-gate">
+    <div class="auth-icon"><i class="fa-solid fa-key"></i></div>
+    <h2 class="wizard-title">Crie sua senha</h2>
+    <p class="wizard-desc">Esse é seu primeiro acesso. Defina uma senha nova e pessoal antes de continuar.</p>
+
+    <div class="field-group" id="new-password-group">
+      <label for="new-password">Nova senha</label>
+      <input type="password" id="new-password" placeholder="Mínimo de 8 caracteres" autocomplete="new-password">
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> <span id="new-password-error-message">A senha precisa ter ao menos 8 caracteres e ser diferente da padrão.</span></div>
+    </div>
+
+    <div class="field-group" id="confirm-password-group">
+      <label for="confirm-password">Confirme a nova senha</label>
+      <input type="password" id="confirm-password" placeholder="Repita a senha" autocomplete="new-password">
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> As senhas não são iguais.</div>
+    </div>
+
+    <button type="button" class="btn btn-primary" id="change-password-btn" style="width:100%;">
+      <i class="fa-solid fa-check"></i> Salvar nova senha
+    </button>
   </div>
+
+  <!-- ===================== ACESSO NEGADO ===================== -->
+  <div class="wizard-card auth-card hidden" id="access-denied">
+    <div class="auth-icon denied"><i class="fa-solid fa-user-lock"></i></div>
+    <h2 class="wizard-title">E-mail não autorizado</h2>
+    <p class="wizard-desc">Seu login funcionou, mas esse e-mail não tem permissão para acessar a central de formulários. Fale com a administração do colégio para ser liberado.</p>
+    <button type="button" class="btn btn-secondary" id="denied-logout-btn" style="width:100%;">Sair</button>
+  </div>
+
+  <!-- ===================== CONTEÚDO ===================== -->
+  <div class="hidden" id="home-content" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+    <div class="page-header">
+      <div class="page-header-row">
+        <div>
+          <h1>Formulários disponíveis</h1>
+          <p>Selecione um formulário para preencher ou consulte respostas já enviadas.</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="logout-btn">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sair
+        </button>
+      </div>
+    </div>
+
+    <div class="form-list" id="form-list" style="max-width:760px;">
+      <!-- preenchido via JS -->
+    </div>
+  </div>
+
 </main>
 
 <script src="/js/main.js"></script>
+<script src="/js/auth-gate.js"></script>
+<script src="/js/index.js"></script>
 </body>
 </html>
