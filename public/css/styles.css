@@ -669,6 +669,173 @@ body {
   background: rgba(15, 56, 90, 0.05);
 }
 
+/* ---------- Provas aninhadas dentro de um aluno (avaliação substitutiva) ---------- */
+.provas-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.prova-block {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 16px 16px 2px;
+  background: #fff;
+}
+
+.prova-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.prova-block-header span {
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.remove-prova-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-prova-btn {
+  background: none;
+  border: 1px dashed var(--primary);
+  color: var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  width: 100%;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  margin: 14px 0 20px;
+}
+
+.add-prova-btn:hover {
+  background: rgba(15, 56, 90, 0.05);
+}
+
+/* ---------- Upload de anexo (avaliação substitutiva) ---------- */
+.field-group input[type="file"] {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-color);
+  background: var(--bg-light);
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--text-main);
+}
+
+.field-group input[type="file"]:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.anexo-preview {
+  margin-top: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--bg-light);
+}
+
+.anexo-preview .anexo-preview-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+
+.anexo-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 8px;
+  margin: 0 auto;
+}
+
+.anexo-preview iframe {
+  width: 100%;
+  height: 360px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* ---------- Bloco de pagamento PIX (avaliação substitutiva) ---------- */
+.pix-box {
+  background: rgba(15, 56, 90, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+}
+
+.pix-box h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--primary);
+}
+
+.pix-box p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-main);
+}
+
+.pix-key-row {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.pix-key-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.pix-key-value {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  word-break: break-all;
+  font-family: 'Courier New', monospace;
+}
+
 /* ---------- Wizard nav ---------- */
 .wizard-nav {
   display: flex;

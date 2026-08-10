@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avaliação Substitutiva | Colégio São Marcos</title>
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+<main class="page">
+  <div class="wizard-card">
+
+    <div style="text-align:center;margin-bottom:20px;align-items:center;display:flex;justify-content:center;">
+      <img src="/images/logo.jpg" alt="Logotipo do Colégio São Marcos" class="header-logo">
+    </div>
+
+    <!-- STEP INDICATOR -->
+    <div class="stepper" id="stepper" role="list" aria-label="Progresso do formulário">
+      <div class="step-node" data-step="1" role="listitem">
+        <div class="step-circle"><i class="fa-solid fa-user-graduate"></i></div>
+        <span class="step-name">Alunos e Provas</span>
+      </div>
+      <div class="step-connector" data-connector="1"><span class="step-connector-fill"></span></div>
+
+      <div class="step-node" data-step="2" role="listitem">
+        <div class="step-circle"><i class="fa-solid fa-clipboard-check"></i></div>
+        <span class="step-name">Revisão</span>
+      </div>
+    </div>
+    <div class="wizard-step-label" id="step-label">Passo 1/2</div>
+
+    <form id="avaliacao-form" novalidate>
+
+      <!-- ===================== STEP 1: ALUNOS E PROVAS ===================== -->
+      <section class="wizard-step" data-step="1">
+        <h2 class="wizard-title">Alunos e avaliações perdidas</h2>
+        <p class="wizard-desc">
+          Informe os dados de cada aluno e, para cada um, adicione as avaliações que ele perdeu — com a disciplina,
+          o segmento, a data e o motivo de cada uma. Se mais de um filho precisa de avaliação substitutiva,
+          adicione quantos alunos forem necessários.
+        </p>
+
+        <div id="alunos-container"></div>
+
+        <button type="button" class="add-student-btn" id="add-aluno-btn">+ Adicionar mais um aluno</button>
+      </section>
+
+      <!-- ===================== STEP 2: REVISÃO ===================== -->
+      <section class="wizard-step hidden" data-step="2">
+        <h2 class="wizard-title">Revise seu requerimento</h2>
+        <p class="wizard-desc">Confira se está tudo certo, incluindo os documentos anexados, antes de enviar.</p>
+
+        <div id="review-container"></div>
+
+        <!-- Aceite de termos -->
+        <div class="field-group consent-group" id="consent-group">
+          <label class="consent-label" for="consent-checkbox">
+            <input type="checkbox" id="consent-checkbox">
+            <span>
+              Li e concordo com a
+              <a href="#" class="policy-link" id="open-policy-link">Política de Privacidade</a>
+              do Colégio São Marcos, autorizo o uso dos meus dados pessoais exclusivamente para o processamento
+              deste requerimento, e declaro que as informações prestadas e os documentos anexados (atestados
+              médicos e/ou comprovantes de pagamento) são verdadeiros, estando ciente de que a veracidade poderá
+              ser verificada pelas coordenações.
+            </span>
+          </label>
+          <div class="error-text">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            É necessário aceitar os termos para enviar o requerimento.
+          </div>
+        </div>
+
+        <div class="error-banner hidden" id="submit-error">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span id="submit-error-message">Não foi possível enviar o requerimento. Verifique sua conexão e tente novamente.</span>
+        </div>
+      </section>
+
+      <!-- ===================== SUCESSO ===================== -->
+      <section class="wizard-step hidden" data-step="success">
+        <div class="success-box">
+          <div class="success-icon">✓</div>
+          <h2 class="wizard-title">Requerimento enviado!</h2>
+          <p class="wizard-desc">Recebemos seu requerimento de avaliação substitutiva. As coordenações responsáveis foram notificadas e entrarão em contato se necessário.</p>
+          <a href="/form-avaliacao-substitutiva" id="success-back-link" class="btn btn-primary">Voltar ao início</a>
+        </div>
+      </section>
+
+      <!-- ===================== NAV ===================== -->
+      <div class="wizard-nav" id="wizard-nav">
+        <button type="button" class="btn btn-secondary" id="back-btn">Voltar</button>
+        <button type="button" class="btn btn-primary" id="next-btn">Próximo</button>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Modal Política de Privacidade -->
+  <div id="policy-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Política de Privacidade e Tratamento de Dados</h2>
+        <button type="button" class="modal-close" id="close-policy-modal" aria-label="Fechar">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+          Documento elaborado em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD).
+        </p>
+
+        <section class="policy-section">
+          <h3><i class="fa-solid fa-school"></i> 1. Quem somos</h3>
+          <p>
+            O <strong>Colégio São Marcos</strong> é o controlador dos dados pessoais coletados por meio deste
+            formulário de requerimento de avaliação substitutiva.
+          </p>
+        </section>
+
+        <section class="policy-section">
+          <h3><i class="fa-solid fa-list-check"></i> 2. Quais dados coletamos</h3>
+          <p>Ao preencher este formulário, coletamos, para cada aluno e cada avaliação informada:</p>
+          <ul>
+            <li><strong>Dados do aluno:</strong> nome completo e turma.</li>
+            <li><strong>Dados de cada avaliação:</strong> disciplina, segmento e data da avaliação perdida.</li>
+            <li><strong>Justificativa de cada ausência:</strong> motivo (médico ou outro) e observações opcionais.</li>
+            <li><strong>Documento anexado a cada avaliação:</strong> atestado médico ou comprovante de pagamento da taxa de aplicação.</li>
+          </ul>
+        </section>
+
+        <section class="policy-section">
+          <h3><i class="fa-solid fa-bullseye"></i> 3. Para que usamos seus dados</h3>
+          <p>Seus dados serão utilizados <strong>exclusivamente para processar este requerimento</strong>, incluindo:</p>
+          <ul>
+            <li>Encaminhamento de cada avaliação e do respectivo anexo à coordenação responsável pelo seu segmento.</li>
+            <li>Organização e agendamento das avaliações substitutivas.</li>
+            <li>Registro e arquivamento administrativo interno.</li>
+          </ul>
+          <p>Não utilizamos seus dados para fins comerciais, marketing de terceiros ou quaisquer outras finalidades além das listadas acima.</p>
+        </section>
+
+        <section class="policy-section">
+          <h3><i class="fa-solid fa-scale-balanced"></i> 4. Base legal (LGPD)</h3>
+          <p>O tratamento dos seus dados pessoais é fundamentado nas seguintes bases legais previstas no Art. 7º da Lei nº 13.709/2018:</p>
+          <ul>
+            <li><strong>Consentimento (inciso I):</strong> você autoriza expressamente o uso dos seus dados ao marcar a caixa de aceite no formulário.</li>
+            <li><strong>Cumprimento de obrigação regulatória/contratual (incisos II e V):</strong> o tratamento é necessário para viabilizar as avaliações substitutivas previstas no regimento escolar.</li>
+          </ul>
+        </section>
+
+        <section class="policy-section">
+          <h3><i class="fa-solid fa-share-nodes"></i> 5. Compartilhamento de dados</h3>
+          <p>
+            Os dados e os documentos anexados de cada avaliação são compartilhados apenas com a coordenação
+            responsável pelo respectivo segmento (Língua materna ou Língua inglesa), internamente ao Colégio São
+            Marcos — cada coordenação recebe apenas as informações referentes às avaliações do seu segmento, não
+            o requerimento completo. Não há compartilhamento com terceiros para fins comerciais.
+          </p>
+        </section>
+
+        <section class="policy-section">
+          <h3><i class="fa-solid fa-clock"></i> 6. Prazo de retenção</h3>
+          <p>
+            Seus dados serão mantidos pelo período necessário à conclusão do processo de avaliação substitutiva e,
+            posteriormente, pelo prazo mínimo exigido pela legislação brasileira aplicável, sendo então eliminados
+            ou anonimizados.
+          </p>
+        </section>
+
+        <section class="policy-section">
+          <h3><i class="fa-solid fa-shield-halved"></i> 7. Segurança dos dados</h3>
+          <p>
+            Adotamos medidas técnicas e administrativas adequadas para proteger seus dados e os documentos
+            anexados contra acesso não autorizado, perda acidental, destruição ou divulgação indevida. O acesso
+            às respostas é restrito por autenticação individual aos colaboradores autorizados.
+          </p>
+        </section>
+
+        <section class="policy-section">
+          <h3><i class="fa-solid fa-user-check"></i> 8. Seus direitos como titular</h3>
+          <p>Em conformidade com a LGPD, você tem direito a acesso, correção, eliminação e portabilidade dos seus dados, além de poder revogar seu consentimento a qualquer momento, sem prejuízo ao tratamento já realizado.</p>
+        </section>
+
+        <section class="policy-section">
+          <h3><i class="fa-solid fa-envelope"></i> 9. Contato</h3>
+          <p>
+            Para exercer seus direitos ou esclarecer dúvidas sobre o tratamento dos seus dados, entre em contato com a secretaria do Colégio São Marcos:
+          </p>
+          <ul>
+            <li><strong>Endereço:</strong> Mogi das Cruzes — SP</li>
+            <li><strong>E-mail:</strong> <a href="mailto:secretaria@saomarcos.com.br">secretaria@saomarcos.com.br</a></li>
+          </ul>
+        </section>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="close-policy-btn">Fechar</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ===================== TEMPLATE: BLOCO DE ALUNO ===================== -->
+<template id="aluno-block-template">
+  <div class="student-block aluno-block" data-aluno-index="">
+    <div class="student-block-header">
+      <span>Aluno</span>
+      <button type="button" class="remove-student-btn remove-aluno-btn" title="Remover aluno" aria-label="Remover aluno">
+        <i class="fa-solid fa-circle-minus"></i> Remover aluno
+      </button>
+    </div>
+
+    <div class="field-group">
+      <label>Nome completo do aluno</label>
+      <input type="text" class="aluno-nome" placeholder="Nome completo do aluno">
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe o nome completo (nome e sobrenome).</div>
+    </div>
+
+    <div class="field-group">
+      <label>Turma</label>
+      <select class="aluno-turma">
+        <option value="">Selecione</option>
+        <option>Educação Infantil - Maternal</option>
+        <option>Educação Infantil - Jardim I</option>
+        <option>Educação Infantil - Jardim II</option>
+        <option>Fundamental I - 1º ano</option>
+        <option>Fundamental I - 2º ano</option>
+        <option>Fundamental I - 3º ano</option>
+        <option>Fundamental I - 4º ano</option>
+        <option>Fundamental I - 5º ano</option>
+        <option>Fundamental II - 6º ano</option>
+        <option>Fundamental II - 7º ano</option>
+        <option>Fundamental II - 8º ano</option>
+        <option>Fundamental II - 9º ano</option>
+        <option>Ensino Médio - 1ª série</option>
+        <option>Ensino Médio - 2ª série</option>
+        <option>Ensino Médio - 3ª série</option>
+      </select>
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Selecione a turma do aluno.</div>
+    </div>
+
+    <div class="provas-container"></div>
+
+    <button type="button" class="add-prova-btn">+ Adicionar avaliação perdida deste aluno</button>
+  </div>
+</template>
+
+<!-- ===================== TEMPLATE: BLOCO DE AVALIAÇÃO (PROVA) ===================== -->
+<template id="prova-block-template">
+  <div class="prova-block" data-prova-index="">
+    <div class="prova-block-header">
+      <span>Avaliação</span>
+      <button type="button" class="remove-prova-btn" title="Remover avaliação" aria-label="Remover avaliação">
+        <i class="fa-solid fa-circle-minus"></i> Remover
+      </button>
+    </div>
+
+    <div class="field-row">
+      <div class="field-group">
+        <label>Disciplina</label>
+        <input type="text" class="prova-disciplina" placeholder="Ex: Matemática">
+        <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe a disciplina da avaliação.</div>
+      </div>
+      <div class="field-group">
+        <label>Data da avaliação perdida</label>
+        <input type="date" class="prova-data">
+        <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe a data da avaliação perdida.</div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <span class="field-legend">Segmento</span>
+      <div class="choice-group prova-segmento-choice">
+        <button type="button" class="choice-pill" data-value="lingua_materna"><span class="check">✓</span> Língua materna</button>
+        <button type="button" class="choice-pill" data-value="lingua_inglesa"><span class="check">✓</span> Língua inglesa</button>
+      </div>
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Selecione o segmento desta avaliação.</div>
+    </div>
+
+    <div class="field-group">
+      <span class="field-legend">Motivo da ausência</span>
+      <div class="choice-group prova-motivo-choice">
+        <button type="button" class="choice-pill" data-value="medico"><span class="check">✓</span> Atestado médico</button>
+        <button type="button" class="choice-pill" data-value="outro"><span class="check">✓</span> Outro motivo</button>
+      </div>
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Selecione o motivo da ausência.</div>
+    </div>
+
+    <!-- ---------- Motivo: médico ---------- -->
+    <div class="field-group hidden prova-motivo-medico-group">
+      <div class="hint" style="margin-bottom:14px;">
+        <i class="fa-solid fa-circle-info"></i>
+        Em caso de motivo médico, é necessário anexar o atestado correspondente à data desta avaliação.
+      </div>
+      <label>Atestado médico</label>
+      <input type="file" class="prova-anexo-input prova-anexo-medico-input" accept="image/*,application/pdf">
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> <span class="anexo-error-message">Anexe o atestado médico (imagem ou PDF, até 8MB).</span></div>
+      <div class="anexo-preview hidden"></div>
+    </div>
+
+    <!-- ---------- Motivo: outro ---------- -->
+    <div class="field-group hidden prova-motivo-outro-group">
+      <div class="pix-box">
+        <h4><i class="fa-solid fa-circle-info"></i> Taxa de aplicação da avaliação substitutiva</h4>
+        <p>
+          Para avaliações perdidas por motivos não médicos, é cobrada uma taxa de <strong>R$ 50,00 por prova</strong>.
+          Esse valor cobre o custo de disponibilizar um professor especificamente para elaborar e aplicar a
+          avaliação substitutiva em um novo horário, fora da grade regular de aulas — um trabalho extra que garante
+          que o aluno não perca o conteúdo avaliado. O pagamento é feito por prova, e a aplicação só é agendada
+          após a confirmação do comprovante.
+        </p>
+        <div class="pix-key-row">
+          <div>
+            <span class="pix-key-label">Chave PIX (aleatória)</span>
+            <span class="pix-key-value pix-key-value-copy">681b6f31-5916-4a70-be2c-a7b3f932e453</span>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm copy-pix-btn">
+            <i class="fa-regular fa-copy"></i> Copiar chave
+          </button>
+        </div>
+      </div>
+
+      <label style="margin-top:18px;display:block;">Comprovante de pagamento</label>
+      <input type="file" class="prova-anexo-input prova-anexo-outro-input" accept="image/*,application/pdf">
+      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> <span class="anexo-error-message">Anexe o comprovante de pagamento (imagem ou PDF, até 8MB).</span></div>
+      <div class="anexo-preview hidden"></div>
+    </div>
+
+    <div class="field-group">
+      <label>Observações <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
+      <textarea class="prova-observacoes" placeholder="Se quiser, deixe alguma observação adicional sobre esta avaliação"></textarea>
+    </div>
+  </div>
+</template>
+
+<script src="/js/main.js"></script>
+<script src="/js/review-renderer.js"></script>
+<script src="/js/wizard-avaliacao.js"></script>
+<script src="/js/policy-modal.js"></script>
+</body>
+</html>

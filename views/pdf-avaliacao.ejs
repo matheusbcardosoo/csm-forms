@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+  /* Pagina isolada so pra impressao via Puppeteer — sem chrome de app */
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+
+  #pdf-root .review-card { border-color: #0F385A; }
+  #pdf-root .review-card-header { border-bottom-color: #0F385A; }
+
+  #pdf-root .review-card-header { padding-top: 7px; padding-bottom: 7px; }
+  #pdf-root .review-card-body { padding-top: 12px; padding-bottom: 12px; }
+  #pdf-root .review-grid { row-gap: 10px; }
+</style>
+</head>
+<body>
+
+<!--
+  Este markup segue o mesmo padrao de views/pdf-visita.ejs: usa os mesmos
+  cards de revisao (SMReview.buildAvaliacaoReviewCards) exibidos no wizard,
+  so que renderizados no servidor via Puppeteer. Agora com varios alunos,
+  cada um com varias provas — a assinatura no fim lista todos os alunos.
+-->
+<div id="pdf-root" style="width:794px;background:#ffffff;padding:10px 12px;box-sizing:border-box;font-family:Inter, Segoe UI, Arial, sans-serif;font-size:13px;color:#1a2530;">
+  <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #e2e8f0;">
+    <img src="/images/logo.jpg" alt="Colégio São Marcos" style="max-height:60px;display:block;justify-self:start;">
+    <h1 style="text-align:center;font-size:15px;font-weight:700;color:#0F385A;margin:0;white-space:nowrap;">Requerimento de Avaliação Substitutiva</h1>
+    <img src="/images/logo-brasao.png" alt="São Marcos School" style="max-height:60px;display:block;justify-self:end;">
+  </div>
+
+  <div id="pdf-review-cards"></div>
+
+  <div style="margin-top:22px;">
+    <p style="font-size:11px;margin:0 0 28px;">Mogi das Cruzes, <span id="pdf-date-extenso"></span>.</p>
+    <div style="display:flex;justify-content:center;">
+      <div style="flex:1;max-width:420px;text-align:center;">
+        <div style="border-top:1px solid #1a2530;margin-bottom:6px;"></div>
+        <p style="font-size:11px;color:#7a8794;margin:0;" id="pdf-sig-responsavel">Assinatura do Responsável pelo(s) Aluno(s)</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.__AVALIACAO_DATA__ = <%- JSON.stringify(data) %>;
+  window.__AVALIACAO_SUBMITTED_AT__ = <%- JSON.stringify(submittedAt) %>;
+  window.__ANEXO_DATA_URLS__ = <%- JSON.stringify(anexoDataUrls) %>;
+</script>
+<script src="/js/main.js"></script>
+<script src="/js/review-renderer.js"></script>
+<script>
+  (function () {
+    var data = window.__AVALIACAO_DATA__ || {};
+    var anexoDataUrls = window.__ANEXO_DATA_URLS__ || {};
+    var alunos = data.alunos || [];
+
+    var alunosForReview = alunos.map(function (aluno) {
+      return {
+        nome: aluno.nome,
+        turma: aluno.turma,
+        provas: (aluno.provas || []).map(function (prova) {
+          return {
+            disciplina: prova.disciplina,
+            segmento: prova.segmento,
+            data: prova.data,
+            motivo: prova.motivo,
+            anexoPreview: prova.anexo && prova.anexo.nome ? {
+              nome: prova.anexo.nome,
+              tipo: prova.anexo.tipo,
+              url: anexoDataUrls[prova.id] || null
+            } : null
+          };
+        })
+      };
+    });
+
+    document.getElementById('pdf-review-cards').innerHTML =
+      SMReview.buildAvaliacaoReviewCards({ alunos: alunosForReview }, false);
+
+    document.getElementById('pdf-date-extenso').textContent =
+      SM.formatDateExtenso(window.__AVALIACAO_SUBMITTED_AT__);
+
+    var nomes = alunos.map(function (a) { return a.nome; }).filter(Boolean);
+    if (nomes.length) {
+      document.getElementById('pdf-sig-responsavel').innerHTML =
+        'Assinatura do Responsável pelo(s) Aluno(s)<br><strong>' + SM.escapeHtml(nomes.join(' e ')) + '</strong>';
+    }
+
+    function waitForImages() {
+      var imgs = document.querySelectorAll('img');
+      return Promise.all(Array.prototype.map.call(imgs, function (img) {
+        if (img.complete) return Promise.resolve();
+        return new Promise(function (resolve) {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      }));
+    }
+
+    waitForImages().then(function () {
+      window.__PDF_READY__ = true;
+    });
+  })();
+</script>
+</body>
+</html>

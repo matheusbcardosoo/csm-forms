@@ -151,5 +151,92 @@
     return html;
   }
 
-  window.SMReview = { buildReviewCards };
+  const SEGMENTO_LABELS = {
+    lingua_materna: 'Língua materna',
+    lingua_inglesa: 'Língua inglesa'
+  };
+
+  const MOTIVO_LABELS = {
+    medico: 'Atestado médico',
+    outro: 'Outro motivo (pagamento de taxa)'
+  };
+
+  // Pré-visualização (local ou remota) de um único anexo de prova.
+  // anexoPreview: { nome, tipo, url } (wizard, url local) OU { nome, tipo, provaId } (modal admin, botão "Ver anexo").
+  function anexoPreviewHtml(anexoPreview) {
+    if (!anexoPreview || !anexoPreview.nome) {
+      return `<span class="review-item-value muted">Nenhum documento anexado.</span>`;
+    }
+
+    let mediaHtml = '';
+    if (anexoPreview.url && (anexoPreview.tipo || '').startsWith('image/')) {
+      mediaHtml = `<img src="${anexoPreview.url}" alt="Documento anexado" style="display:block;max-width:100%;max-height:320px;border-radius:8px;margin:10px auto 0;">`;
+    } else if (anexoPreview.url && anexoPreview.tipo === 'application/pdf') {
+      mediaHtml = `<iframe src="${anexoPreview.url}" title="Documento anexado (PDF)" style="width:100%;height:340px;border:1px solid var(--border-color, #e4e8ee);border-radius:8px;margin-top:10px;"></iframe>`;
+    } else if (!anexoPreview.url && anexoPreview.provaId) {
+      mediaHtml = `<button type="button" class="btn-secondary review-anexo-btn" data-prova-id="${esc(anexoPreview.provaId)}" style="margin-top:8px;"><i class="fa-solid fa-eye"></i> Ver anexo</button>`;
+    }
+
+    return `
+      <div class="review-item-full">
+        <span class="review-item-label">Arquivo enviado</span>
+        <span class="review-item-value">${esc(anexoPreview.nome)}</span>
+      </div>
+      ${mediaHtml}
+    `;
+  }
+
+  /**
+   * Constrói o HTML dos cards de revisão a partir dos dados coletados do
+   * formulário de avaliação substitutiva — um ou mais alunos, cada um com
+   * uma ou mais avaliações (provas) perdidas.
+   * @param {object} data - { alunos: [{ nome, turma, provas: [{ disciplina,
+   *   segmento, data, motivo: {tipo, observacoes}, anexoPreview }] }] }
+   *   anexoPreview (opcional por prova): { nome, tipo, url } no wizard
+   *   (url local/object URL), ou { nome, tipo, provaId } no modal admin
+   *   (sem preview local, mostra botão "Ver anexo").
+   * @param {boolean} editable - se true, inclui botões "Editar" com data-goto
+   */
+  function buildAvaliacaoReviewCards(data, editable) {
+    let html = '';
+    const alunos = data.alunos || [];
+
+    alunos.forEach((aluno, alunoIdx) => {
+      const provas = aluno.provas || [];
+
+      let provasHtml = '';
+      provas.forEach((prova, provaIdx) => {
+        const motivo = prova.motivo || {};
+        provasHtml += `<div class="review-student">
+          <div class="review-student-header"><i class="fa-solid fa-file-pen"></i> Avaliação ${provaIdx + 1}</div>
+          <div class="review-grid">
+            ${item('Disciplina', prova.disciplina, true)}
+            ${item('Segmento', SEGMENTO_LABELS[prova.segmento] || prova.segmento)}
+            ${item('Data da avaliação perdida', prova.data ? SM.formatDateOnly(prova.data) : '')}
+            ${item('Motivo', MOTIVO_LABELS[motivo.tipo] || motivo.tipo)}
+            ${item('Observações', motivo.observacoes, true)}
+          </div>
+          <div class="review-item-full" style="margin-top:8px;">
+            <span class="review-item-label">Documento anexado</span>
+            ${anexoPreviewHtml(prova.anexoPreview)}
+          </div>
+        </div>`;
+      });
+
+      html += `<div class="review-card">
+        ${cardHeader('fa-user-graduate', `Aluno ${alunoIdx + 1}${aluno.nome ? ' — ' + aluno.nome : ''}`, 1, editable)}
+        <div class="review-card-body">
+          <div class="review-grid">
+            ${item('Nome completo', aluno.nome, true)}
+            ${item('Turma', aluno.turma)}
+          </div>
+          ${provasHtml}
+        </div>
+      </div>`;
+    });
+
+    return html;
+  }
+
+  window.SMReview = { buildReviewCards, buildAvaliacaoReviewCards };
 })();

@@ -115,3 +115,140 @@ create policy "staff_select_visita_alunos"
   using (exists (
     select 1 from staff_emails se where se.email = auth.email()
   ));
+
+-- ==========================================================
+-- Schema do Formulário de Requerimento de Avaliação Substitutiva
+--
+-- Estrutura em 3 níveis, pra suportar um requerimento com mais de um
+-- aluno (ex.: irmãos) e, pra cada aluno, mais de uma avaliação perdida:
+--   avaliacao_substitutiva_respostas  (1 por envio do formulário)
+--     -> avaliacao_substitutiva_alunos       (1 para N por requerimento)
+--          -> avaliacao_substitutiva_provas  (1 para N por aluno)
+-- Cada prova tem sua própria disciplina/segmento/data/motivo/anexo —
+-- é a prova, não o aluno nem o requerimento, que define pra qual
+-- coordenação (língua materna/inglesa) a informação é relevante.
+-- ==========================================================
+
+-- ---------- Requerimento (raiz) ----------
+create table if not exists avaliacao_substitutiva_respostas (
+  id             uuid primary key default gen_random_uuid(),
+  submitted_at   timestamptz not null default now()
+);
+
+create index if not exists idx_avaliacao_substitutiva_submitted_at
+  on avaliacao_substitutiva_respostas (submitted_at desc);
+
+-- ---------- Alunos (1 para N por requerimento) ----------
+create table if not exists avaliacao_substitutiva_alunos (
+  id           uuid primary key default gen_random_uuid(),
+  avaliacao_id uuid not null references avaliacao_substitutiva_respostas (id) on delete cascade,
+  nome         text not null,
+  turma        text not null,
+  ordem        int not null default 0
+);
+
+create index if not exists idx_avaliacao_substitutiva_alunos_avaliacao_id
+  on avaliacao_substitutiva_alunos (avaliacao_id);
+
+-- ---------- Provas perdidas (1 para N por aluno) ----------
+create table if not exists avaliacao_substitutiva_provas (
+  id             uuid primary key default gen_random_uuid(),
+  aluno_id       uuid not null references avaliacao_substitutiva_alunos (id) on delete cascade,
+
+  disciplina     text not null,
+  segmento       text not null check (segmento in ('lingua_materna', 'lingua_inglesa')),
+  data_avaliacao date not null,
+
+  motivo_tipo    text not null check (motivo_tipo in ('medico', 'outro')),
+  observacoes    text,
+
+  -- Anexo (atestado médico ou comprovante de pagamento) guardado no Storage
+  -- bucket "avaliacao-anexos" — ver policies mais abaixo. Cada prova tem o
+  -- seu próprio anexo (o pagamento é por prova perdida).
+  anexo_path     text not null,
+  anexo_nome     text not null,
+  anexo_tipo     text not null,
+
+  ordem          int not null default 0
+);
+
+create index if not exists idx_avaliacao_substitutiva_provas_aluno_id
+  on avaliacao_substitutiva_provas (aluno_id);
+
+alter table avaliacao_substitutiva_respostas enable row level security;
+alter table avaliacao_substitutiva_alunos enable row level security;
+alter table avaliacao_substitutiva_provas enable row level security;
+
+grant usage on schema public to anon, authenticated;
+grant select, insert on avaliacao_substitutiva_respostas to anon, authenticated;
+grant select, insert on avaliacao_substitutiva_alunos to anon, authenticated;
+grant select, insert on avaliacao_substitutiva_provas to anon, authenticated;
+
+-- Envio público (mesma lógica de visita_respostas): qualquer pessoa com o
+-- link do formulário pode enviar um requerimento, sem precisar de login.
+drop policy if exists "public_insert_avaliacao_substitutiva" on avaliacao_substitutiva_respostas;
+create policy "public_insert_avaliacao_substitutiva"
+  on avaliacao_substitutiva_respostas for insert
+  to anon, authenticated
+  with check (true);
+
+drop policy if exists "public_insert_avaliacao_substitutiva_alunos" on avaliacao_substitutiva_alunos;
+create policy "public_insert_avaliacao_substitutiva_alunos"
+  on avaliacao_substitutiva_alunos for insert
+  to anon, authenticated
+  with check (true);
+
+drop policy if exists "public_insert_avaliacao_substitutiva_provas" on avaliacao_substitutiva_provas;
+create policy "public_insert_avaliacao_substitutiva_provas"
+  on avaliacao_substitutiva_provas for insert
+  to anon, authenticated
+  with check (true);
+
+-- Leitura das respostas exige login (magic link/senha) E e-mail presente
+-- em staff_emails — mesma regra da tela "Ver respostas" de visitas.
+drop policy if exists "staff_select_avaliacao_substitutiva" on avaliacao_substitutiva_respostas;
+create policy "staff_select_avaliacao_substitutiva"
+  on avaliacao_substitutiva_respostas for select
+  to authenticated
+  using (exists (
+    select 1 from staff_emails se where se.email = auth.email()
+  ));
+
+drop policy if exists "staff_select_avaliacao_substitutiva_alunos" on avaliacao_substitutiva_alunos;
+create policy "staff_select_avaliacao_substitutiva_alunos"
+  on avaliacao_substitutiva_alunos for select
+  to authenticated
+  using (exists (
+    select 1 from staff_emails se where se.email = auth.email()
+  ));
+
+drop policy if exists "staff_select_avaliacao_substitutiva_provas" on avaliacao_substitutiva_provas;
+create policy "staff_select_avaliacao_substitutiva_provas"
+  on avaliacao_substitutiva_provas for select
+  to authenticated
+  using (exists (
+    select 1 from staff_emails se where se.email = auth.email()
+  ));
+
+-- ---------- Storage: bucket para os anexos (atestado / comprovante) ----------
+-- Bucket privado — nada é servido publicamente. Upload é público (o próprio
+-- envio do formulário), leitura só para a equipe autorizada (staff_emails)
+-- ou para o service_role (usado pela rota interna de PDF e pelo envio ao n8n).
+insert into storage.buckets (id, name, public)
+values ('avaliacao-anexos', 'avaliacao-anexos', false)
+on conflict (id) do nothing;
+
+drop policy if exists "public_upload_avaliacao_anexos" on storage.objects;
+create policy "public_upload_avaliacao_anexos"
+  on storage.objects for insert
+  to anon, authenticated
+  with check (bucket_id = 'avaliacao-anexos');
+
+drop policy if exists "staff_read_avaliacao_anexos" on storage.objects;
+create policy "staff_read_avaliacao_anexos"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'avaliacao-anexos'
+    and exists (select 1 from staff_emails se where se.email = auth.email())
+  );

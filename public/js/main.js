@@ -8,7 +8,16 @@ const FORMS = [
     nome: 'Formulário de Visitas',
     descricao: 'Cadastro de visita para famílias interessadas em matrícula.',
     icon: '🏫',
-    url: '/form-visitas'
+    url: '/form-visitas',
+    blankPdfUrl: '/api/blank/visita/pdf'
+  },
+  {
+    id: 'avaliacao-substitutiva',
+    nome: 'Requerimento de Avaliação Substitutiva',
+    descricao: 'Solicitação de segunda chamada para avaliação perdida, com anexo de atestado ou comprovante.',
+    icon: '📝',
+    url: '/form-avaliacao-substitutiva',
+    blankPdfUrl: '/api/blank/avaliacao/pdf'
   }
 ];
 

@@ -3,8 +3,14 @@ const express = require('express');
 const { randomUUID } = require('crypto');
 const { getAnonClient, getAuthenticatedClient } = require('../lib/supabase');
 const { shapeVisitaRow, pdfFilename } = require('../lib/visita');
-const { renderVisitaPdf, renderVisitaBlankPdf } = require('../lib/pdf');
-const { notifyN8n } = require('../lib/n8n');
+const { shapeAvaliacaoRow, pdfFilename: avaliacaoPdfFilename } = require('../lib/avaliacao');
+const { renderVisitaPdf, renderVisitaBlankPdf, renderAvaliacaoPdf, renderAvaliacaoBlankPdf } = require('../lib/pdf');
+const { notifyN8n, notifyN8nAvaliacao } = require('../lib/n8n');
+
+// Anexos aceitos no formulário de avaliação substitutiva (atestado médico ou
+// comprovante de pagamento) — imagens comuns de foto/scan e PDF.
+const ANEXO_TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
+const ANEXO_TAMANHO_MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
 const router = express.Router();
 
@@ -197,6 +203,17 @@ router.get('/responses', async (req, res) => {
       .maybeSingle();
     if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
 
+    const form = req.query.form || 'visitas';
+
+    if (form === 'avaliacao-substitutiva') {
+      const { data: rows, error } = await client
+        .from('avaliacao_substitutiva_respostas')
+        .select('*, avaliacao_substitutiva_alunos(*, avaliacao_substitutiva_provas(*))')
+        .order('submitted_at', { ascending: false });
+      if (error) throw error;
+      return res.json((rows || []).map(shapeAvaliacaoRow));
+    }
+
     const { data: rows, error } = await client
       .from('visita_respostas')
       .select('*, visita_alunos(*)')
@@ -225,6 +242,31 @@ router.get('/responses/:id/pdf', async (req, res) => {
       .maybeSingle();
     if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
 
+    const baseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+
+    if (req.query.form === 'avaliacao-substitutiva') {
+      const { data: row, error } = await client
+        .from('avaliacao_substitutiva_respostas')
+        .select('*, avaliacao_substitutiva_alunos(*, avaliacao_substitutiva_provas(*))')
+        .eq('id', req.params.id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!row) return res.status(404).json({ error: 'Resposta não encontrada.' });
+
+      const avaliacao = shapeAvaliacaoRow(row);
+      const pdfBuffer = await renderAvaliacaoPdf({
+        baseUrl,
+        avaliacaoId: avaliacao.id,
+        internalToken: process.env.INTERNAL_PDF_SECRET
+      });
+
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${avaliacaoPdfFilename(avaliacao)}"`
+      });
+      return res.send(pdfBuffer);
+    }
+
     const { data: row, error } = await client
       .from('visita_respostas')
       .select('*, visita_alunos(*)')
@@ -235,7 +277,7 @@ router.get('/responses/:id/pdf', async (req, res) => {
 
     const visita = shapeVisitaRow(row);
     const pdfBuffer = await renderVisitaPdf({
-      baseUrl: process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
+      baseUrl,
       visitaId: visita.id,
       internalToken: process.env.INTERNAL_PDF_SECRET
     });
@@ -245,6 +287,46 @@ router.get('/responses/:id/pdf', async (req, res) => {
       'Content-Disposition': `attachment; filename="${pdfFilename(visita)}"`
     });
     res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// URL assinada (temporária) pro anexo de UMA prova especifica de um
+// requerimento de avaliação substitutiva — usada pelo botão "Ver anexo" na
+// tela de respostas. Cada prova tem o seu próprio anexo (aluno pode ter
+// mais de uma avaliação perdida, cada uma com seu atestado/comprovante), por
+// isso a URL é por prova, não por requerimento. O bucket é privado (ver
+// supabase/schema.sql), então staff precisa dessa URL pra visualizar/baixar
+// o arquivo original.
+router.get('/responses/:id/anexo/:provaId', async (req, res) => {
+  const client = await requireAuth(req, res);
+  if (!client) return;
+
+  try {
+    const { data: staffData } = await client
+      .from('staff_emails')
+      .select('email')
+      .maybeSingle();
+    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+
+    // O join com avaliacao_substitutiva_alunos!inner garante que a prova
+    // pertence mesmo ao requerimento :id (não só que o id da prova existe).
+    const { data: row, error } = await client
+      .from('avaliacao_substitutiva_provas')
+      .select('anexo_path, avaliacao_substitutiva_alunos!inner(avaliacao_id)')
+      .eq('id', req.params.provaId)
+      .eq('avaliacao_substitutiva_alunos.avaliacao_id', req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) return res.status(404).json({ error: 'Anexo não encontrado.' });
+
+    const { data: signed, error: signError } = await client.storage
+      .from('avaliacao-anexos')
+      .createSignedUrl(row.anexo_path, 120);
+    if (signError) throw signError;
+
+    res.json({ url: signed.signedUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -266,6 +348,23 @@ router.post('/responses/:id/whatsapp', async (req, res) => {
       .select('email')
       .maybeSingle();
     if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+
+    if (req.query.form === 'avaliacao-substitutiva') {
+      const { data: row, error } = await client
+        .from('avaliacao_substitutiva_respostas')
+        .select('id')
+        .eq('id', req.params.id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!row) return res.status(404).json({ error: 'Resposta não encontrada.' });
+
+      if (!process.env.N8N_AVALIACAO_WEBHOOK_URL) {
+        return res.status(503).json({ error: 'Integração com WhatsApp não está configurada (N8N_AVALIACAO_WEBHOOK_URL vazio).' });
+      }
+
+      await notifyN8nAvaliacao(req.params.id);
+      return res.json({ success: true });
+    }
 
     const { data: row, error } = await client
       .from('visita_respostas')
@@ -311,6 +410,35 @@ router.get('/blank/visita/pdf', async (req, res) => {
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': 'attachment; filename="modelo-visita-em-branco.pdf"'
+    });
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modelo de requerimento de avaliação substitutiva EM BRANCO — mesma lógica
+// de acesso e mesmo motivo da rota acima (ferramenta da secretaria, não o
+// link público do formulário).
+router.get('/blank/avaliacao/pdf', async (req, res) => {
+  const client = await requireAuth(req, res);
+  if (!client) return;
+
+  try {
+    const { data: staffData } = await client
+      .from('staff_emails')
+      .select('email')
+      .maybeSingle();
+    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+
+    const pdfBuffer = await renderAvaliacaoBlankPdf({
+      baseUrl: process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
+      internalToken: process.env.INTERNAL_PDF_SECRET
+    });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename="modelo-avaliacao-substitutiva-em-branco.pdf"'
     });
     res.send(pdfBuffer);
   } catch (err) {
@@ -406,6 +534,137 @@ router.post('/responses', async (req, res) => {
     // aqui so vao pro log do servidor.
     notifyN8n(visitaId).catch(err => {
       console.error(`[n8n] Falha ao notificar workflow para visita ${visitaId}:`, err.message);
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ================================================================
+   AVALIAÇÃO SUBSTITUTIVA
+   ================================================================ */
+
+// Nome de arquivo seguro pro Storage — mantém a extensão original, troca
+// tudo que não é alfanumérico/ponto/hífen por "-" no nome base.
+function sanitizeFileName(name) {
+  const raw = String(name || 'anexo');
+  const dot = raw.lastIndexOf('.');
+  const base = dot > 0 ? raw.slice(0, dot) : raw;
+  const ext = dot > 0 ? raw.slice(dot) : '';
+  const safeBase = base.normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'anexo';
+  const safeExt = ext.replace(/[^a-zA-Z0-9.]+/g, '');
+  return safeBase + safeExt;
+}
+
+// Valida os dados de UMA prova (usado em loop abaixo, um requerimento pode
+// ter várias). Retorna uma mensagem de erro (string) ou null se estiver ok.
+function validateProva(prova) {
+  if (!prova || !prova.disciplina || !prova.segmento || !prova.data) {
+    return 'Dados de uma das avaliações estão incompletos.';
+  }
+  if (!['lingua_materna', 'lingua_inglesa'].includes(prova.segmento)) {
+    return 'Segmento inválido em uma das avaliações.';
+  }
+  const motivo = prova.motivo || {};
+  if (!['medico', 'outro'].includes(motivo.tipo)) {
+    return 'Motivo da ausência inválido em uma das avaliações.';
+  }
+  const anexo = prova.anexo || {};
+  if (!anexo.base64 || !anexo.nome || !anexo.tipo) {
+    return 'É necessário anexar o documento (atestado ou comprovante) de cada avaliação.';
+  }
+  if (!ANEXO_TIPOS_ACEITOS.includes(anexo.tipo)) {
+    return 'Tipo de arquivo não suportado em um dos anexos. Envie uma imagem (JPG/PNG) ou PDF.';
+  }
+  return null;
+}
+
+router.post('/avaliacoes', async (req, res) => {
+  try {
+    const data = req.body || {};
+    const alunos = Array.isArray(data.alunos) ? data.alunos : [];
+
+    // Validação mínima do lado do servidor — o wizard já valida tudo isso,
+    // mas o endpoint é público (qualquer requisição pode chegar aqui).
+    if (!alunos.length) {
+      return res.status(400).json({ error: 'Informe ao menos um aluno.' });
+    }
+    for (const aluno of alunos) {
+      if (!aluno.nome || !aluno.turma) {
+        return res.status(400).json({ error: 'Dados de um dos alunos estão incompletos.' });
+      }
+      const provas = Array.isArray(aluno.provas) ? aluno.provas : [];
+      if (!provas.length) {
+        return res.status(400).json({ error: `Adicione ao menos uma avaliação perdida para ${aluno.nome}.` });
+      }
+      for (const prova of provas) {
+        const provaError = validateProva(prova);
+        if (provaError) return res.status(400).json({ error: provaError });
+
+        const anexoBuffer = Buffer.from(prova.anexo.base64, 'base64');
+        if (anexoBuffer.length > ANEXO_TAMANHO_MAX_BYTES) {
+          return res.status(400).json({ error: 'Um dos arquivos anexados é muito grande (máximo de 8MB).' });
+        }
+      }
+    }
+
+    const client = getAnonClient();
+    const avaliacaoId = randomUUID();
+    const submittedAt = new Date().toISOString();
+
+    const { error } = await client.from('avaliacao_substitutiva_respostas').insert({ id: avaliacaoId });
+    if (error) throw error;
+
+    // Sequencial (não Promise.all) de propósito: mantém a ordem de
+    // alunos/provas estável e evita paralelizar dezenas de uploads de uma
+    // vez só numa requisição pública sem limite de tamanho de lote.
+    for (let alunoIdx = 0; alunoIdx < alunos.length; alunoIdx++) {
+      const aluno = alunos[alunoIdx];
+      const alunoId = randomUUID();
+
+      const { error: alunoError } = await client.from('avaliacao_substitutiva_alunos').insert({
+        id: alunoId,
+        avaliacao_id: avaliacaoId,
+        nome: toTitleCase(aluno.nome),
+        turma: aluno.turma,
+        ordem: alunoIdx
+      });
+      if (alunoError) throw alunoError;
+
+      const provas = aluno.provas || [];
+      for (let provaIdx = 0; provaIdx < provas.length; provaIdx++) {
+        const prova = provas[provaIdx];
+        const anexoBuffer = Buffer.from(prova.anexo.base64, 'base64');
+        const anexoPath = `${avaliacaoId}/${alunoIdx}-${provaIdx}-${sanitizeFileName(prova.anexo.nome)}`;
+
+        const { error: uploadError } = await client.storage
+          .from('avaliacao-anexos')
+          .upload(anexoPath, anexoBuffer, { contentType: prova.anexo.tipo, upsert: false });
+        if (uploadError) throw uploadError;
+
+        const { error: provaError } = await client.from('avaliacao_substitutiva_provas').insert({
+          aluno_id: alunoId,
+          disciplina: toTitleCase(prova.disciplina),
+          segmento: prova.segmento,
+          data_avaliacao: prova.data,
+          motivo_tipo: prova.motivo.tipo,
+          observacoes: capFirst(prova.motivo.observacoes) || null,
+          anexo_path: anexoPath,
+          anexo_nome: prova.anexo.nome,
+          anexo_tipo: prova.anexo.tipo,
+          ordem: provaIdx
+        });
+        if (provaError) throw provaError;
+      }
+    }
+
+    res.status(201).json({ id: avaliacaoId, submittedAt });
+
+    // Mesma lógica do fluxo de visita: dispara depois de responder, erro
+    // aqui não pode derrubar a confirmação de envio pro usuário.
+    notifyN8nAvaliacao(avaliacaoId).catch(err => {
+      console.error(`[n8n] Falha ao notificar workflow para avaliação ${avaliacaoId}:`, err.message);
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

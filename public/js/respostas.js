@@ -16,7 +16,17 @@
 
   let responses = [];
 
-  if (form) titleEl.textContent = 'Respostas: ' + form.nome;
+  if (form) {
+    titleEl.textContent = 'Respostas: ' + form.nome;
+    const blankPdfLink = document.getElementById('blank-pdf-link');
+    if (blankPdfLink) {
+      if (form.blankPdfUrl) {
+        blankPdfLink.href = form.blankPdfUrl;
+      } else {
+        blankPdfLink.classList.add('hidden');
+      }
+    }
+  }
 
   // Login/senha/acesso-negado ficam em public/js/auth-gate.js (mesmo gate
   // usado na home) — aqui só reagimos a autenticado/deslogado.
@@ -33,13 +43,25 @@
       return;
     }
     listEl.innerHTML = responses.map(r => {
-      const primeiroAluno = r.data.students && r.data.students[0] ? r.data.students[0].nome : 'Sem nome';
-      const totalAlunos   = r.data.students ? r.data.students.length : 1;
-      const extra         = totalAlunos > 1 ? ' (+' + (totalAlunos - 1) + ')' : '';
+      let titulo, subtitulo;
+      if (formId === 'avaliacao-substitutiva') {
+        const alunos = r.data.alunos || [];
+        const primeiroAluno = alunos[0] ? alunos[0].nome : 'Sem nome';
+        const extraAlunos = alunos.length > 1 ? ' (+' + (alunos.length - 1) + ')' : '';
+        const totalProvas = alunos.reduce((sum, a) => sum + (a.provas ? a.provas.length : 0), 0);
+        titulo = SM.escapeHtml(primeiroAluno) + extraAlunos;
+        subtitulo = totalProvas + (totalProvas === 1 ? ' avaliação solicitada' : ' avaliações solicitadas');
+      } else {
+        const primeiroAluno = r.data.students && r.data.students[0] ? r.data.students[0].nome : 'Sem nome';
+        const totalAlunos   = r.data.students ? r.data.students.length : 1;
+        const extra         = totalAlunos > 1 ? ' (+' + (totalAlunos - 1) + ')' : '';
+        titulo = SM.escapeHtml(primeiroAluno) + extra;
+        subtitulo = '';
+      }
       return '<div class="response-item" data-id="' + r.id + '">' +
         '<div class="meta">' +
-          '<h4>' + primeiroAluno + extra + '</h4>' +
-          '<p>Enviado em ' + SM.formatDate(r.submittedAt) + '</p>' +
+          '<h4>' + titulo + '</h4>' +
+          '<p>' + (subtitulo ? SM.escapeHtml(subtitulo) + ' · ' : '') + 'Enviado em ' + SM.formatDate(r.submittedAt) + '</p>' +
         '</div>' +
         '<button class="btn btn-ghost btn-sm view-btn" data-id="' + r.id + '">Ver detalhes</button>' +
     '</div>';
@@ -72,12 +94,31 @@
   });
 
   function openModal(record) {
+    const isAvaliacao = formId === 'avaliacao-substitutiva';
+    const reviewHtml = isAvaliacao
+      ? SMReview.buildAvaliacaoReviewCards({
+          alunos: (record.data.alunos || []).map(aluno => ({
+            nome: aluno.nome,
+            turma: aluno.turma,
+            provas: (aluno.provas || []).map(prova => ({
+              disciplina: prova.disciplina,
+              segmento: prova.segmento,
+              data: prova.data,
+              motivo: prova.motivo,
+              anexoPreview: prova.anexo && prova.anexo.nome
+                ? { nome: prova.anexo.nome, tipo: prova.anexo.tipo, provaId: prova.id }
+                : null
+            }))
+          }))
+        }, false)
+      : SMReview.buildReviewCards(record.data, false);
+
     modalBox.innerHTML =
       '<div class="modal-header">' +
         '<h2>Detalhes da resposta</h2>' +
         '<p class="modal-subtitle">Enviado em ' + SM.formatDate(record.submittedAt) + '</p>' +
       '</div>' +
-      '<div class="modal-review">' + SMReview.buildReviewCards(record.data, false) + '</div>' +
+      '<div class="modal-review">' + reviewHtml + '</div>' +
       '<div class="modal-footer">' +
         '<button class="btn btn-secondary" id="close-modal-btn">Fechar</button>' +
         '<button class="btn btn-secondary" id="whatsapp-modal-btn"><i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp</button>' +
@@ -87,6 +128,34 @@
     document.getElementById('close-modal-btn').addEventListener('click', closeModal);
     document.getElementById('print-modal-btn').addEventListener('click', () => downloadPdf(record));
     document.getElementById('whatsapp-modal-btn').addEventListener('click', () => sendWhatsapp(record));
+
+    // Botões "Ver anexo" por prova (avaliação substitutiva) são gerados
+    // dinamicamente dentro dos cards de revisão — delegação de evento aqui
+    // porque são um por prova, e o número de provas varia por resposta.
+    if (isAvaliacao) {
+      modalBox.querySelectorAll('.review-anexo-btn').forEach(btn => {
+        btn.addEventListener('click', () => openAnexo(record, btn.dataset.provaId, btn));
+      });
+    }
+  }
+
+  /* ---------- Anexo (avaliação substitutiva): abre via URL assinada, uma prova por vez ---------- */
+  async function openAnexo(record, provaId, btn) {
+    const origLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Abrindo...';
+    try {
+      const res = await fetch('/api/responses/' + record.id + '/anexo/' + provaId + '?form=' + formId);
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Falha ao abrir o anexo.');
+      window.open(result.url, '_blank', 'noopener');
+    } catch (err) {
+      console.error('Erro ao abrir anexo:', err);
+      alert(err.message || 'Não foi possível abrir o anexo.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origLabel;
+    }
   }
 
   function closeModal() {
@@ -111,7 +180,7 @@
     }
 
     try {
-      const res = await fetch('/api/responses/' + record.id + '/pdf');
+      const res = await fetch('/api/responses/' + record.id + '/pdf?form=' + formId);
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         throw new Error(errBody.error || 'Falha ao gerar PDF.');
@@ -148,7 +217,7 @@
     }
 
     try {
-      const res = await fetch('/api/responses/' + record.id + '/whatsapp', { method: 'POST' });
+      const res = await fetch('/api/responses/' + record.id + '/whatsapp?form=' + formId, { method: 'POST' });
       const result = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(result.error || 'Falha ao enviar pelo WhatsApp.');
 
