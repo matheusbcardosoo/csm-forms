@@ -129,6 +129,14 @@ create policy "staff_select_visita_alunos"
 -- coordenação (língua materna/inglesa) a informação é relevante.
 -- ==========================================================
 
+-- Remove a estrutura antiga (versão anterior de aluno único, com colunas
+-- como aluno_nome direto em avaliacao_substitutiva_respostas) antes de
+-- recriar no formato novo de 3 níveis. "if not exists" não altera uma
+-- tabela que já existe com colunas diferentes — por isso o drop explícito.
+drop table if exists avaliacao_substitutiva_provas cascade;
+drop table if exists avaliacao_substitutiva_alunos cascade;
+drop table if exists avaliacao_substitutiva_respostas cascade;
+
 -- ---------- Requerimento (raiz) ----------
 create table if not exists avaliacao_substitutiva_respostas (
   id             uuid primary key default gen_random_uuid(),
@@ -163,11 +171,14 @@ create table if not exists avaliacao_substitutiva_provas (
   observacoes    text,
 
   -- Anexo (atestado médico ou comprovante de pagamento) guardado no Storage
-  -- bucket "avaliacao-anexos" — ver policies mais abaixo. Cada prova tem o
-  -- seu próprio anexo (o pagamento é por prova perdida).
-  anexo_path     text not null,
-  anexo_nome     text not null,
-  anexo_tipo     text not null,
+  -- bucket "avaliacao-anexos" — ver policies mais abaixo. Solicitado uma vez
+  -- por DATA, não por prova (ver public/js/wizard-avaliacao.js): provas do
+  -- mesmo dia recebem a mesma referência de anexo. Só o grupo da data mais
+  -- antiga de cada aluno é obrigatório — os demais são opcionais, por isso
+  -- estas 3 colunas são nullable (prova sem anexo próprio fica com as 3 null).
+  anexo_path     text,
+  anexo_nome     text,
+  anexo_tipo     text,
 
   ordem          int not null default 0
 );

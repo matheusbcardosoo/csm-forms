@@ -557,8 +557,20 @@ function sanitizeFileName(name) {
   return safeBase + safeExt;
 }
 
+// Máximo de avaliações perdidas por aluno em um único requerimento — acima
+// disso o solicitante deve enviar um requerimento separado (mesmo limite
+// aplicado no wizard, ver public/js/wizard-avaliacao.js).
+const MAX_PROVAS_POR_ALUNO = 3;
+
 // Valida os dados de UMA prova (usado em loop abaixo, um requerimento pode
 // ter várias). Retorna uma mensagem de erro (string) ou null se estiver ok.
+//
+// O anexo agora é solicitado por DATA, não por prova (ver
+// public/js/wizard-avaliacao.js): provas do mesmo dia compartilham o mesmo
+// anexo, e apenas o grupo da data mais antiga do aluno é obrigatório — os
+// demais são opcionais. Por isso `prova.anexo` pode legitimamente vir null
+// aqui; a validação de "pelo menos um anexo por aluno" é feita à parte,
+// logo abaixo, no loop principal.
 function validateProva(prova) {
   if (!prova || !prova.disciplina || !prova.segmento || !prova.data) {
     return 'Dados de uma das avaliações estão incompletos.';
@@ -570,12 +582,14 @@ function validateProva(prova) {
   if (!['medico', 'outro'].includes(motivo.tipo)) {
     return 'Motivo da ausência inválido em uma das avaliações.';
   }
-  const anexo = prova.anexo || {};
-  if (!anexo.base64 || !anexo.nome || !anexo.tipo) {
-    return 'É necessário anexar o documento (atestado ou comprovante) de cada avaliação.';
-  }
-  if (!ANEXO_TIPOS_ACEITOS.includes(anexo.tipo)) {
-    return 'Tipo de arquivo não suportado em um dos anexos. Envie uma imagem (JPG/PNG) ou PDF.';
+  if (prova.anexo) {
+    const anexo = prova.anexo;
+    if (!anexo.base64 || !anexo.nome || !anexo.tipo) {
+      return 'Documento anexado inválido em uma das avaliações.';
+    }
+    if (!ANEXO_TIPOS_ACEITOS.includes(anexo.tipo)) {
+      return 'Tipo de arquivo não suportado em um dos anexos. Envie uma imagem (JPG/PNG) ou PDF.';
+    }
   }
   return null;
 }
@@ -598,14 +612,28 @@ router.post('/avaliacoes', async (req, res) => {
       if (!provas.length) {
         return res.status(400).json({ error: `Adicione ao menos uma avaliação perdida para ${aluno.nome}.` });
       }
+      if (provas.length > MAX_PROVAS_POR_ALUNO) {
+        return res.status(400).json({
+          error: `${aluno.nome} tem mais de ${MAX_PROVAS_POR_ALUNO} avaliações neste requerimento. Envie um requerimento separado para as demais.`
+        });
+      }
+      let temAnexo = false;
       for (const prova of provas) {
         const provaError = validateProva(prova);
         if (provaError) return res.status(400).json({ error: provaError });
 
-        const anexoBuffer = Buffer.from(prova.anexo.base64, 'base64');
-        if (anexoBuffer.length > ANEXO_TAMANHO_MAX_BYTES) {
-          return res.status(400).json({ error: 'Um dos arquivos anexados é muito grande (máximo de 8MB).' });
+        if (prova.anexo) {
+          temAnexo = true;
+          const anexoBuffer = Buffer.from(prova.anexo.base64, 'base64');
+          if (anexoBuffer.length > ANEXO_TAMANHO_MAX_BYTES) {
+            return res.status(400).json({ error: 'Um dos arquivos anexados é muito grande (máximo de 8MB).' });
+          }
         }
+      }
+      // Pelo menos um documento por aluno é sempre obrigatório (o da data
+      // mais antiga) — mesmo com o anexo agora sendo opcional por prova.
+      if (!temAnexo) {
+        return res.status(400).json({ error: `É necessário anexar ao menos um documento (atestado ou comprovante) para ${aluno.nome}.` });
       }
     }
 
@@ -635,13 +663,20 @@ router.post('/avaliacoes', async (req, res) => {
       const provas = aluno.provas || [];
       for (let provaIdx = 0; provaIdx < provas.length; provaIdx++) {
         const prova = provas[provaIdx];
-        const anexoBuffer = Buffer.from(prova.anexo.base64, 'base64');
-        const anexoPath = `${avaliacaoId}/${alunoIdx}-${provaIdx}-${sanitizeFileName(prova.anexo.nome)}`;
 
-        const { error: uploadError } = await client.storage
-          .from('avaliacao-anexos')
-          .upload(anexoPath, anexoBuffer, { contentType: prova.anexo.tipo, upsert: false });
-        if (uploadError) throw uploadError;
+        // prova.anexo pode ser null: o anexo é por data, não por prova (ver
+        // validateProva acima), então provas de uma data cujo documento é
+        // opcional e não foi enviado ficam sem anexo_path/nome/tipo.
+        let anexoPath = null;
+        if (prova.anexo) {
+          const anexoBuffer = Buffer.from(prova.anexo.base64, 'base64');
+          anexoPath = `${avaliacaoId}/${alunoIdx}-${provaIdx}-${sanitizeFileName(prova.anexo.nome)}`;
+
+          const { error: uploadError } = await client.storage
+            .from('avaliacao-anexos')
+            .upload(anexoPath, anexoBuffer, { contentType: prova.anexo.tipo, upsert: false });
+          if (uploadError) throw uploadError;
+        }
 
         const { error: provaError } = await client.from('avaliacao_substitutiva_provas').insert({
           aluno_id: alunoId,
@@ -651,8 +686,8 @@ router.post('/avaliacoes', async (req, res) => {
           motivo_tipo: prova.motivo.tipo,
           observacoes: capFirst(prova.motivo.observacoes) || null,
           anexo_path: anexoPath,
-          anexo_nome: prova.anexo.nome,
-          anexo_tipo: prova.anexo.tipo,
+          anexo_nome: prova.anexo ? prova.anexo.nome : null,
+          anexo_tipo: prova.anexo ? prova.anexo.tipo : null,
           ordem: provaIdx
         });
         if (provaError) throw provaError;

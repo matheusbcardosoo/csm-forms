@@ -11,9 +11,53 @@
   /* Pagina isolada so pra impressao via Puppeteer — sem chrome de app */
   html, body { margin: 0; padding: 0; background: #ffffff; }
 
+  /* Uma pagina A4 por aluno (ver lib/pdf.js — renderAvaliacaoPdf usa modo
+     paginado). Cada .pdf-page quebra pra proxima folha ao final, exceto a
+     ultima. Se o conteudo de um aluno for excepcionalmente longo, o
+     navegador continua na proxima pagina em vez de cortar — nunca perde
+     conteudo, so deixa de ser exatamente 1 pagina pra esse aluno. */
+  .pdf-page {
+    width: 794px;
+    min-height: 1123px;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    background: #ffffff;
+    font-family: Inter, Segoe UI, Arial, sans-serif;
+    font-size: 13px;
+    color: #1a2530;
+  }
+  .pdf-page:not(:last-child) {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .pdf-page-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .pdf-page-header img { max-height: 56px; display: block; }
+  .pdf-page-header h1 {
+    text-align: center;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #0F385A;
+    margin: 0;
+    white-space: nowrap;
+    justify-self: center;
+  }
+  .pdf-page-subtitle {
+    text-align: center;
+    font-size: 11px;
+    color: #7a8794;
+    margin: 8px 0 14px;
+  }
+
   #pdf-root .review-card { border-color: #0F385A; }
   #pdf-root .review-card-header { border-bottom-color: #0F385A; }
-
   #pdf-root .review-card-header { padding-top: 7px; padding-bottom: 7px; }
   #pdf-root .review-card-body { padding-top: 12px; padding-bottom: 12px; }
   #pdf-root .review-grid { row-gap: 10px; }
@@ -24,28 +68,12 @@
 <!--
   Este markup segue o mesmo padrao de views/pdf-visita.ejs: usa os mesmos
   cards de revisao (SMReview.buildAvaliacaoReviewCards) exibidos no wizard,
-  so que renderizados no servidor via Puppeteer. Agora com varios alunos,
-  cada um com varias provas — a assinatura no fim lista todos os alunos.
+  so que renderizados no servidor via Puppeteer — uma pagina A4 por aluno
+  (ver lib/pdf.js), pra garantir a legibilidade dos anexos e permitir
+  separar/entregar a pagina de um aluno especifico. A assinatura do
+  responsavel (unica pra todo o requerimento) so aparece na ultima pagina.
 -->
-<div id="pdf-root" style="width:794px;background:#ffffff;padding:10px 12px;box-sizing:border-box;font-family:Inter, Segoe UI, Arial, sans-serif;font-size:13px;color:#1a2530;">
-  <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #e2e8f0;">
-    <img src="/images/logo.jpg" alt="Colégio São Marcos" style="max-height:60px;display:block;justify-self:start;">
-    <h1 style="text-align:center;font-size:15px;font-weight:700;color:#0F385A;margin:0;white-space:nowrap;">Requerimento de Avaliação Substitutiva</h1>
-    <img src="/images/logo-brasao.png" alt="São Marcos School" style="max-height:60px;display:block;justify-self:end;">
-  </div>
-
-  <div id="pdf-review-cards"></div>
-
-  <div style="margin-top:22px;">
-    <p style="font-size:11px;margin:0 0 28px;">Mogi das Cruzes, <span id="pdf-date-extenso"></span>.</p>
-    <div style="display:flex;justify-content:center;">
-      <div style="flex:1;max-width:420px;text-align:center;">
-        <div style="border-top:1px solid #1a2530;margin-bottom:6px;"></div>
-        <p style="font-size:11px;color:#7a8794;margin:0;" id="pdf-sig-responsavel">Assinatura do Responsável pelo(s) Aluno(s)</p>
-      </div>
-    </div>
-  </div>
-</div>
+<div id="pdf-root"></div>
 
 <script>
   window.__AVALIACAO_DATA__ = <%- JSON.stringify(data) %>;
@@ -59,8 +87,9 @@
     var data = window.__AVALIACAO_DATA__ || {};
     var anexoDataUrls = window.__ANEXO_DATA_URLS__ || {};
     var alunos = data.alunos || [];
+    var root = document.getElementById('pdf-root');
 
-    var alunosForReview = alunos.map(function (aluno) {
+    function alunoParaRevisao(aluno) {
       return {
         nome: aluno.nome,
         turma: aluno.turma,
@@ -78,19 +107,51 @@
           };
         })
       };
+    }
+
+    function assinaturaHtml() {
+      var nomes = alunos.map(function (a) { return a.nome; }).filter(Boolean);
+      var nomeLine = nomes.length
+        ? '<br><strong>' + SM.escapeHtml(nomes.join(' e ')) + '</strong>'
+        : '';
+      return '' +
+        '<div style="margin-top:22px;">' +
+        '  <p style="font-size:11px;margin:0 0 28px;">Mogi das Cruzes, <span class="pdf-date-extenso"></span>.</p>' +
+        '  <div style="display:flex;justify-content:center;">' +
+        '    <div style="flex:1;max-width:420px;text-align:center;">' +
+        '      <div style="border-top:1px solid #1a2530;margin-bottom:6px;"></div>' +
+        '      <p style="font-size:11px;color:#7a8794;margin:0;">Assinatura do Responsável pelo(s) Aluno(s)' + nomeLine + '</p>' +
+        '    </div>' +
+        '  </div>' +
+        '</div>';
+    }
+
+    alunos.forEach(function (aluno, i) {
+      var pageEl = document.createElement('div');
+      pageEl.className = 'pdf-page';
+
+      var subtitulo = 'Aluno ' + (i + 1) + ' de ' + alunos.length +
+        (aluno.nome ? ' — ' + SM.escapeHtml(aluno.nome) : '');
+
+      var headerHtml = '' +
+        '<div class="pdf-page-header">' +
+        '  <img src="/images/logo.jpg" alt="Colégio São Marcos">' +
+        '  <h1>Requerimento de Avaliação Substitutiva</h1>' +
+        '  <img src="/images/logo-brasao.png" alt="São Marcos School">' +
+        '</div>' +
+        '<p class="pdf-page-subtitle">' + subtitulo + '</p>';
+
+      var cardsHtml = SMReview.buildAvaliacaoReviewCards({ alunos: [alunoParaRevisao(aluno)] }, false, i);
+
+      pageEl.innerHTML = headerHtml + '<div>' + cardsHtml + '</div>' +
+        (i === alunos.length - 1 ? assinaturaHtml() : '');
+
+      root.appendChild(pageEl);
     });
 
-    document.getElementById('pdf-review-cards').innerHTML =
-      SMReview.buildAvaliacaoReviewCards({ alunos: alunosForReview }, false);
-
-    document.getElementById('pdf-date-extenso').textContent =
-      SM.formatDateExtenso(window.__AVALIACAO_SUBMITTED_AT__);
-
-    var nomes = alunos.map(function (a) { return a.nome; }).filter(Boolean);
-    if (nomes.length) {
-      document.getElementById('pdf-sig-responsavel').innerHTML =
-        'Assinatura do Responsável pelo(s) Aluno(s)<br><strong>' + SM.escapeHtml(nomes.join(' e ')) + '</strong>';
-    }
+    document.querySelectorAll('.pdf-date-extenso').forEach(function (el) {
+      el.textContent = SM.formatDateExtenso(window.__AVALIACAO_SUBMITTED_AT__);
+    });
 
     function waitForImages() {
       var imgs = document.querySelectorAll('img');

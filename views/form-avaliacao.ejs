@@ -132,7 +132,7 @@
             <li><strong>Dados do aluno:</strong> nome completo e turma.</li>
             <li><strong>Dados de cada avaliação:</strong> disciplina, segmento e data da avaliação perdida.</li>
             <li><strong>Justificativa de cada ausência:</strong> motivo (médico ou outro) e observações opcionais.</li>
-            <li><strong>Documento anexado a cada avaliação:</strong> atestado médico ou comprovante de pagamento da taxa de aplicação.</li>
+            <li><strong>Documento anexado a cada data de avaliação:</strong> atestado médico ou comprovante de pagamento da taxa de aplicação (um por data, mesmo que haja mais de uma avaliação no mesmo dia).</li>
           </ul>
         </section>
 
@@ -249,6 +249,23 @@
     <div class="provas-container"></div>
 
     <button type="button" class="add-prova-btn">+ Adicionar avaliação perdida deste aluno</button>
+    <div class="hint prova-limit-message hidden">
+      <i class="fa-solid fa-circle-info"></i>
+      Máximo de 3 avaliações por aluno neste requerimento. Se este aluno perdeu mais de 3 avaliações,
+      envie um requerimento separado para as demais.
+    </div>
+
+    <!--
+      Documentos anexados: um por DATA distinta entre as avaliações deste
+      aluno (não um por avaliação) — se houver mais de uma avaliação no
+      mesmo dia, um único atestado/comprovante já cobre todas. Preenchido
+      dinamicamente por renderAnexoGroups() em public/js/wizard-avaliacao.js
+      conforme as datas são informadas acima.
+    -->
+    <div class="student-block-header" style="margin-top:20px;">
+      <span>Documentos anexados</span>
+    </div>
+    <div class="anexo-groups-container"></div>
   </div>
 </template>
 
@@ -295,14 +312,11 @@
 
     <!-- ---------- Motivo: médico ---------- -->
     <div class="field-group hidden prova-motivo-medico-group">
-      <div class="hint" style="margin-bottom:14px;">
+      <div class="hint">
         <i class="fa-solid fa-circle-info"></i>
-        Em caso de motivo médico, é necessário anexar o atestado correspondente à data desta avaliação.
+        O atestado médico referente a esta data é enviado uma vez só, na seção "Documentos anexados"
+        no fim do bloco deste aluno — mesmo que haja mais de uma avaliação no mesmo dia.
       </div>
-      <label>Atestado médico</label>
-      <input type="file" class="prova-anexo-input prova-anexo-medico-input" accept="image/*,application/pdf">
-      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> <span class="anexo-error-message">Anexe o atestado médico (imagem ou PDF, até 8MB).</span></div>
-      <div class="anexo-preview hidden"></div>
     </div>
 
     <!-- ---------- Motivo: outro ---------- -->
@@ -326,17 +340,31 @@
           </button>
         </div>
       </div>
-
-      <label style="margin-top:18px;display:block;">Comprovante de pagamento</label>
-      <input type="file" class="prova-anexo-input prova-anexo-outro-input" accept="image/*,application/pdf">
-      <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> <span class="anexo-error-message">Anexe o comprovante de pagamento (imagem ou PDF, até 8MB).</span></div>
-      <div class="anexo-preview hidden"></div>
+      <div class="hint" style="margin-top:14px;">
+        <i class="fa-solid fa-circle-info"></i>
+        O comprovante de pagamento referente a esta data é enviado uma vez só, na seção "Documentos anexados"
+        no fim do bloco deste aluno — mesmo que haja mais de uma avaliação no mesmo dia.
+      </div>
     </div>
 
     <div class="field-group">
       <label>Observações <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
       <textarea class="prova-observacoes" placeholder="Se quiser, deixe alguma observação adicional sobre esta avaliação"></textarea>
     </div>
+  </div>
+</template>
+
+<!-- ===================== TEMPLATE: DOCUMENTO ANEXADO (POR DATA) ===================== -->
+<!-- Um bloco por data distinta entre as avaliações do aluno — ver
+     renderAnexoGroups() em public/js/wizard-avaliacao.js. O 1º (data mais
+     antiga) é obrigatório; os demais são opcionais. -->
+<template id="anexo-group-template">
+  <div class="field-group anexo-group">
+    <label class="anexo-group-label">Documento</label>
+    <div class="hint anexo-group-hint" style="margin-bottom:10px;"></div>
+    <input type="file" class="anexo-group-input" accept="image/*,application/pdf">
+    <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> <span class="anexo-error-message">Anexe o documento (imagem ou PDF, até 8MB).</span></div>
+    <div class="anexo-preview hidden"></div>
   </div>
 </template>
 

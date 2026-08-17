@@ -190,37 +190,95 @@
    * Constrói o HTML dos cards de revisão a partir dos dados coletados do
    * formulário de avaliação substitutiva — um ou mais alunos, cada um com
    * uma ou mais avaliações (provas) perdidas.
+   *
+   * O anexo (atestado/comprovante) é solicitado uma única vez por DATA, não
+   * por prova — provas do mesmo dia normalmente compartilham o mesmo
+   * documento (ver public/js/wizard-avaliacao.js). Por isso aqui as provas
+   * são agrupadas por `data` e o(s) anexo(s) de cada grupo aparecem uma só
+   * vez, mesmo que várias provas do grupo carreguem a mesma referência de
+   * anexo — evita repetir a mesma imagem 2-3x e prejudicar a legibilidade.
+   *
    * @param {object} data - { alunos: [{ nome, turma, provas: [{ disciplina,
    *   segmento, data, motivo: {tipo, observacoes}, anexoPreview }] }] }
    *   anexoPreview (opcional por prova): { nome, tipo, url } no wizard
    *   (url local/object URL), ou { nome, tipo, provaId } no modal admin
    *   (sem preview local, mostra botão "Ver anexo").
    * @param {boolean} editable - se true, inclui botões "Editar" com data-goto
+   * @param {number} [startIndex] - deslocamento pro número "Aluno N" do
+   *   cabeçalho de cada card — usado pelo PDF paginado (views/pdf-avaliacao.ejs),
+   *   que chama esta função uma vez por página/aluno (array de 1 item), pra
+   *   que o card continue numerado "Aluno 2", "Aluno 3" etc. em vez de sempre
+   *   reiniciar em "Aluno 1".
    */
-  function buildAvaliacaoReviewCards(data, editable) {
+  function buildAvaliacaoReviewCards(data, editable, startIndex) {
     let html = '';
     const alunos = data.alunos || [];
 
-    alunos.forEach((aluno, alunoIdx) => {
+    alunos.forEach((aluno, alunoIdxRelative) => {
+      const alunoIdx = (startIndex || 0) + alunoIdxRelative;
       const provas = aluno.provas || [];
 
+      // Agrupa as provas por data (mesma lógica de agrupamento do wizard).
+      const groups = [];
+      const groupByDate = new Map();
+      provas.forEach(prova => {
+        const key = prova.data || `_sem-data-${groups.length}`;
+        if (!groupByDate.has(key)) {
+          const group = { data: prova.data, provas: [] };
+          groupByDate.set(key, group);
+          groups.push(group);
+        }
+        groupByDate.get(key).provas.push(prova);
+      });
+
       let provasHtml = '';
-      provas.forEach((prova, provaIdx) => {
-        const motivo = prova.motivo || {};
-        provasHtml += `<div class="review-student">
-          <div class="review-student-header"><i class="fa-solid fa-file-pen"></i> Avaliação ${provaIdx + 1}</div>
-          <div class="review-grid">
-            ${item('Disciplina', prova.disciplina, true)}
-            ${item('Segmento', SEGMENTO_LABELS[prova.segmento] || prova.segmento)}
-            ${item('Data da avaliação perdida', prova.data ? SM.formatDateOnly(prova.data) : '')}
-            ${item('Motivo', MOTIVO_LABELS[motivo.tipo] || motivo.tipo)}
-            ${item('Observações', motivo.observacoes, true)}
-          </div>
-          <div class="review-item-full" style="margin-top:8px;">
-            <span class="review-item-label">Documento anexado</span>
-            ${anexoPreviewHtml(prova.anexoPreview)}
-          </div>
-        </div>`;
+      let provaCounter = 0;
+      groups.forEach(group => {
+        group.provas.forEach(prova => {
+          provaCounter++;
+          const motivo = prova.motivo || {};
+          provasHtml += `<div class="review-student">
+            <div class="review-student-header"><i class="fa-solid fa-file-pen"></i> Avaliação ${provaCounter}</div>
+            <div class="review-grid">
+              ${item('Disciplina', prova.disciplina, true)}
+              ${item('Segmento', SEGMENTO_LABELS[prova.segmento] || prova.segmento)}
+              ${item('Data da avaliação perdida', prova.data ? SM.formatDateOnly(prova.data) : '')}
+              ${item('Motivo', MOTIVO_LABELS[motivo.tipo] || motivo.tipo)}
+              ${item('Observações', motivo.observacoes, true)}
+            </div>
+          </div>`;
+        });
+
+        // Anexo(s) únicos deste grupo — dedupe por nome+tipo, já que provas
+        // do mesmo dia recebem a mesma referência de anexo ao enviar.
+        const seen = new Set();
+        const anexosUnicos = [];
+        group.provas.forEach(prova => {
+          const anexo = prova.anexoPreview;
+          if (!anexo || !anexo.nome) return;
+          const key = anexo.nome + '|' + anexo.tipo;
+          if (seen.has(key)) return;
+          seen.add(key);
+          anexosUnicos.push(anexo);
+        });
+
+        const disciplinasGrupo = group.provas.map(p => p.disciplina).filter(Boolean).join(', ');
+        const labelSufixo = (group.data ? ' — ' + SM.formatDateOnly(group.data) : '') +
+          (disciplinasGrupo ? ' (' + esc(disciplinasGrupo) + ')' : '');
+
+        if (anexosUnicos.length) {
+          anexosUnicos.forEach(anexo => {
+            provasHtml += `<div class="review-item-full" style="margin-top:8px;">
+              <span class="review-item-label">Documento anexado${labelSufixo}</span>
+              ${anexoPreviewHtml(anexo)}
+            </div>`;
+          });
+        } else {
+          provasHtml += `<div class="review-item-full" style="margin-top:8px;">
+            <span class="review-item-label">Documento anexado${labelSufixo}</span>
+            ${anexoPreviewHtml(null)}
+          </div>`;
+        }
       });
 
       html += `<div class="review-card">
