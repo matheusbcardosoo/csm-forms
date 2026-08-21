@@ -52,11 +52,11 @@
     <div style="display:flex;justify-content:space-between;gap:40px;">
       <div style="flex:1;text-align:center;">
         <div style="border-top:1px solid #1a2530;margin-bottom:6px;"></div>
-        <p style="font-size:11px;color:#7a8794;margin:0;" id="pdf-sig-pai">Assinatura do Pai</p>
+        <p style="font-size:11px;color:#7a8794;margin:0;" id="pdf-sig-pai">Assinatura do Responsável 1</p>
       </div>
       <div style="flex:1;text-align:center;">
         <div style="border-top:1px solid #1a2530;margin-bottom:6px;"></div>
-        <p style="font-size:11px;color:#7a8794;margin:0;" id="pdf-sig-mae">Assinatura da Mãe</p>
+        <p style="font-size:11px;color:#7a8794;margin:0;" id="pdf-sig-mae">Assinatura do Responsável 2</p>
       </div>
     </div>
   </div>
@@ -85,11 +85,11 @@
 
     if (pai.nome) {
       document.getElementById('pdf-sig-pai').innerHTML =
-        'Assinatura do Pai<br><strong>' + SM.escapeHtml(pai.nome) + '</strong>';
+        'Assinatura do Responsável 1<br><strong>' + SM.escapeHtml(pai.nome) + '</strong>';
     }
     if (mae.nome) {
       document.getElementById('pdf-sig-mae').innerHTML =
-        'Assinatura da Mãe<br><strong>' + SM.escapeHtml(mae.nome) + '</strong>';
+        'Assinatura do Responsável 2<br><strong>' + SM.escapeHtml(mae.nome) + '</strong>';
     }
 
     // Sinaliza pro Puppeteer que pode chamar page.pdf() — so depois que

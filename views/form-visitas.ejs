@@ -51,8 +51,6 @@
         <span class="step-name">Revisão</span>
       </div>
     </div>
-    <div class="wizard-step-label" id="step-label">Passo 1/5</div>
-
     <form id="visita-form" novalidate>
 
       <!-- ===================== STEP 1: ALUNO(S) ===================== -->
@@ -86,13 +84,13 @@
       <!-- ===================== STEP 3: RESPONSÁVEIS ===================== -->
       <section class="wizard-step hidden" data-step="3">
         <h2 class="wizard-title">Dados dos responsáveis</h2>
-        <p class="wizard-desc">Informe os dados de contato do pai e da mãe (ou responsáveis).</p>
+        <p class="wizard-desc">Informe os dados de contato dos responsáveis.</p>
 
         <div class="student-block">
-          <div class="student-block-header"><span>Pai</span></div>
+          <div class="student-block-header"><span>Responsável 1</span></div>
           <div class="field-group">
             <label for="pai-nome">Nome completo</label>
-            <input type="text" id="pai-nome" placeholder="Nome completo do pai">
+            <input type="text" id="pai-nome" placeholder="Nome completo do responsável 1">
             <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe o nome completo (nome e sobrenome).</div>
           </div>
           <div class="field-row">
@@ -110,10 +108,10 @@
         </div>
 
         <div class="student-block">
-          <div class="student-block-header"><span>Mãe</span></div>
+          <div class="student-block-header"><span>Responsável 2</span></div>
           <div class="field-group">
             <label for="mae-nome">Nome completo</label>
-            <input type="text" id="mae-nome" placeholder="Nome completo da mãe">
+            <input type="text" id="mae-nome" placeholder="Nome completo do responsável 2">
             <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Informe o nome completo (nome e sobrenome).</div>
           </div>
           <div class="field-row">
@@ -132,7 +130,7 @@
         <div class="hint">Preencha ao menos um dos responsáveis com todos os dados solicitados.</div>
         <div class="error-banner hidden" id="responsaveis-error">
           <i class="fa-solid fa-circle-exclamation"></i>
-          Preencha ao menos os dados de um responsável (pai ou mãe).
+          Preencha ao menos os dados de um responsável (Responsável 1 ou Responsável 2).
         </div>
       </section>
 
@@ -142,9 +140,8 @@
         <p class="wizard-desc">Nos ajude a entender melhor o seu contexto.</p>
 
         <div class="field-group">
-          <label for="motivo">Qual o principal motivo que o trouxe até o Colégio São Marcos?</label>
+          <label for="motivo">Qual o principal motivo que o trouxe até o Colégio São Marcos? <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
           <textarea id="motivo" placeholder="Conte um pouco sobre o que motivou a busca pelo colégio"></textarea>
-          <div class="error-text"><i class="fa-solid fa-circle-exclamation"></i> Conte um pouco sobre o motivo da visita.</div>
         </div>
 
         <div class="field-group">
@@ -247,7 +244,7 @@
           <ul>
             <li><strong>Dados do aluno:</strong> nome completo, data de nascimento e turma de interesse.</li>
             <li><strong>Escola de origem:</strong> nome da instituição e cidade/estado.</li>
-            <li><strong>Dados dos responsáveis:</strong> nome completo, número de WhatsApp e profissão (pai e/ou mãe).</li>
+            <li><strong>Dados dos responsáveis:</strong> nome completo, número de WhatsApp e profissão (Responsável 1 e/ou Responsável 2).</li>
             <li><strong>Informações contextuais:</strong> motivo da visita, indicação de terceiros e observações livres.</li>
           </ul>
         </section>

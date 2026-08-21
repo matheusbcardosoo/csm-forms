@@ -93,7 +93,7 @@
       ${cardHeader('fa-people-roof', 'Responsáveis', 3, editable)}
       <div class="review-card-body">
         <div class="review-student">
-          <div class="review-student-header"><i class="fa-solid fa-mars"></i> Pai</div>
+          <div class="review-student-header"><i class="fa-solid fa-user"></i> Responsável 1</div>
           ${compact
             ? gridRow3(
                 item('Nome completo', pai.nome),
@@ -108,7 +108,7 @@
           }
         </div>
         <div class="review-student">
-          <div class="review-student-header"><i class="fa-solid fa-venus"></i> Mãe</div>
+          <div class="review-student-header"><i class="fa-solid fa-user"></i> Responsável 2</div>
           ${compact
             ? gridRow3(
                 item('Nome completo', mae.nome),

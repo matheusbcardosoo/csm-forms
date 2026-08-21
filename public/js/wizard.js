@@ -14,7 +14,6 @@
   const form = document.getElementById('visita-form');
   if (!form) return; // não é a página do wizard
 
-  const stepLabel = document.getElementById('step-label');
   const stepper = document.getElementById('stepper');
   const backBtn = document.getElementById('back-btn');
   const nextBtn = document.getElementById('next-btn');
@@ -307,9 +306,7 @@
     }
 
     if (step === 4) {
-      const motivo = document.getElementById('motivo');
       clearErrors(document.querySelector('[data-step="4"]'));
-      if (!motivo.value.trim()) { markInvalid(motivo.closest('.field-group')); valid = false; }
 
       if (!indicacaoValue) {
         markInvalid(indicacaoChoice.closest('.field-group'));
@@ -377,7 +374,6 @@
   /* ---------- Navegação entre etapas ---------- */
   function updateProgress() {
     const displayStep = Math.min(currentStep, TOTAL_STEPS);
-    stepLabel.textContent = `Passo ${displayStep}/${TOTAL_STEPS}`;
 
     stepper.querySelectorAll('.step-node').forEach(node => {
       const n = parseInt(node.dataset.step, 10);
@@ -449,7 +445,6 @@
       wizardNav.classList.add('hidden');
       form.querySelectorAll('.wizard-step').forEach(s => s.classList.add('hidden'));
       form.querySelector('.wizard-step[data-step="success"]').classList.remove('hidden');
-      stepLabel.classList.add('hidden');
       stepper.classList.add('hidden');
 
       // "Voltar ao início" nunca deve sair da própria página do formulário
