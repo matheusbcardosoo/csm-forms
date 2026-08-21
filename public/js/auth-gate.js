@@ -71,14 +71,30 @@
     }
 
     /* ---------- Init ---------- */
+    function applyState(session) {
+      if (!session.loggedIn) return showGate();
+      if (session.mustChangePassword) return showChangePassword();
+      if (!session.authorized) return showOnly(accessDenied);
+      showAuthorized();
+    }
+
     async function init() {
+      // A página já foi renderizada pelo servidor sabendo o estado de login
+      // (routes/pages.js embute isso em window.__INITIAL_AUTH__) — então o
+      // painel certo já nasceu visível e não precisamos refazer esse fetch
+      // aqui, só reaplicar o mesmo estado pra disparar onAuthorized() e
+      // carregar os dados da tela. Isso é o que elimina o flash da tela de
+      // login: antes, toda página sempre começava mostrando o gate e só
+      // trocava depois que esse fetch voltava.
+      if (window.__INITIAL_AUTH__) {
+        return applyState(window.__INITIAL_AUTH__);
+      }
+      // Fallback (ex.: página ainda não atualizada pra embutir o estado
+      // inicial, ou carregada fora do fluxo normal de render do servidor).
       try {
         const res = await fetch('/api/auth/session');
         const session = await res.json();
-        if (!session.loggedIn) return showGate();
-        if (session.mustChangePassword) return showChangePassword();
-        if (!session.authorized) return showOnly(accessDenied);
-        showAuthorized();
+        applyState(session);
       } catch (err) {
         console.error('Erro ao verificar sessao:', err);
         showGate();
