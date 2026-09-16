@@ -241,6 +241,7 @@
   bindTitleCase(document.getElementById('escola-nome'));
   bindCityState(document.getElementById('escola-cidade'));
   bindTitleCase(document.getElementById('indicacao-nome'));
+  bindTitleCase(document.getElementById('bairro'));
   bindCapFirst(document.getElementById('motivo'));
   bindCapFirst(document.getElementById('observacoes'));
 
@@ -351,6 +352,7 @@
         }
       },
       extras: {
+        bairro: document.getElementById('bairro').value.trim(),
         motivo: document.getElementById('motivo').value.trim(),
         indicado: indicacaoValue,
         indicacaoNome: indicacaoValue === 'sim' ? document.getElementById('indicacao-nome').value.trim() : '',

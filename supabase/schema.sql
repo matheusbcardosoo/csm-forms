@@ -22,11 +22,17 @@ create table if not exists visita_respostas (
   mae_whatsapp        text,
   mae_profissao       text,
 
+  bairro              text,
   motivo              text,
   indicado            text check (indicado in ('sim', 'nao')),
   indicacao_nome      text,
   observacoes         text
 );
+
+-- "Bairro onde reside" foi adicionado depois da criação inicial da tabela —
+-- garante que bancos já existentes (criados antes deste campo) ganhem a
+-- coluna ao reexecutar este script, sem precisar de uma migration separada.
+alter table visita_respostas add column if not exists bairro text;
 
 create index if not exists idx_visita_respostas_submitted_at
   on visita_respostas (submitted_at desc);

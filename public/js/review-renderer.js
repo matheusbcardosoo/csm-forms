@@ -22,6 +22,20 @@
     </div>`;
   }
 
+  // Mesmo que item(), mas para campos opcionais onde o PDF (compact=true)
+  // deve mostrar um texto explicativo em vez do "-" padrão quando o
+  // visitante deixou o campo em branco — ex.: "Bairro onde reside". Fora
+  // do PDF (wizard de revisão, modal "Ver detalhes") continua mostrando
+  // "-", igual a qualquer outro campo vazio.
+  function itemOptional(label, value, fallbackTextIfCompact, compact) {
+    const hasValue = value && String(value).trim();
+    if (hasValue || !compact) return item(label, value, true);
+    return `<div class="review-item review-item-full">
+      <span class="review-item-label">${esc(label)}</span>
+      <span class="review-item-value muted" style="font-style:italic;">${esc(fallbackTextIfCompact)}</span>
+    </div>`;
+  }
+
   // Grid de 3 colunas numa linha só, usado no modo compact (PDF) para
   // agrupar nome/data/turma (ou nome/whatsapp/profissao) sem quebrar linha.
   function gridRow3(...items) {
@@ -137,6 +151,7 @@
       ${cardHeader('fa-comment-dots', 'Informações complementares', 4, editable)}
       <div class="review-card-body">
         <div class="review-grid">
+          ${itemOptional('Bairro onde reside', extras.bairro, 'Visitante optou por não fornecer essa informação.', compact)}
           ${item('Motivo da visita', extras.motivo, true)}
           <div class="review-item">
             <span class="review-item-label">Indicado por alguém</span>

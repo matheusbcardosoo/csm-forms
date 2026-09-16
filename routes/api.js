@@ -442,6 +442,7 @@ router.post('/responses', async (req, res) => {
       mae_nome:             toTitleCase(data.responsaveis.mae.nome) || null,
       mae_whatsapp:         data.responsaveis.mae.whatsapp || null,
       mae_profissao:        toTitleCase(data.responsaveis.mae.profissao) || null,
+      bairro:               toTitleCase(data.extras.bairro) || null,
       motivo:               capFirst(data.extras.motivo),
       indicado:             data.extras.indicado,
       indicacao_nome:       toTitleCase(data.extras.indicacaoNome) || null,
