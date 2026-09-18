@@ -69,9 +69,12 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-BASE-03 | **Matriz curricular** por ano letivo + série: quais disciplinas, carga horária de cada uma, ordem de exibição no histórico | Must |
 | RF-BASE-04 | Cadastro de estabelecimentos de ensino externos (para anos cursados em outra escola) | Must |
 | RF-BASE-05 | Cópia de matriz curricular de um ano letivo para o seguinte | Should |
-| RF-BASE-06 | Cadastro do sistema de avaliação por etapa: nota numérica (0–10, 0–100) ou conceito (A/B/C, MB/B/S/I), média de aprovação | Must |
+| RF-BASE-06 | Cadastro do sistema de avaliação por curso: nota numérica (0–10, 0–100) ou conceito, média de aprovação e frequência mínima | Must |
+| RF-BASE-07 | Cadastro de **cursos** (ex.: "Ensino Médio Bilíngue"), distinto da etapa — é o curso que nomeia o documento | Must |
+| RF-BASE-08 | Cadastro da hierarquia curricular de três níveis: bloco → agrupamento → componente, tudo configurável | Must |
+| RF-BASE-09 | Cadastro dos **totais anuais de aulas e de horas** por série e ano letivo, com razão aula/hora por curso | Must |
 
-> **Por que a matriz é obrigatória:** o histórico escolar precisa da carga horária de cada disciplina em cada série. O Activesoft pode não expor esse dado no mesmo formato exigido pelo documento — a matriz local é a fonte da carga horária impressa.
+> **Por que a matriz é obrigatória:** ela define quais linhas aparecem no histórico, em qual agrupamento e em qual ordem — e a nota importada se liga a uma dessas linhas, não a uma disciplina solta. A carga horária por componente **não** é impressa no modelo do Ensino Médio; o que o documento imprime são os totais anuais de aulas e horas (RF-BASE-09). Confirmar se o Ensino Fundamental segue a mesma regra.
 
 ### 3.3 Integração com o Activesoft (RF-INT)
 
@@ -124,7 +127,9 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-HIST-12 | Lista de documentos emitidos, filtrável por aluno, tipo, período e status | Must |
 | RF-HIST-13 | Geração em lote para uma turma inteira (ex.: concluintes do 9º ano) | Could |
 | RF-HIST-14 | QR code / código de verificação de autenticidade do documento | Could |
-| RF-HIST-15 | Campo de **número de registro GDAE** nos históricos de conclusão (EF e EM), preenchido manualmente a partir da SED, com bloqueio de emissão enquanto vazio | Must |
+| RF-HIST-15 | Campo de **número de publicação da SED** ("Registro / Visto Confere") nos históricos de conclusão, preenchido manualmente, com bloqueio de emissão enquanto vazio | Must |
+| RF-HIST-16 | Bloco **Certificado** com texto-modelo interpolado, presente só em histórico de conclusão e omitido em transferência | Must |
+| RF-HIST-17 | Grade renderizada como união das matrizes das séries envolvidas, casadas por (agrupamento, componente), com `-` onde o componente não foi cursado | Must |
 
 ### 3.6 Formulários existentes (RF-FORM)
 
@@ -157,36 +162,24 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 
 ## 5. Conformidade do documento
 
-O histórico escolar tem itens obrigatórios definidos pela legislação educacional. O gerador deve produzir, no mínimo:
+O modelo real em uso está especificado campo a campo em **[05-modelo-historico.md](05-modelo-historico.md)**, derivado de `docs/modelos/JULIA_TEMPLATE.pdf` (Ensino Médio Bilíngue, concluinte de 2025). É esse layout que o gerador reproduz — não o modelo genérico da SEDUC.
 
-**Cabeçalho** — identificação da instituição e do órgão regional, ato de criação da unidade (por extenso), ato de autorização do curso (por extenso), endereço completo, telefones e e-mail.
+**Questão da fase 5: resolvida.** O documento sai da secretaria do colégio. Da SED vem apenas o **número de publicação** (rótulo impresso: "Registro / Visto Confere"), copiado à mão pela secretaria. A fase 5 vale integralmente.
 
-**Identificação do aluno** — nome completo, RG/RNE e/ou RA, data, município, estado e país de nascimento, filiação.
+Resumo do que o documento tem:
 
-**Trajetória escolar** — legislação de base, matriz curricular, anos/séries cursados com notas e carga horária por disciplina.
+| Página | Blocos |
+|---|---|
+| 1 | Cabeçalho institucional (nome, mantenedora, atos legais com DOE, Diretoria de Ensino) · título com o **curso** · identificação do aluno (nome, nascimento, naturalidade, nacionalidade, CIN/CPF) · grade de aproveitamento em três níveis · totais anuais de aulas e horas · tabela de estabelecimentos |
+| 2 | Observações · **Certificado** (só em conclusão) · assinaturas de secretário e diretor com RG · número de publicação da SED · rodapé "não contém emendas ou rasuras" |
 
-**Estudos realizados** — para cada série: ano civil, estabelecimento de ensino, município/UF.
+Três achados do modelo real que mudaram o plano:
 
-**Observações** — informações pertinentes com citação da base legal.
+1. **Agrupamento curricular é cadastro, não enum.** "Ensino Bilíngue", "Ciclo Integrador" e "Eletivas" convivem com as áreas da BNCC no mesmo nível da grade.
+2. **A nota pertence a uma linha da matriz, não a uma disciplina.** O mesmo componente aparece em dois agrupamentos com notas diferentes no mesmo histórico.
+3. **Não há carga horária por componente** — só os totais anuais de aulas e de horas. Isso simplifica a matriz curricular em relação ao que estava planejado.
 
-**Certificação** — para concluintes, declaração de conclusão assinada pela direção.
-
-**Rodapé** — data de emissão, nome completo, RG e cargo de quem assina, carimbo e assinatura.
-
-**Verso** — informação de transferência quando aplicável.
-
-**Número de registro GDAE** — obrigatório apenas para concluintes do Ensino Fundamental e do Ensino Médio.
-
-> **O GDAE não é gerado por este sistema.** Em SP o número vem do fluxo de Concluintes da SED, uma cadeia de aprovação humana: a escola cadastra a turma e os concluintes → diretor ratifica → supervisor de ensino valida → **dirigente de ensino publica**. O carregamento roda duas vezes por ano e não há API para consultar nem gerar esse número. No nosso sistema ele é um **campo preenchido pela secretaria**, copiado da SED, com validação de formato e bloqueio de emissão de histórico de conclusão enquanto estiver vazio.
-
-> ⚠️ **Questão aberta que define o escopo da fase 5.** A SED tem módulo próprio de emissão (`Vida Escolar > Documentos Escolares > Histórico Escolar`), que gera o documento com QR Code e fluxo de aprovação. Precisa ser confirmado com a secretaria do colégio se o histórico **oficial** hoje sai da SED ou não:
->
-> - **Sai da SED** → o PDF deste sistema é documento de trabalho (conferência, controle interno, segunda via não-oficial). O projeto continua valendo, mas a fase 5 promete menos.
-> - **Não sai da SED** → a fase 5 vale integralmente, com a numeração interna (livro/folha) especificada em RF-HIST-07.
->
-> O modelo de campos acima é o da rede particular paulista e vale nos dois casos.
-
----
+Pendências específicas do modelo estão listadas no §4 de `05-modelo-historico.md`.
 
 ## 6. Fora de escopo
 

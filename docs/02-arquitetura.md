@@ -131,31 +131,50 @@ ano_letivo
 
 ### 3.2 Cadastros acadêmicos
 
+> Corrigido em 18/09/2026 a partir do modelo real (`05-modelo-historico.md`). A versão anterior tinha `area_conhecimento` como enum da BNCC e ligava a nota à disciplina — as duas coisas quebram no histórico real do colégio.
+
 ```sql
-serie
+curso                      -- "Ensino Médio Bilíngue" é curso; "Ensino Médio" é etapa
   id · etapa enum(ei, ef_iniciais, ef_finais, em)
-  codigo · nome · ordem · ativo
+  nome                     -- vai no título: "HISTÓRICO ESCOLAR - ENSINO MÉDIO BILÍNGUE"
+  razao_aula_hora numeric  -- 0,75 no EM Bilíngue (aula de 45 min)
+  texto_promocao text      -- critério do Regimento, impresso em Observações
+  ativo
 
-disciplina
-  id · nome · sigla
-  area_conhecimento enum(linguagens, matematica, ciencias_natureza,
-                         ciencias_humanas, ensino_religioso, formacao_tecnica, outro)
-  natureza enum(base_comum, diversificada, itinerario)
-  ativo · ordem_padrao
+serie
+  id · curso_id fk · codigo · nome · ordem · ativo
 
-matriz_curricular
-  id · ano_letivo_id fk · serie_id fk · disciplina_id fk
-  carga_horaria int · ordem
-  unique (ano_letivo_id, serie_id, disciplina_id)
+bloco_curricular           -- nível 1, coluna vertical: "Formação Geral Básica"
+  id · curso_id fk · nome · ordem
+
+agrupamento_curricular     -- nível 2: "Linguagens e suas Tecnologias", "Ciclo Integrador", "Eletivas"
+  id · bloco_id fk · nome · ordem
+
+componente                 -- nível 3: catálogo de nomes
+  id · nome · sigla · ativo
+
+matriz_item                -- UMA LINHA DO HISTÓRICO
+  id · ano_letivo_id fk · serie_id fk · agrupamento_id fk · componente_id fk
+  ordem · carga_horaria int null      -- nullable: o modelo do EM não imprime por componente
+  unique (ano_letivo_id, serie_id, agrupamento_id, componente_id)
+
+matriz_total               -- as duas linhas de total da grade
+  ano_letivo_id fk · serie_id fk
+  total_aulas_anuais int · total_horas_anuais int
+  primary key (ano_letivo_id, serie_id)
 
 sistema_avaliacao
-  id · etapa · tipo enum(nota_0_10, nota_0_100, conceito)
-  media_aprovacao numeric · escala_conceitos jsonb · legenda text
-  -- legenda vai impressa no verso do histórico
+  id · curso_id fk · tipo enum(nota_0_10, nota_0_100, conceito)
+  media_aprovacao numeric · frequencia_minima numeric
+  escala_conceitos jsonb · legenda text
 
 estabelecimento_externo
   id · nome · municipio · uf · cnpj · codigo_inep
 ```
+
+**Por que `matriz_item` e não `disciplina`.** No modelo real, "Língua Estrangeira Moderna - Inglês" aparece duas vezes na mesma grade — uma sob Linguagens (6,0 / 8,5 / -) e outra sob Ensino Bilíngue (- / - / 6,5) — com notas diferentes. Educação Física, Filosofia e Sociologia também. A nota pertence à **linha da matriz**, não ao componente.
+
+**Como as três séries viram uma tabela.** As linhas do documento são a união dos `matriz_item` das séries envolvidas, casadas por `(agrupamento_id, componente_id)`. Componente ausente na matriz de um ano recebe `-` naquela coluna.
 
 ### 3.3 Alunos e trajetória
 
@@ -164,7 +183,9 @@ aluno
   id · codigo_activesoft unique · ra
   nome · nome_social · data_nascimento
   municipio_nascimento · uf_nascimento · pais_nascimento · nacionalidade
-  sexo · rg · rg_orgao · rg_uf · rg_data · cpf
+  sexo · cin · rg · rg_orgao · rg_uf · rg_data · cpf
+  -- o histórico imprime CIN/CPF na identificação e RA só no certificado;
+  -- rg/certidao/filiacao ficam no cadastro para outros documentos
   certidao_tipo · certidao_termo · certidao_livro · certidao_folha
   filiacao_1 · filiacao_2
   situacao enum(ativo, transferido, concluinte, evadido, inativo)
@@ -172,7 +193,7 @@ aluno
   criado_em · atualizado_em
 
 matricula
-  id · aluno_id fk · ano_letivo_id fk · serie_id fk
+  id · aluno_id fk · ano_letivo_id fk · serie_id fk · curso_id fk
   turma · numero_matricula · data_matricula · data_saida
   estabelecimento_externo_id fk null     -- null = cursado no São Marcos
   situacao_final enum(em_curso, aprovado, aprovado_conselho, reprovado,
@@ -182,15 +203,15 @@ matricula
   unique (aluno_id, ano_letivo_id, serie_id)
 
 nota
-  id · matricula_id fk · disciplina_id fk
+  id · matricula_id fk · matriz_item_id fk    -- NÃO disciplina: ver §3.2
   valor numeric(5,2) null · conceito text null
-  carga_horaria int · faltas int
+  carga_horaria int null · faltas int null
   situacao enum(aprovado, reprovado, dispensado, cursando, sem_registro)
   origem enum(activesoft, manual, importacao_arquivo)
   editado bool default false
   valor_importado jsonb      -- o que veio da origem, preservado
   criado_em · atualizado_em
-  unique (matricula_id, disciplina_id)
+  unique (matricula_id, matriz_item_id)
 
 auditoria
   id · entidade text · entidade_id uuid · acao enum(criar, editar, excluir, emitir, cancelar)
@@ -208,7 +229,9 @@ historico
   tipo enum(transferencia, conclusao_ef, conclusao_em, parcial, declaracao)
   etapa · status enum(rascunho, conferido, emitido, cancelado)
   numero_registro · livro · folha · via int default 1
-  numero_registro_gdae text null   -- só concluintes EF/EM; copiado da SED à mão (RF-HIST-15)
+  numero_registro_gdae text null   -- rótulo impresso: "Registro / Visto Confere";
+                                   -- copiado da SED à mão (RF-HIST-15), 12 dígitos no modelo
+  curso_id fk · com_certificado bool   -- bloco CERTIFICADO só em histórico de conclusão
   signatario_diretor_id fk · signatario_secretario_id fk
   observacoes text
   snapshot jsonb            -- documento congelado na emissão
@@ -300,7 +323,7 @@ Emitido, o `snapshot` é a verdade do documento. Reemissão da 2ª via renderiza
 |---|---|---|
 | **F0 — Fundação** | Vite + React + TS, migrations, `usuario_perfil` e papéis, login em React, shell do painel | — |
 | **F1 — Instituição** | Cadastro da instituição, atos, signatários, anos letivos, pré-visualização do cabeçalho | F0 |
-| **F2 — Cadastros base** | Séries, disciplinas, matriz curricular, sistema de avaliação, estabelecimentos externos | F1 |
+| **F2 — Cadastros base** | Cursos, séries, blocos/agrupamentos/componentes, matriz curricular e totais, sistema de avaliação, estabelecimentos externos | F1 |
 | **F3 — Integração** | Adaptador Activesoft, importação com simulação, log e divergências, mapeamento de códigos | F2 + **doc da API** |
 | **F4 — Alunos e notas** | Lista, ficha, grade de notas editável, auditoria, anos cursados fora, validações | F3 |
 | **F5 — Histórico** | Montagem, pré-visualização, edição, emissão, numeração, PDF, 2ª via | F4 + **modelo validado com a DE de Mogi das Cruzes** + resposta sobre a SED (ver `01-requisitos.md` §5) |
