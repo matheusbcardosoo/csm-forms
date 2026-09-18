@@ -138,11 +138,15 @@ Correlação por `codigo_activesoft` em `aluno`, `(aluno, ano_letivo, serie)` em
 
 ## 5. Mapeamento de códigos
 
-O Activesoft usa códigos próprios para disciplina, série, turma e situação. A tabela `mapeamento_activesoft` guarda a correspondência, com uma tela de gestão.
+O Activesoft usa códigos próprios para disciplina, série, turma e situação. A tabela `mapeamento_activesoft` guarda a correspondência, **por versão curricular** — o destino é um `versao_item`, não uma disciplina solta.
+
+Ao duplicar uma versão, os mapeamentos cujo item foi copiado são recriados automaticamente apontando para o item novo. Sem isso, cada reforma obrigaria a remapear dezenas de códigos à mão, e um erro nesse remapeamento sai impresso num documento permanente. Códigos cujo item não sobreviveu à reforma entram como pendência, com aviso de que existiam na versão anterior. Ver `06-versionamento-curricular.md` §5.
 
 Na primeira importação, todo código novo entra como **pendente**. O sistema sugere destino por similaridade de nome (`MAT`/`Matemática` → disciplina Matemática), mas a confirmação é humana — uma disciplina mapeada errado sai errada no histórico e o documento é permanente.
 
 Notas de disciplina não mapeada não são gravadas. Aparecem como pendência no relatório.
+
+A importação resolve a versão pela matrícula (`matricula.versao_curricular_id`), nunca pela vigência do momento — reimportar notas de 2021 hoje usa o currículo de 2021.
 
 ## 6. Configuração
 

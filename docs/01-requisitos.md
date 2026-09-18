@@ -66,15 +66,17 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 |---|---|---|
 | RF-BASE-01 | Catálogo de séries/anos por etapa (Educação Infantil, EF anos iniciais, EF anos finais, Ensino Médio) | Must |
 | RF-BASE-02 | Catálogo de disciplinas, com área de conhecimento (BNCC) e natureza (base comum / parte diversificada / itinerário formativo) | Must |
-| RF-BASE-03 | **Matriz curricular** por ano letivo + série: quais disciplinas, carga horária de cada uma, ordem de exibição no histórico | Must |
+| RF-BASE-03 | **Estrutura curricular versionada** por curso: quais componentes, em qual agrupamento, em qual ordem, por série — ver [06-versionamento-curricular.md](06-versionamento-curricular.md) para o bloco RF-VER completo | Must |
 | RF-BASE-04 | Cadastro de estabelecimentos de ensino externos (para anos cursados em outra escola) | Must |
-| RF-BASE-05 | Cópia de matriz curricular de um ano letivo para o seguinte | Should |
+| RF-BASE-05 | Duplicar uma versão curricular para criar a seguinte, herdando itens e mapeamentos | Must |
 | RF-BASE-06 | Cadastro do sistema de avaliação por curso: nota numérica (0–10, 0–100) ou conceito, média de aprovação e frequência mínima | Must |
 | RF-BASE-07 | Cadastro de **cursos** (ex.: "Ensino Médio Bilíngue"), distinto da etapa — é o curso que nomeia o documento | Must |
 | RF-BASE-08 | Cadastro da hierarquia curricular de três níveis: bloco → agrupamento → componente, tudo configurável | Must |
 | RF-BASE-09 | Cadastro dos **totais anuais de aulas e de horas** por série e ano letivo, com razão aula/hora por curso | Must |
 
-> **Por que a matriz é obrigatória:** ela define quais linhas aparecem no histórico, em qual agrupamento e em qual ordem — e a nota importada se liga a uma dessas linhas, não a uma disciplina solta. A carga horária por componente **não** é impressa no modelo do Ensino Médio; o que o documento imprime são os totais anuais de aulas e horas (RF-BASE-09). Confirmar se o Ensino Fundamental segue a mesma regra.
+> **Por que a estrutura é versionada:** o histórico é retrospectivo. Um aluno de 2019 recebe hoje um documento com os nomes de 2019 — uma reforma educacional não pode reescrever o passado. Versão em uso é somente leitura; mudança gera versão nova. Detalhes em [06-versionamento-curricular.md](06-versionamento-curricular.md).
+>
+> A carga horária por componente **não** é impressa no modelo do Ensino Médio; o documento imprime os totais anuais de aulas e horas (RF-BASE-09). Segundo a secretaria, o layout é o mesmo para todos os segmentos.
 
 ### 3.3 Integração com o Activesoft (RF-INT)
 
@@ -87,7 +89,7 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-INT-05 | **Cópia local editável**: o dado importado é persistido no Supabase e pode ser corrigido sem alterar o Activesoft | Must |
 | RF-INT-06 | Reimportação não sobrescreve silenciosamente valor editado à mão — mostra a divergência e pede decisão | Must |
 | RF-INT-07 | Log de importação: quem executou, quando, quantos registros lidos/criados/atualizados/ignorados, erros e divergências | Must |
-| RF-INT-08 | Mapeamento de códigos: disciplina/série do Activesoft ↔ cadastro local, editável na interface | Must |
+| RF-INT-08 | Mapeamento de códigos do Activesoft ↔ itens da versão curricular, editável na interface, herdado ao duplicar a versão | Must |
 | RF-INT-09 | Importação alternativa por upload de arquivo (CSV/XLSX), usando o mesmo pipeline de validação | Should |
 | RF-INT-10 | Importação agendada (ex.: diária ao fim do ano letivo) | Could |
 | RF-INT-11 | Simulação ("dry run"): mostra o que seria importado sem gravar | Should |
@@ -197,6 +199,7 @@ Matrículas e rematrículas · financeiro/mensalidades · portal do responsável
 | A SED já é o emissor oficial do histórico e este sistema duplica trabalho | Alto | Confirmar com a secretaria antes da fase 5 (ver seção 5). Se for o caso, a fase 5 vira "documento de trabalho + conferência" e o esforço migra para as fases 3 e 4 |
 | Acesso à API NCA da SED negado para rede particular | Baixo | RF-INT-12 é *Could* — nada depende dele. Dados cadastrais faltantes seguem por preenchimento manual |
 | Dados históricos anteriores ao Activesoft (papel/planilha) | Médio | Lançamento manual de anos anteriores (RF-ALU-07) + importação por arquivo (RF-INT-09) |
+| Currículos antigos não cadastrados: histórico de aluno de anos anteriores sai com nomes de componentes errados | Alto | Versionamento curricular (RF-VER-01..07). Levantar na fase 2 quantos currículos distintos existiram e desde quando o colégio ainda emite histórico |
 | Migração para React quebrando formulários públicos em produção | Médio | Migração por fase, formulários públicos por último, com a versão EJS mantida até validação |
 | Divergência entre nota do Activesoft e nota impressa no documento | Alto | Snapshot na emissão + auditoria de edição + relatório de divergências na reimportação |
 

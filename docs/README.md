@@ -11,6 +11,7 @@ Colégio São Marcos — Mogi das Cruzes/SP, rede particular, sob a Diretoria de
 | [03-integracao-activesoft.md](03-integracao-activesoft.md) | Contrato do adaptador, fluxo de importação, tratamento de divergências |
 | [04-telas-e-navegacao.md](04-telas-e-navegacao.md) | Mapa de rotas, telas, componentes |
 | [05-modelo-historico.md](05-modelo-historico.md) | Anatomia campo a campo do histórico real — o que o gerador tem de reproduzir |
+| [06-versionamento-curricular.md](06-versionamento-curricular.md) | Como a estrutura curricular é versionada para que o histórico de 2019 saia com os nomes de 2019 |
 | [modelos/JULIA_TEMPLATE.pdf](modelos/JULIA_TEMPLATE.pdf) | Modelo real em uso (EM Bilíngue, aluno anonimizado) |
 | [mockups/painel-secretaria.html](mockups/painel-secretaria.html) | Protótipo navegável das telas — abrir no navegador |
 
@@ -23,7 +24,9 @@ Planejamento para validação. Nenhum código de implementação foi escrito.
 | Pendência | Bloqueia | Responsável |
 |---|---|---|
 | Documentação da API do Activesoft | Fase 3 (integração) | Matheus |
-| Modelos de histórico de **EF** e de **transferência** — só temos o de conclusão do EM Bilíngue | Fase 5 | Secretaria do colégio |
+| **Desde que ano o colégio ainda emite histórico, e quantos currículos distintos existiram?** Dimensiona a carga inicial de versões curriculares | Fase 2 | Secretaria do colégio |
+| Modelo de **transferência** (aluno não concluinte) — só temos o de conclusão | Fase 5 | Secretaria do colégio |
+| Nome de componente que muda no meio do curso: imprime só o mais recente? | Fase 5 | Diretoria de Ensino |
 | Até que ano letivo o Activesoft retroage | Escopo do histórico de alunos antigos | Matheus |
 | (Opcional) Acesso à API NCA da SED para rede particular — chamado no Portal de Atendimento | Nada; RF-INT-12 é *Could* | Matheus |
 

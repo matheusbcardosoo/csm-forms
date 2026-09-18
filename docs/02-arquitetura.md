@@ -131,37 +131,31 @@ ano_letivo
 
 ### 3.2 Cadastros acadêmicos
 
-> Corrigido em 18/09/2026 a partir do modelo real (`05-modelo-historico.md`). A versão anterior tinha `area_conhecimento` como enum da BNCC e ligava a nota à disciplina — as duas coisas quebram no histórico real do colégio.
+> Reescrito duas vezes: em 18/09/2026 a partir do modelo real (`05-modelo-historico.md`), e de novo para versionamento curricular. **O desenho completo está em [`06-versionamento-curricular.md`](06-versionamento-curricular.md)** — aqui fica só o resumo.
 
 ```sql
-curso                      -- "Ensino Médio Bilíngue" é curso; "Ensino Médio" é etapa
+curso
   id · etapa enum(ei, ef_iniciais, ef_finais, em)
   nome                     -- vai no título: "HISTÓRICO ESCOLAR - ENSINO MÉDIO BILÍNGUE"
   razao_aula_hora numeric  -- 0,75 no EM Bilíngue (aula de 45 min)
   texto_promocao text      -- critério do Regimento, impresso em Observações
+  politica_nome_reforma enum(mais_recente, linhas_separadas) default 'mais_recente'
   ativo
 
 serie
   id · curso_id fk · codigo · nome · ordem · ativo
 
-bloco_curricular           -- nível 1, coluna vertical: "Formação Geral Básica"
-  id · curso_id fk · nome · ordem
+-- ---- estrutura curricular, versionada e imutável em uso ----
+versao_curricular   id · curso_id · nome · base_legal · status · ano_inicio · ano_fim · duplicada_de_id
+versao_bloco        id · versao_id · nome · ordem
+versao_agrupamento  id · versao_bloco_id · nome · ordem
+versao_item         id · versao_agrupamento_id · serie_id · componente_id null · nome_impresso · ordem · carga_horaria null
+versao_total        versao_id · serie_id · total_aulas_anuais · total_horas_anuais
+vigencia_curricular ano_letivo_id · serie_id · versao_id          -- pk (ano_letivo, serie)
 
-agrupamento_curricular     -- nível 2: "Linguagens e suas Tecnologias", "Ciclo Integrador", "Eletivas"
-  id · bloco_id fk · nome · ordem
-
-componente                 -- nível 3: catálogo de nomes
-  id · nome · sigla · ativo
-
-matriz_item                -- UMA LINHA DO HISTÓRICO
-  id · ano_letivo_id fk · serie_id fk · agrupamento_id fk · componente_id fk
-  ordem · carga_horaria int null      -- nullable: o modelo do EM não imprime por componente
-  unique (ano_letivo_id, serie_id, agrupamento_id, componente_id)
-
-matriz_total               -- as duas linhas de total da grade
-  ano_letivo_id fk · serie_id fk
-  total_aulas_anuais int · total_horas_anuais int
-  primary key (ano_letivo_id, serie_id)
+componente          id · nome_canonico · sigla · ativo
+  -- catálogo de IDENTIDADE entre versões, não de impressão:
+  -- liga "Ciências" (2016) e "Ciências da Natureza" (2023) como a mesma coisa
 
 sistema_avaliacao
   id · curso_id fk · tipo enum(nota_0_10, nota_0_100, conceito)
@@ -172,9 +166,11 @@ estabelecimento_externo
   id · nome · municipio · uf · cnpj · codigo_inep
 ```
 
-**Por que `matriz_item` e não `disciplina`.** No modelo real, "Língua Estrangeira Moderna - Inglês" aparece duas vezes na mesma grade — uma sob Linguagens (6,0 / 8,5 / -) e outra sob Ensino Bilíngue (- / - / 6,5) — com notas diferentes. Educação Física, Filosofia e Sociologia também. A nota pertence à **linha da matriz**, não ao componente.
+**Três invariantes que sustentam o resto:**
 
-**Como as três séries viram uma tabela.** As linhas do documento são a união dos `matriz_item` das séries envolvidas, casadas por `(agrupamento_id, componente_id)`. Componente ausente na matriz de um ano recebe `-` naquela coluna.
+1. **`versao_item` é a linha do histórico**, não a disciplina. No modelo real, "Língua Estrangeira Moderna - Inglês" aparece duas vezes na mesma grade — sob Linguagens e sob Ensino Bilíngue — com notas diferentes. A nota se liga à linha.
+2. **Versão em uso é somente leitura**, garantido por constraint no banco. Reforma gera versão nova por duplicação; o passado nunca é reescrito.
+3. **`nome_impresso` vive na versão**, `componente` guarda só a identidade. É o que permite reimprimir um histórico de 2019 com os nomes de 2019.
 
 ### 3.3 Alunos e trajetória
 
@@ -194,6 +190,7 @@ aluno
 
 matricula
   id · aluno_id fk · ano_letivo_id fk · serie_id fk · curso_id fk
+  versao_curricular_id fk          -- congelada na criação: o que este aluno cursou
   turma · numero_matricula · data_matricula · data_saida
   estabelecimento_externo_id fk null     -- null = cursado no São Marcos
   situacao_final enum(em_curso, aprovado, aprovado_conselho, reprovado,
@@ -203,7 +200,7 @@ matricula
   unique (aluno_id, ano_letivo_id, serie_id)
 
 nota
-  id · matricula_id fk · matriz_item_id fk    -- NÃO disciplina: ver §3.2
+  id · matricula_id fk · versao_item_id fk    -- NÃO disciplina: ver §3.2
   valor numeric(5,2) null · conceito text null
   carga_horaria int null · faltas int null
   situacao enum(aprovado, reprovado, dispensado, cursando, sem_registro)
@@ -211,7 +208,7 @@ nota
   editado bool default false
   valor_importado jsonb      -- o que veio da origem, preservado
   criado_em · atualizado_em
-  unique (matricula_id, matriz_item_id)
+  unique (matricula_id, versao_item_id)
 
 auditoria
   id · entidade text · entidade_id uuid · acao enum(criar, editar, excluir, emitir, cancelar)
@@ -267,11 +264,13 @@ importacao_divergencia
   resolvido_por · resolvido_em
 
 mapeamento_activesoft
-  id · tipo enum(disciplina, serie, turma, situacao)
+  id · versao_id fk                -- mapeamento é por versão curricular
+  tipo enum(disciplina, serie, turma, situacao)
   codigo_origem text · descricao_origem text
-  destino_id uuid null · destino_valor text null
+  versao_item_id fk null · destino_valor text null
   confirmado bool
-  unique (tipo, codigo_origem)
+  unique (versao_id, tipo, codigo_origem)
+  -- duplicar uma versão herda os mapeamentos; ver 06-versionamento-curricular.md §5
 ```
 
 ### 3.6 Usuários
@@ -291,7 +290,7 @@ Migration preserva os registros: `insert into usuario_perfil select email, nome,
 |---|---|---|
 | `visita_respostas`, `avaliacao_*` | insert | select se em `usuario_perfil` ativo |
 | `aluno`, `matricula`, `nota`, `historico` | — | select se papel ∈ {admin, secretaria, coordenacao, leitura}; insert/update se papel ∈ {admin, secretaria} |
-| `instituicao*`, `serie`, `disciplina`, `matriz_curricular` | — | select para todos os papéis; escrita só `admin` |
+| `instituicao*`, `curso`, `serie`, `componente`, `versao_*`, `vigencia_curricular` | — | select para todos os papéis; escrita só `admin`, e só em versão `rascunho` |
 | `importacao*`, `auditoria` | — | select {admin, secretaria}; escrita via `service_role` |
 | `usuario_perfil` | — | select da própria linha; escrita só `admin` |
 
@@ -323,7 +322,7 @@ Emitido, o `snapshot` é a verdade do documento. Reemissão da 2ª via renderiza
 |---|---|---|
 | **F0 — Fundação** | Vite + React + TS, migrations, `usuario_perfil` e papéis, login em React, shell do painel | — |
 | **F1 — Instituição** | Cadastro da instituição, atos, signatários, anos letivos, pré-visualização do cabeçalho | F0 |
-| **F2 — Cadastros base** | Cursos, séries, blocos/agrupamentos/componentes, matriz curricular e totais, sistema de avaliação, estabelecimentos externos | F1 |
+| **F2 — Cadastros base** | Cursos, séries, **versões curriculares** (blocos, agrupamentos, itens, totais, vigência), sistema de avaliação, estabelecimentos externos, carga das versões retroativas | F1 |
 | **F3 — Integração** | Adaptador Activesoft, importação com simulação, log e divergências, mapeamento de códigos | F2 + **doc da API** |
 | **F4 — Alunos e notas** | Lista, ficha, grade de notas editável, auditoria, anos cursados fora, validações | F3 |
 | **F5 — Histórico** | Montagem, pré-visualização, edição, emissão, numeração, PDF, 2ª via | F4 + **modelo validado com a DE de Mogi das Cruzes** + resposta sobre a SED (ver `01-requisitos.md` §5) |

@@ -84,7 +84,7 @@ Matriz de **componentes × anos**, com três níveis de agrupamento à esquerda:
 
 3. **Célula vazia é `-`, não em branco.** Componente não cursado naquele ano recebe traço.
 
-4. **As linhas do documento são a união das matrizes das três séries**, casadas por (agrupamento, componente). Um componente que existe na matriz de 2023 e não na de 2025 ocupa a linha inteira, com `-` na coluna de 2025.
+4. **As linhas do documento são a união das matrizes das três séries**, casadas por (nome do agrupamento, `componente_id`). Um componente que existe na matriz de 2023 e não na de 2025 ocupa a linha inteira, com `-` na coluna de 2025. Quando o histórico cruza uma reforma curricular, o casamento e a escolha do nome impresso seguem `06-versionamento-curricular.md` §4.
 
 ### 1.5 Totais
 
@@ -177,7 +177,9 @@ Texto fixo, fonte pequena, alinhado à esquerda.
 
 ## 4. Pendências deste modelo
 
-- [ ] O histórico de **Ensino Fundamental** (anos iniciais e finais) usa o mesmo layout? Tem carga horária por componente?
+- [x] ~~O histórico de **Ensino Fundamental** usa o mesmo layout?~~ Sim — segundo a secretaria, o layout é o mesmo para todos os segmentos.
+- [ ] Desde que ano o colégio ainda emite histórico, e quantos currículos distintos existiram nesse intervalo? Define a carga inicial de versões curriculares.
+- [ ] Quando o nome de um componente muda no meio do curso do aluno, a Diretoria de Ensino aceita imprimir só o nome mais recente? (`06-versionamento-curricular.md` §4)
 - [ ] Existe modelo de **transferência** (aluno não concluinte) — como fica sem o bloco de certificado?
 - [ ] **Educação Infantil** emite histórico ou só declaração/relatório?
 - [ ] Qual é a razão aulas→horas para cada curso? (0,75 no EM Bilíngue)
