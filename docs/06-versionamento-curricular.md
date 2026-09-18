@@ -116,7 +116,9 @@ O caso: aluno cursou 1ª série em 2021 (versão "Currículo 2016") e 2ª e 3ª 
 
 **Qual nome imprime**, quando as versões discordam: o `nome_impresso` da versão do **ano mais recente presente no documento**. Um componente que existia só na versão antiga imprime o nome dela e recebe `-` nas colunas dos anos em que não existia.
 
-> ⚠️ **Decisão a confirmar com a secretaria.** O padrão acima (nome mais recente) é o que parece mais natural, mas a Diretoria de Ensino pode exigir que cada ano apareça com o nome vigente à época — o que obrigaria duas linhas separadas para o mesmo componente. O comportamento fica configurável por curso (`curso.politica_nome_reforma = mais_recente | linhas_separadas`), com `mais_recente` como padrão. Também vale gerar uma observação automática no campo OBSERVAÇÕES citando a reforma, quando o documento cruza versões.
+**Decidido (18/09/2026):** imprime sempre o nome mais recente. Fica só isso — sem alternativa configurável, sem `politica_nome_reforma`. Se um dia a Diretoria de Ensino exigir o contrário, vira uma versão nova do template, não uma opção que ninguém usa.
+
+Quando o documento cruza versões, o sistema acrescenta automaticamente uma observação no campo OBSERVAÇÕES citando a reforma e o período de cada currículo.
 
 ---
 
@@ -140,19 +142,61 @@ Códigos cujo item **não** foi copiado (componente extinto na reforma) entram c
 
 ---
 
-## 6. Carga inicial
+## 6. Alcance retroativo: 49 anos
 
-O colégio tem históricos a emitir de alunos que estudaram antes do sistema existir. Cada currículo distinto desse passado precisa virar uma versão `encerrada`, com sua vigência.
+O colégio emite histórico de quem estudou lá desde meados dos anos 1970. Três respostas da secretaria (18/09/2026) definem o que isso custa.
 
-Ordem sugerida na fase 2:
+### 6.1 O layout é um só
 
-1. Cadastrar a versão **vigente** (a de hoje) e validá-la contra o modelo real — é a que atende 90% das emissões.
-2. Levantar com a secretaria quantos currículos distintos existiram e desde quando o colégio ainda emite histórico. Isso define quantas versões retroativas cadastrar.
-3. Cadastrar as versões antigas já como `encerrada`, com `ano_inicio`/`ano_fim`, preenchendo `vigencia_curricular` para os anos correspondentes.
+**Histórico antigo é redigitado no modelo de hoje.** A secretaria não reproduz o documento como ele era em 1985 — pega o registro em papel e digita no modelo atual.
 
-> **Pendência:** até que ano o colégio ainda emite histórico, e quantas mudanças de currículo houve nesse intervalo? Sem isso não dá para dimensionar a carga inicial da fase 2.
+Isso corta um escopo inteiro: **não existe versionamento de template.** Só a estrutura curricular é versionada. Um único gerador de PDF atende os 49 anos; o que muda entre épocas são as linhas da grade, não o desenho da folha.
 
----
+### 6.2 A fronteira digital fica no Activesoft
+
+O Activesoft tem notas lançadas de **mais de 20 anos**. Isso divide o acervo em dois regimes:
+
+| Período | Origem das notas | Fluxo |
+|---|---|---|
+| Últimos ~20 anos | Activesoft | Importação (fases 3 e 4) |
+| Antes disso | Livro/papel do arquivo | Transcrição manual (RF-ALU-07) |
+
+> **Confirmar o ano exato de corte.** É o número que diz quantos históricos ainda dependem de digitação e, portanto, quanto a tela de transcrição precisa ser boa.
+
+A tela de transcrição de histórico antigo deixa de ser acessório e vira funcionalidade de primeira classe: para quase metade do período coberto, ela é o **único** caminho de entrada.
+
+### 6.3 Currículos antigos entram sob demanda
+
+Cadastrar os currículos dos 49 anos antes de emitir o primeiro documento atrasaria o sistema em meses de pesquisa de arquivo. **A versão vigente é cadastrada na fase 2; as antigas nascem quando aparece o primeiro pedido daquele período.**
+
+Na prática:
+
+1. A secretaria abre um histórico de alguém que estudou em 1987.
+2. Não há `vigencia_curricular` para 1987 → o sistema **bloqueia a emissão** e explica: *"Nenhum currículo cadastrado para 1987. Cadastre a versão vigente naquele período para continuar."*
+3. Botão direto para criar a versão, já com o ano preenchido, duplicando a versão mais próxima como ponto de partida.
+4. Cadastrada uma vez, serve todos os pedidos futuros daquele período.
+
+O acervo de versões se constrói sozinho, na ordem em que a demanda real aparece. Um currículo que nunca é pedido nunca é cadastrado.
+
+> **Requisito que isso cria:** o bloqueio por currículo ausente precisa ser explícito e acionável, nunca um documento saindo com a grade errada em silêncio. Ver RF-VER-11.
+
+### 6.4 Mudança de nomenclatura é curso novo, não versão nova
+
+Em 49 anos a estrutura do ensino brasileiro mudou de nome e de tamanho, não só de conteúdo:
+
+| Marco | O que mudou | Efeito no modelo |
+|---|---|---|
+| Lei 5.692/71 | 1º grau (1ª–8ª série) e 2º grau (1ª–3ª série) | cursos próprios |
+| LDB 9.394/96 | vira Ensino Fundamental e Ensino Médio | cursos novos |
+| Lei 11.274/2006 | EF passa de 8 séries para 9 anos, com nomenclatura nova | **curso novo** |
+| BNCC (2017–2020) | componentes e áreas mudam; séries não | versão nova |
+| Novo Ensino Médio (2022) | itinerários formativos; séries não | versão nova |
+
+**A regra:** mudou o número ou o nome das séries → curso novo. Mudaram só os componentes → versão nova.
+
+Isso evita forçar identidade entre coisas que não são a mesma. A passagem de 8 séries para 9 anos não tem correspondência limpa — a antiga 1ª série não é o novo 1º ano — e tentar mapear isso produziria histórico errado. Cursos separados dizem a verdade: cada matrícula aponta para o curso que existia na época, com as séries que existiam na época.
+
+> **Pendência:** um histórico de quem cursou o 1º grau imprime "HISTÓRICO ESCOLAR - 1º GRAU" ou a secretaria moderniza para "ENSINO FUNDAMENTAL"? O título vem do nome do curso, então a resposta decide como cadastrar os cursos antigos.
 
 ## 7. O que isso adiciona aos requisitos
 
@@ -168,3 +212,6 @@ Ordem sugerida na fase 2:
 | RF-VER-08 | Linhagem visível: de qual versão esta foi duplicada e o que mudou entre elas | Should |
 | RF-VER-09 | Comparar duas versões lado a lado (itens incluídos, removidos, renomeados) | Should |
 | RF-VER-10 | Alertar ao publicar versão nova quais códigos do Activesoft ficaram órfãos | Should |
+| RF-VER-11 | Bloquear a emissão quando não houver currículo cadastrado para o período, com mensagem explícita e atalho para criar a versão já preenchida com o ano | Must |
+| RF-VER-12 | Ao criar versão retroativa, sugerir como ponto de partida a versão vigente mais próxima no tempo | Should |
+| RF-VER-13 | Observação automática no campo OBSERVAÇÕES quando o documento cruza versões curriculares, citando a reforma e o período de cada currículo | Should |

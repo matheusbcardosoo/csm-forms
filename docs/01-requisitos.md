@@ -74,6 +74,8 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-BASE-08 | Cadastro da hierarquia curricular de três níveis: bloco → agrupamento → componente, tudo configurável | Must |
 | RF-BASE-09 | Cadastro dos **totais anuais de aulas e de horas** por série e ano letivo, com razão aula/hora por curso | Must |
 
+> **Alcance: 49 anos.** O colégio emite histórico desde meados dos anos 1970. O Activesoft cobre os últimos ~20 anos; antes disso a entrada é transcrição manual (RF-ALU-10). Como o documento antigo é **redigitado no modelo atual**, o template de PDF é um só — apenas a estrutura curricular é versionada.
+>
 > **Por que a estrutura é versionada:** o histórico é retrospectivo. Um aluno de 2019 recebe hoje um documento com os nomes de 2019 — uma reforma educacional não pode reescrever o passado. Versão em uso é somente leitura; mudança gera versão nova. Detalhes em [06-versionamento-curricular.md](06-versionamento-curricular.md).
 >
 > A carga horária por componente **não** é impressa no modelo do Ensino Médio; o documento imprime os totais anuais de aulas e horas (RF-BASE-09). Segundo a secretaria, o layout é o mesmo para todos os segmentos.
@@ -108,6 +110,7 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-ALU-05 | Toda edição de nota registra autor, data, valor anterior e motivo | Must |
 | RF-ALU-06 | Indicação visual clara de campo editado à mão vs. importado | Must |
 | RF-ALU-07 | Lançamento manual de anos cursados em outra escola (série, ano, estabelecimento, município/UF, notas) | Must |
+| RF-ALU-10 | **Transcrição de histórico antigo**: tela dedicada para lançar, a partir do registro em papel, a trajetória completa de aluno anterior ao Activesoft — anos, curso, séries, componentes e notas | Must |
 | RF-ALU-08 | Validação automática antes da emissão: disciplina sem nota, série faltando na trajetória, carga horária zerada, dado obrigatório do aluno ausente | Must |
 | RF-ALU-09 | Anexar documentos ao aluno (certidão, RG, histórico de origem digitalizado) | Should |
 
@@ -199,7 +202,8 @@ Matrículas e rematrículas · financeiro/mensalidades · portal do responsável
 | A SED já é o emissor oficial do histórico e este sistema duplica trabalho | Alto | Confirmar com a secretaria antes da fase 5 (ver seção 5). Se for o caso, a fase 5 vira "documento de trabalho + conferência" e o esforço migra para as fases 3 e 4 |
 | Acesso à API NCA da SED negado para rede particular | Baixo | RF-INT-12 é *Could* — nada depende dele. Dados cadastrais faltantes seguem por preenchimento manual |
 | Dados históricos anteriores ao Activesoft (papel/planilha) | Médio | Lançamento manual de anos anteriores (RF-ALU-07) + importação por arquivo (RF-INT-09) |
-| Currículos antigos não cadastrados: histórico de aluno de anos anteriores sai com nomes de componentes errados | Alto | Versionamento curricular (RF-VER-01..07). Levantar na fase 2 quantos currículos distintos existiram e desde quando o colégio ainda emite histórico |
+| Currículo antigo não cadastrado: histórico sai com nomes de componentes errados | Alto | RF-VER-11 bloqueia a emissão e manda cadastrar a versão daquele período. Nunca sai documento silenciosamente errado |
+| Volume de transcrição manual do acervo pré-Activesoft maior que o previsto | Médio | Carga sob demanda: versões e transcrições só quando há pedido real. Confirmar o ano exato de corte do Activesoft para dimensionar |
 | Migração para React quebrando formulários públicos em produção | Médio | Migração por fase, formulários públicos por último, com a versão EJS mantida até validação |
 | Divergência entre nota do Activesoft e nota impressa no documento | Alto | Snapshot na emissão + auditoria de edição + relatório de divergências na reimportação |
 

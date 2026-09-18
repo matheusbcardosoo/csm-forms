@@ -178,8 +178,10 @@ Texto fixo, fonte pequena, alinhado à esquerda.
 ## 4. Pendências deste modelo
 
 - [x] ~~O histórico de **Ensino Fundamental** usa o mesmo layout?~~ Sim — segundo a secretaria, o layout é o mesmo para todos os segmentos.
-- [ ] Desde que ano o colégio ainda emite histórico, e quantos currículos distintos existiram nesse intervalo? Define a carga inicial de versões curriculares.
-- [ ] Quando o nome de um componente muda no meio do curso do aluno, a Diretoria de Ensino aceita imprimir só o nome mais recente? (`06-versionamento-curricular.md` §4)
+- [x] ~~Desde que ano o colégio emite histórico?~~ 49 anos. Currículos antigos entram sob demanda — `06-versionamento-curricular.md` §6.
+- [x] ~~Nome de componente que muda no meio do curso?~~ Imprime sempre o mais recente, sem alternativa configurável.
+- [ ] Histórico de quem cursou o **1º grau** imprime "HISTÓRICO ESCOLAR - 1º GRAU" ou a secretaria moderniza o título?
+- [ ] Ano exato de corte do Activesoft (a secretaria diz "mais de 20 anos") — dimensiona o volume de transcrição manual.
 - [ ] Existe modelo de **transferência** (aluno não concluinte) — como fica sem o bloco de certificado?
 - [ ] **Educação Infantil** emite histórico ou só declaração/relatório?
 - [ ] Qual é a razão aulas→horas para cada curso? (0,75 no EM Bilíngue)
