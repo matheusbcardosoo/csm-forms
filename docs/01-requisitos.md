@@ -12,6 +12,8 @@
 
 ## 1. Contexto e objetivo
 
+**Jurisdição:** o Colégio São Marcos fica em Mogi das Cruzes/SP, rede particular, sob supervisão da **Diretoria de Ensino — Região de Mogi das Cruzes** (SEDUC-SP). Todo o modelo de documento e a nomenclatura deste projeto seguem as normas paulistas.
+
 O `csm-forms` hoje é uma central de formulários: coleta visitas e requerimentos de avaliação substitutiva, guarda no Supabase e gera PDF via Puppeteer.
 
 Este documento define a evolução para **Secretaria Digital**: um sistema de gestão para a secretaria do colégio, cujo objetivo central é **importar as notas do Activesoft e emitir históricos escolares**, com pré-visualização e edição antes da geração do PDF.
@@ -86,6 +88,7 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-INT-09 | Importação alternativa por upload de arquivo (CSV/XLSX), usando o mesmo pipeline de validação | Should |
 | RF-INT-10 | Importação agendada (ex.: diária ao fim do ano letivo) | Could |
 | RF-INT-11 | Simulação ("dry run"): mostra o que seria importado sem gravar | Should |
+| RF-INT-12 | Consulta de RA e ficha do aluno na **API NCA da SED**, como fonte secundária para completar dados cadastrais faltantes (naturalidade, documentos) | Could |
 
 > **Dependência aberta:** a documentação da API do Activesoft ainda não foi analisada. Toda a integração é especificada contra um **contrato canônico interno** (ver `03-integracao-activesoft.md`), com um adaptador isolando o formato real da API. Se a API não expuser algum campo, ele cai no fluxo de preenchimento manual sem afetar o resto do sistema.
 
@@ -121,6 +124,7 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-HIST-12 | Lista de documentos emitidos, filtrável por aluno, tipo, período e status | Must |
 | RF-HIST-13 | Geração em lote para uma turma inteira (ex.: concluintes do 9º ano) | Could |
 | RF-HIST-14 | QR code / código de verificação de autenticidade do documento | Could |
+| RF-HIST-15 | Campo de **número de registro GDAE** nos históricos de conclusão (EF e EM), preenchido manualmente a partir da SED, com bloqueio de emissão enquanto vazio | Must |
 
 ### 3.6 Formulários existentes (RF-FORM)
 
@@ -171,7 +175,16 @@ O histórico escolar tem itens obrigatórios definidos pela legislação educaci
 
 **Verso** — informação de transferência quando aplicável.
 
-> ⚠️ **Validar antes de implementar:** as exigências específicas variam por Estado e por rede. Antes de fechar o template, confirmar com a Secretaria/Diretoria de Ensino local qual o modelo aceito e se há numeração de registro externa obrigatória (equivalente ao GDAE paulista).
+**Número de registro GDAE** — obrigatório apenas para concluintes do Ensino Fundamental e do Ensino Médio.
+
+> **O GDAE não é gerado por este sistema.** Em SP o número vem do fluxo de Concluintes da SED, uma cadeia de aprovação humana: a escola cadastra a turma e os concluintes → diretor ratifica → supervisor de ensino valida → **dirigente de ensino publica**. O carregamento roda duas vezes por ano e não há API para consultar nem gerar esse número. No nosso sistema ele é um **campo preenchido pela secretaria**, copiado da SED, com validação de formato e bloqueio de emissão de histórico de conclusão enquanto estiver vazio.
+
+> ⚠️ **Questão aberta que define o escopo da fase 5.** A SED tem módulo próprio de emissão (`Vida Escolar > Documentos Escolares > Histórico Escolar`), que gera o documento com QR Code e fluxo de aprovação. Precisa ser confirmado com a secretaria do colégio se o histórico **oficial** hoje sai da SED ou não:
+>
+> - **Sai da SED** → o PDF deste sistema é documento de trabalho (conferência, controle interno, segunda via não-oficial). O projeto continua valendo, mas a fase 5 promete menos.
+> - **Não sai da SED** → a fase 5 vale integralmente, com a numeração interna (livro/folha) especificada em RF-HIST-07.
+>
+> O modelo de campos acima é o da rede particular paulista e vale nos dois casos.
 
 ---
 
@@ -187,7 +200,9 @@ Matrículas e rematrículas · financeiro/mensalidades · portal do responsável
 |---|---|---|
 | API do Activesoft não expõe carga horária ou situação final | Alto | Matriz curricular local como fonte da carga horária; situação final editável |
 | API sem paginação ou com limite baixo de requisições | Médio | Importação por lote com fila e retomada; log de progresso |
-| Modelo de histórico aceito pelo órgão regional difere do implementado | Alto | Template configurável e validação do modelo com a Diretoria de Ensino **antes** da fase 5 |
+| Modelo de histórico aceito pela DE de Mogi das Cruzes difere do implementado | Alto | Template configurável e validação do modelo com a supervisão da DE **antes** da fase 5 |
+| A SED já é o emissor oficial do histórico e este sistema duplica trabalho | Alto | Confirmar com a secretaria antes da fase 5 (ver seção 5). Se for o caso, a fase 5 vira "documento de trabalho + conferência" e o esforço migra para as fases 3 e 4 |
+| Acesso à API NCA da SED negado para rede particular | Baixo | RF-INT-12 é *Could* — nada depende dele. Dados cadastrais faltantes seguem por preenchimento manual |
 | Dados históricos anteriores ao Activesoft (papel/planilha) | Médio | Lançamento manual de anos anteriores (RF-ALU-07) + importação por arquivo (RF-INT-09) |
 | Migração para React quebrando formulários públicos em produção | Médio | Migração por fase, formulários públicos por último, com a versão EJS mantida até validação |
 | Divergência entre nota do Activesoft e nota impressa no documento | Alto | Snapshot na emissão + auditoria de edição + relatório de divergências na reimportação |

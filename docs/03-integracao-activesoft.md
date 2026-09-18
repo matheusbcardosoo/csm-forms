@@ -190,3 +190,40 @@ Lista para conferir assim que houver acesso:
 - [ ] Limite de requisições
 - [ ] Anos letivos disponíveis — até que ano retroage o histórico?
 - [ ] Conceitos da Educação Infantil e anos iniciais — como são expostos?
+
+---
+
+## 9. SED / SEDUC-SP — o que cobre e o que não cobre
+
+O colégio fica em Mogi das Cruzes/SP, então existe uma segunda API no horizonte: a da Secretaria Escolar Digital. Levantamento de 18/09/2026.
+
+### Existe
+
+**API NCA — Sistema Cadastro de Alunos**
+
+| | |
+|---|---|
+| Produção | `https://integracaosed.educacao.sp.gov.br/ncaapi/api` |
+| Homologação | `https://homologacaointegracaosed.educacao.sp.gov.br/ncaapi/api` |
+| Autenticação | Bearer token obtido em `ValidarUsuario`, validade de 30 minutos |
+| Formato | REST/JSON (há também uma família de serviços SOAP, mais antiga) |
+
+Serviços relevantes: `ConsultaRA`, `ExibirFichaAluno`, `Manutencao` (altera a ficha do aluno), `IncluirTurmaClasse`, `BaixarMatricula`, gestão de responsáveis, consultas ao SIAU (legislação, assuntos).
+
+**Uso possível aqui:** completar dado cadastral faltante — RA, naturalidade, documentos — via `ConsultaRA` + `ExibirFichaAluno`. É o RF-INT-12, prioridade *Could*: nada no sistema depende dele.
+
+**Nunca escrever.** Ver decisão D6 em `02-arquitetura.md`.
+
+### Não existe
+
+- **Nenhum serviço de histórico escolar, notas ou rendimento.** O escopo da API é cadastro e matrícula.
+- **Nenhum endpoint para o número de registro GDAE.** Esse número sai do fluxo de Concluintes da SED — escola cadastra → diretor ratifica → supervisor valida → dirigente de ensino publica, com carregamento duas vezes por ano. É processo humano, não recurso consultável. No nosso sistema é campo manual (RF-HIST-15).
+- A consulta pública de concluintes (`sed.educacao.sp.gov.br/SedCon/ConsultaPublica/Index`) é tela, não endpoint. Serve para a secretaria conferir à mão.
+
+### Acesso
+
+A documentação de integração descreve o processo para **Secretarias Municipais**, com solicitação por chamado no Portal de Atendimento. Não há caminho documentado para escola particular. Vale abrir o chamado e perguntar, mas planeje assumindo que pode ser negado — é por isso que o RF-INT-12 é *Could*.
+
+### Implicação estratégica
+
+A SED emite histórico escolar por conta própria (`Vida Escolar > Documentos Escolares > Histórico Escolar`, com QR Code e fluxo de aprovação). Se o histórico oficial do colégio já sai de lá, a fase 5 deste projeto muda de natureza. Questão aberta registrada em `01-requisitos.md` §5.

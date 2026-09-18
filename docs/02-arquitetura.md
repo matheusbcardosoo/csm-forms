@@ -57,7 +57,10 @@ O front já será TS. Os tipos do domínio (aluno, matrícula, nota, histórico)
 **D5 — Express 4 mantido.**
 Express 5 não traz nada necessário aqui e mudaria o tratamento de erros assíncronos. Migração de framework e migração de front na mesma fase é risco desnecessário.
 
-**D6 — Autorização no servidor, não só por RLS.**
+**D6 — A SED é fonte de consulta, nunca destino de escrita.**
+A API NCA da SED (cadastro de alunos) pode completar dados cadastrais faltantes, e só isso. Nada deste sistema escreve na SED: o `Manutencao` do NCA altera a ficha oficial do aluno no Estado, e uma gravação automática a partir de dado importado do Activesoft propaga erro para fora do colégio. Se a consulta for liberada, ela entra como um segundo adaptador atrás da mesma interface `AdaptadorAcademico`, com as capacidades que tiver.
+
+**D7 — Autorização no servidor, não só por RLS.**
 A RLS atual (`existe em staff_emails`) é binária. Com quatro papéis, a checagem de papel passa a ser middleware no Express (`exigirPapel('secretaria','admin')`), com a RLS como segunda barreira.
 
 ### 2.2 Estrutura de diretórios alvo
@@ -205,6 +208,7 @@ historico
   tipo enum(transferencia, conclusao_ef, conclusao_em, parcial, declaracao)
   etapa · status enum(rascunho, conferido, emitido, cancelado)
   numero_registro · livro · folha · via int default 1
+  numero_registro_gdae text null   -- só concluintes EF/EM; copiado da SED à mão (RF-HIST-15)
   signatario_diretor_id fk · signatario_secretario_id fk
   observacoes text
   snapshot jsonb            -- documento congelado na emissão
@@ -299,7 +303,7 @@ Emitido, o `snapshot` é a verdade do documento. Reemissão da 2ª via renderiza
 | **F2 — Cadastros base** | Séries, disciplinas, matriz curricular, sistema de avaliação, estabelecimentos externos | F1 |
 | **F3 — Integração** | Adaptador Activesoft, importação com simulação, log e divergências, mapeamento de códigos | F2 + **doc da API** |
 | **F4 — Alunos e notas** | Lista, ficha, grade de notas editável, auditoria, anos cursados fora, validações | F3 |
-| **F5 — Histórico** | Montagem, pré-visualização, edição, emissão, numeração, PDF, 2ª via | F4 + **modelo validado com a Diretoria de Ensino** |
+| **F5 — Histórico** | Montagem, pré-visualização, edição, emissão, numeração, PDF, 2ª via | F4 + **modelo validado com a DE de Mogi das Cruzes** + resposta sobre a SED (ver `01-requisitos.md` §5) |
 | **F6 — Formulários** | Migração dos wizards e da tela de respostas para React, aposentadoria das views EJS de página | F0 |
 | **F7 — Refino** | Geração em lote, importação agendada, QR de verificação, relatórios | F5 |
 
