@@ -2,7 +2,7 @@
    auth-gate.js — gate de login/senha compartilhado
    Usado tanto pela central de formulários (index.ejs) quanto pela
    tela de respostas (respostas.ejs) — as duas exigem a mesma equipe
-   autenticada e autorizada (staff_emails). O link público de
+   autenticada e autorizada (usuario_perfil). O link público de
    preenchimento de um formulário (ex.: /form-visitas) NUNCA usa este
    gate, pra continuar acessível a qualquer pessoa com o link.
 

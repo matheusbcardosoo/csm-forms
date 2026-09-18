@@ -4,4 +4,6 @@ npm-debug.log
 .git
 .gitignore
 .impeccable
+client/dist
 *.md
+!supabase/migrations/README.md

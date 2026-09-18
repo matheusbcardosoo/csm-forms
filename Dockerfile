@@ -1,4 +1,16 @@
 # syntax=docker/dockerfile:1
+
+# ---------- etapa 1: compila o painel React (client/dist) ----------
+FROM node:20-slim AS build-client
+WORKDIR /app
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+COPY package*.json ./
+RUN npm ci
+COPY client ./client
+COPY shared ./shared
+RUN npm run build
+
+# ---------- etapa 2: runtime ----------
 FROM node:20-slim
 
 # Chromium do proprio repositorio Debian, ja com todas as bibliotecas
@@ -20,11 +32,14 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 COPY . .
+COPY --from=build-client /app/client/dist ./client/dist
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+# tsx executa o servidor TypeScript diretamente (dependência de runtime,
+# ver package.json) — não há etapa de transpilação do servidor.
+CMD ["npx", "tsx", "server/index.ts"]

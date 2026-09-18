@@ -4,7 +4,7 @@ const router = express.Router();
 const { resolveSession } = require('../lib/auth');
 
 // '/' e '/respostas' são as duas páginas protegidas pelo gate de login
-// (staff_emails). Resolvemos o estado de autenticação aqui, no servidor,
+// (usuario_perfil). Resolvemos o estado de autenticação aqui, no servidor,
 // ANTES de chamar res.render — assim o HTML já sai com o painel certo
 // (login, troca de senha, acesso negado ou conteúdo) e o navegador nunca
 // chega a pintar a tela de login para quem já está autenticado.

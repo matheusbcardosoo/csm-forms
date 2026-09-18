@@ -1,138 +1,122 @@
-Central de formulários do Colégio São Marcos com servidor Node.js/Express. Oferece um fluxo de cadastro para visitas e uma área de visualização de respostas para a equipe autorizada.
+# Secretaria Digital — Colégio São Marcos
 
-## Visão geral
+Sistema de gestão da secretaria do colégio: painel administrativo (React) sobre a central de formulários existente (visitas e avaliação substitutiva), com servidor Node.js/Express e Supabase.
 
-Aplicação web full-stack que:
+Planejamento completo em [docs/](docs/README.md). Estado das fases:
 
-- exibe uma página inicial com os formulários disponíveis;
-- oferece um formulário multi-etapas para cadastro de visitas;
-- envia os dados para o Supabase (Postgres);
-- permite que membros da equipe autorizados consultem as respostas após login.
+| Fase | Entrega | Estado |
+|---|---|---|
+| F0 — Fundação | Vite + React + TS, migrations, papéis (`usuario_perfil`), login em React, shell do painel | ✅ |
+| F1 — Instituição | Cadastro da instituição, atos legais, signatários, anos letivos, pré-visualização do cabeçalho | ✅ |
+| F2 — Cadastros base | Cursos, séries, componentes, versões curriculares (blocos → agrupamentos → itens, totais, vigência, duplicar/publicar), sistema de avaliação, estabelecimentos externos | ✅ |
+| F3 — Integração Activesoft | Adaptador, importação com simulação, divergências, mapeamento | ⏳ aguarda documentação da API |
+| F4 — Alunos e notas | Lista, ficha, grade de notas editável, auditoria | ⏳ |
+| F5 — Histórico | Montagem, pré-visualização fiel, emissão, PDF, 2ª via | ⏳ |
+| F6 — Formulários | Migração dos wizards e das respostas para React | ⏳ (hoje continuam em EJS, acessíveis pelo painel) |
 
-## Funcionalidades
-
-- Formulário de visitas com wizard em etapas (aluno, escola, responsáveis, extras, revisão);
-- Armazenamento seguro de respostas no Supabase;
-- Autenticação de equipe com senha obrigatória na primeira vez;
-- Acesso restrito por lista de e-mails (`staff_emails`);
-- Renderização de templates lado do servidor com EJS;
-- Sessões seguras com cookies httpOnly.
-
-## Tecnologias
-
-- **Backend:** Node.js + Express
-- **Frontend:** EJS templates, CSS, JavaScript
-- **Banco:** Supabase (Postgres)
-- **Autenticação:** Supabase Auth com email/password
-
-## Pré-requisitos
-
-- Node.js 18+
-- Uma instância no Supabase com:
-  - URL do projeto;
-  - chave anônima;
-  - chave de serviço (service role);
-  - schema aplicado no SQL Editor.
-
-## Configuração
-
-1. Clone e instale as dependências:
-
-   ```bash
-   git clone <repo>
-   cd csm-forms
-   npm install
-   ```
-
-2. Copie e configure o arquivo `.env`:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Preencha as variáveis:
-
-   ```env
-   SUPABASE_URL=https://seu-projeto.supabase.co
-   SUPABASE_ANON_KEY=sua-chave-anonima
-   SUPABASE_SERVICE_ROLE_KEY=sua-chave-servico
-   COOKIE_SECRET=gere-uma-string-aleatoria-longa-aqui
-   PORT=3000
-   ```
-
-3. Aplique o schema do banco:
-
-   - Abra o SQL Editor do Supabase;
-   - execute o conteúdo de [supabase/schema.sql](supabase/schema.sql).
-
-4. (Opcional) Provisione membros da equipe:
-
-   ```bash
-   node scripts/provision-staff-users.mjs email@saomarcos.com.br "Nome Completo"
-   ```
-
-   Senha padrão: `SaoMarcos` (obrigatório trocar no primeiro login).
-
-## Executando localmente
-
-```bash
-npm start
-```
-
-Acesse em http://localhost:3000
-
-## Estrutura do projeto
+## Estrutura
 
 ```text
 .
-├── lib/
-│   └── supabase.js          # Cliente Supabase
-├── public/
-│   ├── css/
-│   ├── images/
-│   └── js/
-├── routes/
-│   ├── api.js               # Endpoints da API
-│   └── pages.js             # Rotas de páginas
-├── views/
-│   ├── form-visitas.ejs     # Formulário multi-etapas
-│   ├── respostas.ejs        # Visualização de respostas
-│   ├── index.ejs            # Página inicial
-│   └── partials/            # Componentes reutilizáveis
-├── scripts/
-│   └── provision-staff-users.mjs  # Script de provisioning
-├── supabase/
-│   └── schema.sql           # Schema do banco
-├── server.js                # Entrada do app
-├── package.json
-└── .env.example
+├── client/                 painel React (Vite) — servido em /app
+│   └── src/
+│       ├── app/            telas por módulo (inicio, alunos, historicos, importacoes, formularios, configuracoes)
+│       ├── auth/           login em React
+│       ├── componentes/    Shell (sidebar/topbar/drawer), ui (Botao, Card, Tabela responsiva, Modal…), ícones
+│       ├── hooks/          sessão, ano letivo global, toasts, carregamento de recursos
+│       └── estilos/        tokens e estilos do painel (tema claro/escuro)
+├── server/                 servidor TypeScript (tsx)
+│   ├── index.ts            entrada — monta rotas antigas (JS) e novas (TS), serve client/dist em /app
+│   ├── lib/                autorização por papel (exigirPapel), validação (zod)
+│   └── rotas/              painel, usuarios, instituicao, anos-letivos, cadastros, versoes
+├── shared/types/           tipos compartilhados cliente ↔ servidor (+ montagem do cabeçalho do documento)
+├── lib/, routes/, views/   módulo original (formulários, respostas, PDFs via Puppeteer) — inalterado
+├── public/                 estáticos dos formulários públicos
+├── supabase/migrations/    001–004, imutáveis, aplicadas em ordem
+├── scripts/                provisionamento de contas
+└── docs/                   requisitos, arquitetura, modelo do histórico, mockup
 ```
 
-## Fluxo principal
+## Pré-requisitos
 
-1. **Página inicial:** Lista formulários disponíveis;
-2. **Formulário de visitas:** Coleta dados em etapas e salva no Supabase;
-3. **Página de respostas:** Requer login e exibe respostas da equipe autorizada.
+- Node.js 20+
+- Projeto Supabase (URL, chave anônima, service role)
+
+## Configuração
+
+1. Instale as dependências:
+
+   ```bash
+   npm install
+   ```
+
+2. Copie `.env.example` para `.env` e preencha (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `COOKIE_SECRET`, `INTERNAL_PDF_SECRET`, `APP_BASE_URL`).
+
+3. **Aplique as migrations** no SQL Editor do Supabase, em ordem: `supabase/migrations/001_base.sql` → `002` → `003` → `004`. Detalhes e pós-migração em [supabase/migrations/README.md](supabase/migrations/README.md).
+
+   > A `002` substitui `staff_emails` por `usuario_perfil` (quem já tinha acesso vira `secretaria`). Depois dela, **promova ao menos uma pessoa a `admin`**, senão ninguém configura a instituição:
+   >
+   > ```sql
+   > update usuario_perfil set papel = 'admin' where email = 'voce@saomarcos.g12.br';
+   > ```
+
+4. Provisione contas de login para quem está em `usuario_perfil`:
+
+   ```bash
+   node scripts/provision-staff-users.mjs
+   ```
+
+   Senha padrão `SaoMarcos`, troca obrigatória no primeiro acesso.
+
+## Executando
+
+Desenvolvimento (dois processos — API e Vite com hot reload):
+
+```bash
+npm run dev
+```
+
+```bash
+npm run dev:client
+```
+
+Painel em http://localhost:5173/app/ (o Vite encaminha `/api` para o Express em :3000). Formulários públicos em http://localhost:3000/.
+
+Produção (compila o painel e sobe o servidor):
+
+```bash
+npm run build && npm start
+```
+
+Painel em http://localhost:3000/app · formulários em http://localhost:3000/.
+
+Checagem de tipos (cliente e servidor):
+
+```bash
+npm run typecheck
+```
+
+## Papéis
+
+| Papel | Vê | Escreve |
+|---|---|---|
+| `admin` | tudo | tudo (instituição, atos, signatários, cursos, currículos, usuários) |
+| `secretaria` | tudo menos Usuários | outras escolas; a partir da F3/F4: importação, notas, históricos |
+| `coordenacao` | alunos, históricos, formulários | — |
+| `leitura` | alunos, históricos | — |
+
+A regra é aplicada no servidor (`exigirPapel`) e repetida no banco (RLS com `tem_papel()`).
 
 ## Implantação
 
-O projeto tem um `Dockerfile` na raiz — use-o em vez de um template genérico de Node.js. Ele instala o Chromium do sistema (via apt) e configura o Puppeteer pra usá-lo em vez de tentar baixar o próprio Chrome, evitando problemas de rede no build e incompatibilidade com imagens Alpine. No EasyPanel, escolha o modo "Dockerfile" ao criar/editar o app.
+O `Dockerfile` tem duas etapas: compila o painel (`vite build`) e monta a imagem de runtime com o Chromium do sistema para o Puppeteer. No EasyPanel, modo "Dockerfile". Defina as variáveis do `.env.example` no hosting; `PUPPETEER_*` já vêm fixadas na imagem.
 
-Defina as variáveis de ambiente do `.env.example` no seu hosting — `PUPPETEER_SKIP_DOWNLOAD` e `PUPPETEER_EXECUTABLE_PATH` já vêm fixadas no Dockerfile, não precisa duplicar.
-
-Sem Docker (ex.: rodando `npm start` direto num VPS), execute:
+Sem Docker:
 
 ```bash
-npm start
-```
-
-Ou configure um process manager como PM2:
-
-```bash
-pm2 start server.js --name csm-forms
+npm ci && npm run build && npm start
 ```
 
 ## Licença
 
-Este projeto está sob a licença [MIT](LICENSE).
-
+[MIT](LICENSE).

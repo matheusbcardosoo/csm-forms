@@ -2,7 +2,7 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
 const { getAnonClient, getAuthenticatedClient } = require('../lib/supabase');
-const { getTokens, setAuthCookies, clearAuthCookies, requireAuth, resolveSession } = require('../lib/auth');
+const { getTokens, setAuthCookies, clearAuthCookies, requireAuth, resolveSession, getPerfil } = require('../lib/auth');
 const { shapeVisitaRow, pdfFilename } = require('../lib/visita');
 const { shapeAvaliacaoRow, pdfFilename: avaliacaoPdfFilename } = require('../lib/avaliacao');
 const { renderVisitaPdf, renderVisitaBlankPdf, renderAvaliacaoPdf, renderAvaliacaoBlankPdf } = require('../lib/pdf');
@@ -47,19 +47,22 @@ router.post('/auth/login', async (req, res) => {
     );
 
     let authorized = false;
+    let perfil = null;
     if (!mustChangePassword) {
       const { client: authClient } = await getAuthenticatedClient(
         session.access_token,
         session.refresh_token
       );
-      const { data: staffData } = await authClient
-        .from('staff_emails')
-        .select('email')
-        .maybeSingle();
-      authorized = !!staffData;
+      perfil = await getPerfil(authClient);
+      authorized = !!(perfil && perfil.ativo);
+      if (authorized) {
+        // Registro de último acesso — best effort, nunca bloqueia o login.
+        authClient.from('usuario_perfil').update({ ultimo_acesso_em: new Date().toISOString() })
+          .eq('email', perfil.email).then(() => {}, () => {});
+      }
     }
 
-    res.json({ success: true, mustChangePassword, authorized });
+    res.json({ success: true, mustChangePassword, authorized, perfil: authorized ? perfil : null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -134,11 +137,8 @@ router.get('/responses', async (req, res) => {
   if (!client) return;
 
   try {
-    const { data: staffData } = await client
-      .from('staff_emails')
-      .select('email')
-      .maybeSingle();
-    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+    const perfil = await getPerfil(client);
+    if (!perfil || !perfil.ativo) return res.status(403).json({ error: 'Não autorizado.' });
 
     const form = req.query.form || 'visitas';
 
@@ -173,11 +173,8 @@ router.get('/responses/:id/pdf', async (req, res) => {
   if (!client) return;
 
   try {
-    const { data: staffData } = await client
-      .from('staff_emails')
-      .select('email')
-      .maybeSingle();
-    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+    const perfil = await getPerfil(client);
+    if (!perfil || !perfil.ativo) return res.status(403).json({ error: 'Não autorizado.' });
 
     const baseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
 
@@ -241,11 +238,8 @@ router.get('/responses/:id/anexo/:provaId', async (req, res) => {
   if (!client) return;
 
   try {
-    const { data: staffData } = await client
-      .from('staff_emails')
-      .select('email')
-      .maybeSingle();
-    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+    const perfil = await getPerfil(client);
+    if (!perfil || !perfil.ativo) return res.status(403).json({ error: 'Não autorizado.' });
 
     // O join com avaliacao_substitutiva_alunos!inner garante que a prova
     // pertence mesmo ao requerimento :id (não só que o id da prova existe).
@@ -280,11 +274,8 @@ router.post('/responses/:id/whatsapp', async (req, res) => {
   if (!client) return;
 
   try {
-    const { data: staffData } = await client
-      .from('staff_emails')
-      .select('email')
-      .maybeSingle();
-    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+    const perfil = await getPerfil(client);
+    if (!perfil || !perfil.ativo) return res.status(403).json({ error: 'Não autorizado.' });
 
     if (req.query.form === 'avaliacao-substitutiva') {
       const { data: row, error } = await client
@@ -333,11 +324,8 @@ router.get('/blank/visita/pdf', async (req, res) => {
   if (!client) return;
 
   try {
-    const { data: staffData } = await client
-      .from('staff_emails')
-      .select('email')
-      .maybeSingle();
-    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+    const perfil = await getPerfil(client);
+    if (!perfil || !perfil.ativo) return res.status(403).json({ error: 'Não autorizado.' });
 
     const pdfBuffer = await renderVisitaBlankPdf({
       baseUrl: process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
@@ -362,11 +350,8 @@ router.get('/blank/avaliacao/pdf', async (req, res) => {
   if (!client) return;
 
   try {
-    const { data: staffData } = await client
-      .from('staff_emails')
-      .select('email')
-      .maybeSingle();
-    if (!staffData) return res.status(403).json({ error: 'Não autorizado.' });
+    const perfil = await getPerfil(client);
+    if (!perfil || !perfil.ativo) return res.status(403).json({ error: 'Não autorizado.' });
 
     const pdfBuffer = await renderAvaliacaoBlankPdf({
       baseUrl: process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,

@@ -4,9 +4,10 @@
  * provision-staff-users.mjs
  *
  * Cria contas de login (Supabase Auth) pra todo mundo que estiver
- * na tabela staff_emails, com a senha padrão "SaoMarcos" e a flag
- * must_change_password=true (isso força a troca de senha no
- * primeiro acesso — veja assets/js/respostas.js).
+ * na tabela usuario_perfil (ativo = true), com a senha padrão
+ * "SaoMarcos" e a flag must_change_password=true (isso força a troca
+ * de senha no primeiro acesso — veja public/js/auth-gate.js e o
+ * painel em client/src/auth/Login.tsx).
  *
  * IMPORTANTE: rode isso só localmente, na sua máquina. NUNCA coloque
  * a service_role key em config.js, no navegador ou em qualquer
@@ -18,7 +19,7 @@
  *        SUPABASE_SERVICE_ROLE_KEY=...  (Project Settings > API > service_role)
  *   2. Rode:  node scripts/provision-staff-users.mjs
  *
- * Pode rodar de novo sempre que adicionar alguém em staff_emails —
+ * Pode rodar de novo sempre que adicionar alguém em usuario_perfil —
  * quem já tem conta é pulado (não mexe na senha de quem já trocou).
  * ==========================================================
  */
@@ -58,9 +59,9 @@ const headers = {
 };
 
 async function getStaffEmails() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/staff_emails?select=email,nome`, { headers });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/usuario_perfil?select=email,nome,papel&ativo=eq.true`, { headers });
   if (!res.ok) {
-    throw new Error(`Falha ao ler staff_emails (${res.status}): ${await res.text()}`);
+    throw new Error(`Falha ao ler usuario_perfil (${res.status}): ${await res.text()}`);
   }
   return res.json();
 }
@@ -94,18 +95,19 @@ async function createUser(email) {
 }
 
 async function main() {
-  console.log('Lendo staff_emails...');
+  console.log('Lendo usuario_perfil...');
   const staff = await getStaffEmails();
 
   if (!staff.length) {
-    console.log('Nenhum e-mail cadastrado em staff_emails ainda. Adicione com:');
-    console.log("  insert into staff_emails (email, nome) values ('fulano@saomarcos.com.br', 'Fulano');");
+    console.log('Nenhum e-mail cadastrado em usuario_perfil ainda. Adicione com:');
+    console.log("  insert into usuario_perfil (email, nome, papel) values ('fulano@saomarcos.com.br', 'Fulano', 'secretaria');");
     return;
   }
 
   console.log(`${staff.length} e-mail(s) encontrado(s). Provisionando contas...\n`);
 
-  for (const { email } of staff) {
+  for (const { email, papel } of staff) {
+    process.stdout.write(`[${papel}] `);
     await createUser(email);
   }
 
