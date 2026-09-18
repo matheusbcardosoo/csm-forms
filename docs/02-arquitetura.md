@@ -57,8 +57,8 @@ O front já será TS. Os tipos do domínio (aluno, matrícula, nota, histórico)
 **D5 — Express 4 mantido.**
 Express 5 não traz nada necessário aqui e mudaria o tratamento de erros assíncronos. Migração de framework e migração de front na mesma fase é risco desnecessário.
 
-**D6b — Um único template de PDF cobre os 49 anos.**
-A secretaria redigita histórico antigo no modelo atual, em vez de reproduzir o documento da época. Logo, o template não é versionado — só a estrutura curricular é. Um gerador serve de 1977 a hoje; o que muda entre épocas são as linhas da grade, não o desenho da folha.
+**D6b — Um único template de PDF, não versionado.**
+A secretaria redigita histórico antigo no modelo atual em vez de reproduzir o documento da época, então o template nunca precisa ser versionado — só a estrutura curricular é. Vale para a v1 e continua valendo quando o acervo antigo for implementado (`07-acervo-antigo-diferido.md` D1).
 
 **D6 — A SED é fonte de consulta, nunca destino de escrita.**
 A API NCA da SED (cadastro de alunos) pode completar dados cadastrais faltantes, e só isso. Nada deste sistema escreve na SED: o `Manutencao` do NCA altera a ficha oficial do aluno no Estado, e uma gravação automática a partir de dado importado do Activesoft propaga erro para fora do colégio. Se a consulta for liberada, ela entra como um segundo adaptador atrás da mesma interface `AdaptadorAcademico`, com as capacidades que tiver.
@@ -328,9 +328,11 @@ Emitido, o `snapshot` é a verdade do documento. Reemissão da 2ª via renderiza
 | **F1 — Instituição** | Cadastro da instituição, atos, signatários, anos letivos, pré-visualização do cabeçalho | F0 |
 | **F2 — Cadastros base** | Cursos, séries, **versão curricular vigente** (blocos, agrupamentos, itens, totais, vigência), sistema de avaliação, estabelecimentos externos. Versões retroativas entram sob demanda, não aqui | F1 |
 | **F3 — Integração** | Adaptador Activesoft, importação com simulação, log e divergências, mapeamento de códigos | F2 + **doc da API** |
-| **F4 — Alunos e notas** | Lista, ficha, grade de notas editável, auditoria, anos cursados fora, validações, **transcrição de histórico antigo** (acervo anterior ao Activesoft) | F3 |
+| **F4 — Alunos e notas** | Lista, ficha, grade de notas editável, auditoria, anos cursados fora, validações | F3 |
 | **F5 — Histórico** | Montagem, pré-visualização, edição, emissão, numeração, PDF, 2ª via | F4 + **modelo validado com a DE de Mogi das Cruzes** + resposta sobre a SED (ver `01-requisitos.md` §5) |
 | **F6 — Formulários** | Migração dos wizards e da tela de respostas para React, aposentadoria das views EJS de página | F0 |
 | **F7 — Refino** | Geração em lote, importação agendada, QR de verificação, relatórios | F5 |
+
+**Fora deste roadmap:** o acervo anterior ao Activesoft é feature própria, diferida — `07-acervo-antigo-diferido.md`. O schema das fases 1–5 já a acomoda; nada precisará ser refeito.
 
 F1 e F2 podem começar antes de a documentação da API estar disponível — é o motivo de estarem primeiro. F6 é independente de F1–F5 e pode rodar em paralelo.

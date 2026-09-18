@@ -142,61 +142,17 @@ Códigos cujo item **não** foi copiado (componente extinto na reforma) entram c
 
 ---
 
-## 6. Alcance retroativo: 49 anos
+## 6. Alcance retroativo
 
-O colégio emite histórico de quem estudou lá desde meados dos anos 1970. Três respostas da secretaria (18/09/2026) definem o que isso custa.
+O colégio emite histórico de quem estudou lá nos últimos **49 anos**, mas o Activesoft só cobre os ~20 mais recentes. O acervo anterior é **feature diferida** — o dossiê completo, com decisões já tomadas e as perguntas a fazer antes de implementar, está em **[07-acervo-antigo-diferido.md](07-acervo-antigo-diferido.md)**.
 
-### 6.1 O layout é um só
+O que importa aqui, porque afeta o desenho da v1:
 
-**Histórico antigo é redigitado no modelo de hoje.** A secretaria não reproduz o documento como ele era em 1985 — pega o registro em papel e digita no modelo atual.
+**Currículos entram sob demanda.** A versão vigente é cadastrada na fase 2. Versões de períodos anteriores nascem quando aparece o primeiro pedido daquele período — cadastrar 49 anos de currículo antes de emitir o primeiro documento atrasaria o sistema em meses de pesquisa de arquivo.
 
-Isso corta um escopo inteiro: **não existe versionamento de template.** Só a estrutura curricular é versionada. Um único gerador de PDF atende os 49 anos; o que muda entre épocas são as linhas da grade, não o desenho da folha.
+**A guarda fica na v1.** Quando não há `vigencia_curricular` para o ano pedido, o sistema **bloqueia a emissão** e explica: *"Nenhum currículo cadastrado para 1987. Cadastre a versão vigente naquele período para continuar."* Isso é RF-VER-11, e está na v1 de propósito: é o que torna seguro adiar o resto. Sem ela, um pedido antigo sairia com a grade do currículo de hoje, em silêncio, num documento permanente.
 
-### 6.2 A fronteira digital fica no Activesoft
-
-O Activesoft tem notas lançadas de **mais de 20 anos**. Isso divide o acervo em dois regimes:
-
-| Período | Origem das notas | Fluxo |
-|---|---|---|
-| Últimos ~20 anos | Activesoft | Importação (fases 3 e 4) |
-| Antes disso | Livro/papel do arquivo | Transcrição manual (RF-ALU-07) |
-
-> **Confirmar o ano exato de corte.** É o número que diz quantos históricos ainda dependem de digitação e, portanto, quanto a tela de transcrição precisa ser boa.
-
-A tela de transcrição de histórico antigo deixa de ser acessório e vira funcionalidade de primeira classe: para quase metade do período coberto, ela é o **único** caminho de entrada.
-
-### 6.3 Currículos antigos entram sob demanda
-
-Cadastrar os currículos dos 49 anos antes de emitir o primeiro documento atrasaria o sistema em meses de pesquisa de arquivo. **A versão vigente é cadastrada na fase 2; as antigas nascem quando aparece o primeiro pedido daquele período.**
-
-Na prática:
-
-1. A secretaria abre um histórico de alguém que estudou em 1987.
-2. Não há `vigencia_curricular` para 1987 → o sistema **bloqueia a emissão** e explica: *"Nenhum currículo cadastrado para 1987. Cadastre a versão vigente naquele período para continuar."*
-3. Botão direto para criar a versão, já com o ano preenchido, duplicando a versão mais próxima como ponto de partida.
-4. Cadastrada uma vez, serve todos os pedidos futuros daquele período.
-
-O acervo de versões se constrói sozinho, na ordem em que a demanda real aparece. Um currículo que nunca é pedido nunca é cadastrado.
-
-> **Requisito que isso cria:** o bloqueio por currículo ausente precisa ser explícito e acionável, nunca um documento saindo com a grade errada em silêncio. Ver RF-VER-11.
-
-### 6.4 Mudança de nomenclatura é curso novo, não versão nova
-
-Em 49 anos a estrutura do ensino brasileiro mudou de nome e de tamanho, não só de conteúdo:
-
-| Marco | O que mudou | Efeito no modelo |
-|---|---|---|
-| Lei 5.692/71 | 1º grau (1ª–8ª série) e 2º grau (1ª–3ª série) | cursos próprios |
-| LDB 9.394/96 | vira Ensino Fundamental e Ensino Médio | cursos novos |
-| Lei 11.274/2006 | EF passa de 8 séries para 9 anos, com nomenclatura nova | **curso novo** |
-| BNCC (2017–2020) | componentes e áreas mudam; séries não | versão nova |
-| Novo Ensino Médio (2022) | itinerários formativos; séries não | versão nova |
-
-**A regra:** mudou o número ou o nome das séries → curso novo. Mudaram só os componentes → versão nova.
-
-Isso evita forçar identidade entre coisas que não são a mesma. A passagem de 8 séries para 9 anos não tem correspondência limpa — a antiga 1ª série não é o novo 1º ano — e tentar mapear isso produziria histórico errado. Cursos separados dizem a verdade: cada matrícula aponta para o curso que existia na época, com as séries que existiam na época.
-
-> **Pendência:** um histórico de quem cursou o 1º grau imprime "HISTÓRICO ESCOLAR - 1º GRAU" ou a secretaria moderniza para "ENSINO FUNDAMENTAL"? O título vem do nome do curso, então a resposta decide como cadastrar os cursos antigos.
+**Mudança de nomenclatura é curso novo, não versão nova.** Mudou o número ou o nome das séries (1º grau → EF 8 séries → EF 9 anos) → curso novo. Mudaram só os componentes (BNCC, Novo Ensino Médio) → versão nova. A passagem de 8 séries para 9 anos não tem correspondência limpa — a antiga 1ª série não é o novo 1º ano —, e forçar identidade produziria histórico errado.
 
 ## 7. O que isso adiciona aos requisitos
 
@@ -213,5 +169,5 @@ Isso evita forçar identidade entre coisas que não são a mesma. A passagem de 
 | RF-VER-09 | Comparar duas versões lado a lado (itens incluídos, removidos, renomeados) | Should |
 | RF-VER-10 | Alertar ao publicar versão nova quais códigos do Activesoft ficaram órfãos | Should |
 | RF-VER-11 | Bloquear a emissão quando não houver currículo cadastrado para o período, com mensagem explícita e atalho para criar a versão já preenchida com o ano | Must |
-| RF-VER-12 | Ao criar versão retroativa, sugerir como ponto de partida a versão vigente mais próxima no tempo | Should |
+| RF-VER-12 | ~~Ao criar versão retroativa, sugerir a versão vigente mais próxima no tempo~~ — **diferido** com o acervo antigo | — |
 | RF-VER-13 | Observação automática no campo OBSERVAÇÕES quando o documento cruza versões curriculares, citando a reforma e o período de cada currículo | Should |

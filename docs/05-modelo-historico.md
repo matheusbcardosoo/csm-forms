@@ -180,8 +180,8 @@ Texto fixo, fonte pequena, alinhado à esquerda.
 - [x] ~~O histórico de **Ensino Fundamental** usa o mesmo layout?~~ Sim — segundo a secretaria, o layout é o mesmo para todos os segmentos.
 - [x] ~~Desde que ano o colégio emite histórico?~~ 49 anos. Currículos antigos entram sob demanda — `06-versionamento-curricular.md` §6.
 - [x] ~~Nome de componente que muda no meio do curso?~~ Imprime sempre o mais recente, sem alternativa configurável.
-- [ ] Histórico de quem cursou o **1º grau** imprime "HISTÓRICO ESCOLAR - 1º GRAU" ou a secretaria moderniza o título?
-- [ ] Ano exato de corte do Activesoft (a secretaria diz "mais de 20 anos") — dimensiona o volume de transcrição manual.
+- [ ] Modelo de **transferência** (aluno não concluinte) — só temos o de conclusão.
+- → Pendências do acervo anterior ao Activesoft (título do 1º grau, ano de corte) migraram para [07-acervo-antigo-diferido.md](07-acervo-antigo-diferido.md) §5, junto com a feature.
 - [ ] Existe modelo de **transferência** (aluno não concluinte) — como fica sem o bloco de certificado?
 - [ ] **Educação Infantil** emite histórico ou só declaração/relatório?
 - [ ] Qual é a razão aulas→horas para cada curso? (0,75 no EM Bilíngue)

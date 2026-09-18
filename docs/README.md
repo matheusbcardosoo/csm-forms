@@ -12,8 +12,13 @@ Colégio São Marcos — Mogi das Cruzes/SP, rede particular, sob a Diretoria de
 | [04-telas-e-navegacao.md](04-telas-e-navegacao.md) | Mapa de rotas, telas, componentes |
 | [05-modelo-historico.md](05-modelo-historico.md) | Anatomia campo a campo do histórico real — o que o gerador tem de reproduzir |
 | [06-versionamento-curricular.md](06-versionamento-curricular.md) | Como a estrutura curricular é versionada para que o histórico de 2019 saia com os nomes de 2019 |
+| [07-acervo-antigo-diferido.md](07-acervo-antigo-diferido.md) | ⛔ **Feature diferida** — históricos anteriores ao Activesoft. Leia antes de implementá-la |
 | [modelos/JULIA_TEMPLATE.pdf](modelos/JULIA_TEMPLATE.pdf) | Modelo real em uso (EM Bilíngue, aluno anonimizado) |
 | [mockups/painel-secretaria.html](mockups/painel-secretaria.html) | Protótipo navegável das telas — abrir no navegador |
+
+## Escopo da v1
+
+A v1 atende o **cenário atual**: alunos cuja trajetória está no Activesoft. O colégio emite histórico de 49 anos de acervo, mas o período anterior ao Activesoft depende de registro em papel e é **feature própria, diferida** — ver `07-acervo-antigo-diferido.md`. A v1 inclui o bloqueio de emissão quando falta currículo do período (RF-VER-11), que é o que torna seguro adiar o resto.
 
 ## Estado
 
@@ -25,8 +30,7 @@ Planejamento para validação. Nenhum código de implementação foi escrito.
 |---|---|---|
 | Documentação da API do Activesoft | Fase 3 (integração) | Matheus |
 | Modelo de **transferência** (aluno não concluinte) — só temos o de conclusão | Fase 5 | Secretaria do colégio |
-| Ano exato de corte do Activesoft — dimensiona o volume de transcrição manual | Fase 4 | Matheus |
-| Histórico de 1º grau imprime "1º GRAU" no título ou moderniza? | Fase 5 | Secretaria do colégio |
+| Modelo de **transferência** (aluno não concluinte) — só temos o de conclusão | Fase 5 | Secretaria do colégio |
 | Até que ano letivo o Activesoft retroage | Escopo do histórico de alunos antigos | Matheus |
 | (Opcional) Acesso à API NCA da SED para rede particular — chamado no Portal de Atendimento | Nada; RF-INT-12 é *Could* | Matheus |
 
@@ -35,7 +39,8 @@ Planejamento para validação. Nenhum código de implementação foi escrito.
 - A numeração externa é o número de publicação da SED, rótulo **"Registro / Visto Confere"**. Não tem API — campo manual (`03-integracao-activesoft.md` §9).
 - **O documento sai da secretaria do colégio**, não da SED. A fase 5 vale integralmente.
 - O modelo real está especificado em `05-modelo-historico.md`. Ele corrigiu três pontos do modelo de dados — ver a nota no §3.2 de `02-arquitetura.md`.
-- **49 anos de acervo, um único template.** Histórico antigo é redigitado no modelo atual, então o PDF não é versionado — só a estrutura curricular. Activesoft cobre ~20 anos; antes disso é transcrição manual. Currículos antigos entram sob demanda, com bloqueio explícito de emissão quando falta o do período. Detalhes em `06-versionamento-curricular.md` §6.
+- **Um único template de PDF**, não versionado: histórico antigo é redigitado no modelo atual. Currículos entram sob demanda, com bloqueio explícito de emissão quando falta o do período (RF-VER-11).
+- **Acervo anterior ao Activesoft: diferido** como feature própria — `07-acervo-antigo-diferido.md`.
 - Nome de componente renomeado numa reforma: imprime sempre o **mais recente**.
 
 As fases 1 (configuração da instituição) e 2 (cadastros base) não dependem de nenhuma dessas pendências e podem começar imediatamente.
