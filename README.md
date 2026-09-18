@@ -9,8 +9,8 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 | F0 — Fundação | Vite + React + TS, migrations, papéis (`usuario_perfil`), login em React, shell do painel | ✅ |
 | F1 — Instituição | Cadastro da instituição, atos legais, signatários, anos letivos, pré-visualização do cabeçalho | ✅ |
 | F2 — Cadastros base | Cursos, séries, componentes, versões curriculares (blocos → agrupamentos → itens, totais, vigência, duplicar/publicar), sistema de avaliação, estabelecimentos externos | ✅ |
-| F3 — Integração Activesoft | Adaptador, importação com simulação, divergências, mapeamento | ⏳ aguarda documentação da API |
-| F4 — Alunos e notas | Lista, ficha, grade de notas editável, auditoria | ⏳ |
+| F3 — Integração | Contrato canônico, pipeline de importação (simulação · efetiva · idempotente · divergências RF-INT-06 · pendências de mapeamento com sugestão), adaptadores `mock` e `arquivo` (CSV), tela de mapeamentos | ✅ · adaptador `activesoft` é um stub até a documentação da API |
+| F4 — Alunos e notas | Lista com filtros, ficha (dados · trajetória · notas), cadastro manual, ano cursado em outra escola, grade de notas editável com motivo e auditoria, validação RF-ALU-08 | ✅ |
 | F5 — Histórico | Montagem, pré-visualização fiel, emissão, PDF, 2ª via | ⏳ |
 | F6 — Formulários | Migração dos wizards e das respostas para React | ⏳ (hoje continuam em EJS, acessíveis pelo painel) |
 
@@ -28,11 +28,14 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 ├── server/                 servidor TypeScript (tsx)
 │   ├── index.ts            entrada — monta rotas antigas (JS) e novas (TS), serve client/dist em /app
 │   ├── lib/                autorização por papel (exigirPapel), validação (zod)
-│   └── rotas/              painel, usuarios, instituicao, anos-letivos, cadastros, versoes
+│   ├── adapters/activesoft/ contrato do adaptador: mock, arquivo (CSV), cliente (API — stub)
+│   ├── servicos/           importacao.ts — pipeline independente do adaptador
+│   └── rotas/              painel, usuarios, instituicao, anos-letivos, cadastros, versoes, importacoes, alunos
 ├── shared/types/           tipos compartilhados cliente ↔ servidor (+ montagem do cabeçalho do documento)
 ├── lib/, routes/, views/   módulo original (formulários, respostas, PDFs via Puppeteer) — inalterado
 ├── public/                 estáticos dos formulários públicos
-├── supabase/migrations/    001–004, imutáveis, aplicadas em ordem
+├── supabase/migrations/    001–005, imutáveis, aplicadas em ordem
+├── scripts/ambiente-local/ Supabase local (Postgres + PostgREST + GoTrue falso) para desenvolver sem tocar produção
 ├── scripts/                provisionamento de contas
 └── docs/                   requisitos, arquitetura, modelo do histórico, mockup
 ```
@@ -52,7 +55,7 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 
 2. Copie `.env.example` para `.env` e preencha (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `COOKIE_SECRET`, `INTERNAL_PDF_SECRET`, `APP_BASE_URL`).
 
-3. **Aplique as migrations** no SQL Editor do Supabase, em ordem: `supabase/migrations/001_base.sql` → `002` → `003` → `004`. Detalhes e pós-migração em [supabase/migrations/README.md](supabase/migrations/README.md).
+3. **Aplique as migrations** no SQL Editor do Supabase, em ordem: `supabase/migrations/001_base.sql` → `002` → `003` → `004` → `005`. Detalhes e pós-migração em [supabase/migrations/README.md](supabase/migrations/README.md).
 
    > A `002` substitui `staff_emails` por `usuario_perfil` (quem já tinha acesso vira `secretaria`). Depois dela, **promova ao menos uma pessoa a `admin`**, senão ninguém configura a instituição:
    >
@@ -96,12 +99,20 @@ Checagem de tipos (cliente e servidor):
 npm run typecheck
 ```
 
+## Importação sem a API do Activesoft
+
+`IMPORTACAO_ADAPTADOR=mock` (padrão) usa dados de exemplo; a tela de importação também aceita **arquivos CSV** com as colunas do contrato canônico (modelos em `/api/importacoes/csv-modelo/{alunos|matriculas|notas}`). Quando a documentação da API chegar, só `server/adapters/activesoft/cliente.ts` muda.
+
+## Ambiente local sem Supabase
+
+`scripts/ambiente-local/` sobe Postgres + PostgREST no Docker e um GoTrue falso em Node, aplica as migrations e semeia um curso com versão curricular. Serve para desenvolver e testar importação, notas e auditoria sem encostar no projeto Supabase de produção. Instruções em [scripts/ambiente-local/README.md](scripts/ambiente-local/README.md).
+
 ## Papéis
 
 | Papel | Vê | Escreve |
 |---|---|---|
 | `admin` | tudo | tudo (instituição, atos, signatários, cursos, currículos, usuários) |
-| `secretaria` | tudo menos Usuários | outras escolas; a partir da F3/F4: importação, notas, históricos |
+| `secretaria` | tudo menos Usuários | importação, mapeamentos, alunos, matrículas, notas (com motivo), outras escolas |
 | `coordenacao` | alunos, históricos, formulários | — |
 | `leitura` | alunos, históricos | — |
 

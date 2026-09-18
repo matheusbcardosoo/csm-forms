@@ -22,7 +22,7 @@ A v1 atende o **cenário atual**: alunos cuja trajetória está no Activesoft. O
 
 ## Estado
 
-Implementação iniciada em 18/09/2026. **F0, F1 e F2 implementadas** (ver tabela no [README da raiz](../README.md)): painel React em `/app`, servidor TypeScript, migrations 001–004, papéis, configuração da instituição com pré-visualização do cabeçalho, cursos/séries/componentes e versões curriculares com duplicação, publicação e vigência por (ano letivo, série). F3–F6 seguem o roadmap de `02-arquitetura.md` §5.
+Implementação iniciada em 18/09/2026. **F0 a F4 implementadas** (F3 com adaptadores `mock` e `arquivo`; o cliente da API do Activesoft é stub até a documentação). Detalhe (ver tabela no [README da raiz](../README.md)): painel React em `/app`, servidor TypeScript, migrations 001–004, papéis, configuração da instituição com pré-visualização do cabeçalho, cursos/séries/componentes e versões curriculares com duplicação, publicação e vigência por (ano letivo, série). F3–F6 seguem o roadmap de `02-arquitetura.md` §5.
 
 ## Pendências que bloqueiam fases
 

@@ -8,6 +8,7 @@ Scripts numerados e **imutáveis**, aplicados em ordem no SQL Editor do Supabase
 | `002_usuario_perfil.sql` | F0 | `usuario_perfil` com papéis, funções `papel_atual()` / `usuario_ativo()` / `tem_papel()`, RLS dos formulários migrada |
 | `003_instituicao.sql` | F1 | `instituicao`, `instituicao_ato`, `instituicao_signatario`, `ano_letivo`, bucket `institucional` |
 | `004_cadastros_base.sql` | F2 | `curso`, `serie`, `componente`, `versao_*`, `vigencia_curricular`, `sistema_avaliacao`, `estabelecimento_externo`, `mapeamento_activesoft`, triggers de somente-leitura, `duplicar_versao()`, `publicar_versao()` |
+| `005_alunos_notas_importacao.sql` | F3+F4 | `aluno`, `matricula` (congela a versão curricular), `nota` (por linha da grade), `auditoria`, `importacao`, `importacao_divergencia`, `editar_nota()`, `resolver_divergencia()`, mapeamento global de série/situação |
 
 `supabase/schema.sql` (raiz) é o script antigo e continua válido só para bancos que nunca receberam a `001`. Novos objetos entram **sempre** como migration nova — nunca edite uma já aplicada.
 

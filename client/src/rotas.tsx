@@ -8,8 +8,11 @@ import { Shell } from '@/componentes/Shell';
 import { PaginaLogin } from '@/auth/Login';
 import { Inicio } from '@/app/inicio/Inicio';
 import { Alunos } from '@/app/alunos/Alunos';
+import { AlunoFicha } from '@/app/alunos/AlunoFicha';
 import { Historicos } from '@/app/historicos/Historicos';
 import { Importacoes } from '@/app/importacoes/Importacoes';
+import { ImportacaoDetalhe } from '@/app/importacoes/ImportacaoDetalhe';
+import { Mapeamentos } from '@/app/importacoes/Mapeamentos';
 import { Formularios } from '@/app/formularios/Formularios';
 import { Instituicao } from '@/app/configuracoes/Instituicao';
 import { AtosLegais } from '@/app/configuracoes/AtosLegais';
@@ -60,8 +63,13 @@ export const roteador = createBrowserRouter([
     children: [
       { index: true, element: <Inicio /> },
       { path: 'alunos', element: <Alunos /> },
+      { path: 'alunos/:id', element: <AlunoFicha /> },
       { path: 'historicos', element: <Historicos /> },
-      { path: 'importacoes', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [{ index: true, element: <Importacoes /> }] },
+      { path: 'importacoes', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [
+        { index: true, element: <Importacoes /> },
+        { path: 'mapeamentos', element: <Mapeamentos /> },
+        { path: ':id', element: <ImportacaoDetalhe /> }
+      ] },
       { path: 'formularios', element: <SoPapel papeis={['admin', 'secretaria', 'coordenacao']} />, children: [{ index: true, element: <Formularios /> }] },
       {
         path: 'config',

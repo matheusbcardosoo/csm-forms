@@ -17,6 +17,8 @@ import { instituicaoRouter } from './rotas/instituicao';
 import { anosLetivosRouter } from './rotas/anos-letivos';
 import { cadastrosRouter } from './rotas/cadastros';
 import { versoesRouter } from './rotas/versoes';
+import { importacoesRouter } from './rotas/importacoes';
+import { alunosRouter } from './rotas/alunos';
 
 const RAIZ = path.resolve(__dirname, '..');
 const app = express();
@@ -41,6 +43,8 @@ app.use('/api/instituicao', instituicaoRouter);
 app.use('/api/anos-letivos', anosLetivosRouter);
 app.use('/api/cadastros', cadastrosRouter);
 app.use('/api/versoes', versoesRouter);
+app.use('/api/importacoes', importacoesRouter);
+app.use('/api/alunos', alunosRouter);
 // Módulo original (auth, formulários, respostas, PDFs)
 app.use('/api', apiRouter);
 app.use(pdfRouter);

@@ -10,7 +10,8 @@ export const painelRouter = Router();
 painelRouter.get('/inicio', exigirPapel(), seguro(async (_req, res) => {
   const { client, perfil } = ctx(res);
 
-  const [inst, atos, sign, anos, cursos, versoes, usuarios] = await Promise.all([
+  const podeImportar = perfil.papel === 'admin' || perfil.papel === 'secretaria';
+  const [inst, atos, sign, anos, cursos, versoes, usuarios, alunos, divergencias, pendMap, ultimaImp] = await Promise.all([
     client.from('instituicao').select('id, nome_fantasia, mantenedora_nome, orgao_regional').maybeSingle(),
     client.from('instituicao_ato').select('id', { count: 'exact', head: true }).eq('ativo', true),
     client.from('instituicao_signatario').select('id, cargo, ativo').eq('ativo', true),
@@ -19,10 +20,14 @@ painelRouter.get('/inicio', exigirPapel(), seguro(async (_req, res) => {
     client.from('versao_curricular').select('id, curso_id, status'),
     perfil.papel === 'admin'
       ? client.from('usuario_perfil').select('email', { count: 'exact', head: true }).eq('ativo', true)
-      : Promise.resolve({ count: null, error: null })
+      : Promise.resolve({ count: null, error: null }),
+    client.from('aluno').select('id', { count: 'exact', head: true }).eq('situacao', 'ativo'),
+    podeImportar ? client.from('importacao_divergencia').select('id', { count: 'exact', head: true }).eq('resolucao', 'pendente') : Promise.resolve({ count: null, error: null }),
+    podeImportar ? client.from('mapeamento_activesoft').select('id', { count: 'exact', head: true }).eq('confirmado', false) : Promise.resolve({ count: null, error: null }),
+    podeImportar ? client.from('importacao').select('id, tipo, modo, status, iniciado_em, concluido_em').order('iniciado_em', { ascending: false }).limit(1).maybeSingle() : Promise.resolve({ data: null, error: null })
   ]);
 
-  for (const r of [inst, atos, sign, anos, cursos, versoes, usuarios]) {
+  for (const r of [inst, atos, sign, anos, cursos, versoes, usuarios, alunos, divergencias, pendMap, ultimaImp]) {
     if (r.error) throw r.error;
   }
 
@@ -50,6 +55,12 @@ painelRouter.get('/inicio', exigirPapel(), seguro(async (_req, res) => {
   if (cursosAtivos.length === 0) {
     pendencias.push({ tipo: 'aviso', titulo: 'Nenhum curso cadastrado', detalhe: 'O curso nomeia o documento ("Histórico Escolar - Ensino Médio Bilíngue").', rota: '/app/config/cursos', acao: 'Cadastrar' });
   }
+  if ((divergencias.count || 0) > 0) {
+    pendencias.push({ tipo: 'aviso', titulo: `${divergencias.count} divergência(s) de importação sem decisão`, detalhe: 'Valor editado à mão e valor na origem mudaram — o sistema não escolhe sozinho.', rota: '/app/importacoes', acao: 'Resolver' });
+  }
+  if ((pendMap.count || 0) > 0) {
+    pendencias.push({ tipo: 'info', titulo: `${pendMap.count} código(s) da origem sem correspondência`, detalhe: 'Notas dessas disciplinas/séries não são gravadas até o mapeamento ser confirmado.', rota: '/app/importacoes/mapeamentos', acao: 'Mapear' });
+  }
   for (const c of cursosSemVigente) {
     pendencias.push({ tipo: 'aviso', titulo: `"${c.nome}" sem versão curricular vigente`, detalhe: 'Sem estrutura vigente, nenhuma nota deste curso pode ser importada nem impressa.', rota: '/app/config/curriculos', acao: 'Abrir' });
   }
@@ -57,9 +68,11 @@ painelRouter.get('/inicio', exigirPapel(), seguro(async (_req, res) => {
   res.json({
     anoLetivoAtual: anoLetivoAtual?.ano ?? anoAtual,
     indicadores: {
-      alunosAtivos: null,          // F4
+      alunosAtivos: alunos.count ?? 0,
       emitidosNoMes: null,         // F5
-      divergenciasAbertas: null,   // F3
+      divergenciasAbertas: divergencias.count,
+      pendentesMapeamento: pendMap.count,
+      ultimaImportacao: ultimaImp.data || null,
       rascunhosParados: null,      // F5
       cursosAtivos: cursosAtivos.length,
       versoesVigentes: vers.filter(v => v.status === 'vigente').length,

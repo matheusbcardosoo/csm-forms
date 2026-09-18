@@ -1,0 +1,33 @@
+# Postgres + PostgREST locais para desenvolver a Secretaria Digital sem
+# tocar no projeto Supabase de produção. Auth é imitado por fake-supabase.mjs.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: csm
+    ports:
+      - "54329:5432"
+    volumes:
+      - ./stub-supabase.sql:/docker-entrypoint-initdb.d/00-stub.sql:ro
+      - ../../supabase/migrations/001_base.sql:/docker-entrypoint-initdb.d/01.sql:ro
+      - ../../supabase/migrations/002_usuario_perfil.sql:/docker-entrypoint-initdb.d/02.sql:ro
+      - ../../supabase/migrations/003_instituicao.sql:/docker-entrypoint-initdb.d/03.sql:ro
+      - ../../supabase/migrations/004_cadastros_base.sql:/docker-entrypoint-initdb.d/04.sql:ro
+      - ../../supabase/migrations/005_alunos_notas_importacao.sql:/docker-entrypoint-initdb.d/05.sql:ro
+      - ./seed.sql:/docker-entrypoint-initdb.d/99-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      retries: 20
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:csm@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: segredo-de-teste-com-mais-de-32-caracteres-ok
+    ports:
+      - "3001:3000"

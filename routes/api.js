@@ -53,7 +53,7 @@ router.post('/auth/login', async (req, res) => {
         session.access_token,
         session.refresh_token
       );
-      perfil = await getPerfil(authClient);
+      perfil = await getPerfil(authClient, user.email);
       authorized = !!(perfil && perfil.ativo);
       if (authorized) {
         // Registro de último acesso — best effort, nunca bloqueia o login.

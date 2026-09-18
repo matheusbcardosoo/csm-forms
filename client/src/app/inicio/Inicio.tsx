@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import { useRecurso } from '@/hooks/useRecurso';
 import { useSessao } from '@/hooks/useSessao';
 import { useAnoLetivo } from '@/hooks/useAnoLetivo';
-import { Aviso, BotaoLink, Cabecalho, Card, Carregando, EstadoVazio, Kpi } from '@/componentes/ui';
+import { Aviso, BotaoLink, Cabecalho, Card, Carregando, EstadoVazio, Kpi, fmtDataHora } from '@/componentes/ui';
 import { Icone } from '@/componentes/Icones';
 
 interface Painel {
   anoLetivoAtual: number;
   indicadores: {
     alunosAtivos: number | null; emitidosNoMes: number | null; divergenciasAbertas: number | null; rascunhosParados: number | null;
+    pendentesMapeamento: number | null; ultimaImportacao: { id: string; iniciado_em: string } | null;
     cursosAtivos: number; versoesVigentes: number; versoesRascunho: number; signatariosAtivos: number; atosLegais: number; usuariosAtivos: number | null;
   };
   pendencias: { tipo: 'erro' | 'aviso' | 'info'; titulo: string; detalhe: string; rota: string; acao: string }[];
@@ -26,7 +27,7 @@ export function Inicio() {
     <div className="wrap">
       <Cabecalho
         titulo={primeiroNome ? `Olá, ${primeiroNome}` : 'Início'}
-        descricao={`Ano letivo de ${ano ?? dados?.anoLetivoAtual ?? new Date().getFullYear()} · Secretaria Digital, fases 0–2 em operação`}
+        descricao={`Ano letivo de ${ano ?? dados?.anoLetivoAtual ?? new Date().getFullYear()} · Secretaria Digital, fases 0–4 em operação`}
         acoes={temPapel('admin', 'secretaria') ? <>
           <BotaoLink to="/app/importacoes" icone="importar">Importar do Activesoft</BotaoLink>
           <BotaoLink to="/app/historicos" variante="primario" icone="mais">Novo histórico</BotaoLink>
@@ -36,9 +37,9 @@ export function Inicio() {
       {erro ? <Aviso tipo="erro">{erro}</Aviso> : null}
 
       <div className="grade g4" style={{ marginBottom: 16 }}>
-        <Kpi rotulo="Alunos ativos" valor={dados?.indicadores.alunosAtivos ?? null} detalhe="Chega com a importação (fase 3)" />
+        <Kpi rotulo="Alunos ativos" valor={dados?.indicadores.alunosAtivos ?? null} detalhe={dados?.indicadores.ultimaImportacao ? `última importação ${fmtDataHora(dados.indicadores.ultimaImportacao.iniciado_em)}` : 'nenhuma importação ainda'} />
         <Kpi rotulo="Emitidos no mês" valor={dados?.indicadores.emitidosNoMes ?? null} detalhe="Emissão de histórico (fase 5)" tipo="ok" />
-        <Kpi rotulo="Divergências abertas" valor={dados?.indicadores.divergenciasAbertas ?? null} detalhe="Reimportação (fase 3)" tipo="aviso" />
+        <Kpi rotulo="Divergências abertas" valor={dados?.indicadores.divergenciasAbertas ?? null} detalhe={dados?.indicadores.pendentesMapeamento ? `${dados.indicadores.pendentesMapeamento} código(s) sem mapeamento` : 'nada aguardando decisão'} tipo="aviso" />
         <Kpi rotulo="Currículos vigentes" valor={dados ? dados.indicadores.versoesVigentes : carregando ? '…' : 0}
           detalhe={dados ? `${dados.indicadores.cursosAtivos} curso(s) · ${dados.indicadores.versoesRascunho} rascunho(s)` : undefined} tipo="neutro" />
       </div>
@@ -73,7 +74,7 @@ export function Inicio() {
           </Card>
 
           <Aviso>
-            <b>Escopo da v1.</b> O painel atende alunos cuja trajetória está no Activesoft. As fases 3 a 5 (importação, ficha do aluno e emissão do histórico) entram sobre esta base — a configuração feita aqui é o que elas vão imprimir.
+            <b>Escopo da v1.</b> O painel atende alunos cuja trajetória está no Activesoft. A importação (fase 3) roda com dados de exemplo ou arquivo CSV até a API ser documentada; a emissão do histórico (fase 5) é a próxima entrega.
           </Aviso>
         </div>
       </div>
