@@ -1,6 +1,6 @@
 # Integração com o Activesoft
 
-> **Status: especificação provisória.** A documentação da API do Activesoft é protegida por login e ainda não foi analisada. Este documento define o **contrato canônico interno** — o formato que o resto do sistema consome. O adaptador traduz a API real para este contrato. Quando a documentação chegar, só `adapters/activesoft/` muda.
+> **Status: API analisada e adaptador implementado** (19/09/2026). A UI de documentação (`/docs/`) exige login, mas o schema OpenAPI é servido sem autenticação em `/docs/?format=openapi` — foi assim que o §8 foi respondido. Este documento define o **contrato canônico interno** — o formato que o resto do sistema consome; `server/adapters/activesoft/cliente.ts` traduz a API real para este contrato.
 
 ## 1. Princípio
 
@@ -151,13 +151,13 @@ A importação resolve a versão pela matrícula (`matricula.versao_curricular_i
 ## 6. Configuração
 
 ```env
-# API Activesoft — preenchido após acesso à documentação
-ACTIVESOFT_BASE_URL=
-ACTIVESOFT_AUTH_TIPO=          # bearer | basic | apikey | oauth2
-ACTIVESOFT_CLIENT_ID=
-ACTIVESOFT_CLIENT_SECRET=
-ACTIVESOFT_API_KEY=
-ACTIVESOFT_TENANT=             # código da escola, se multi-tenant
+# API Activesoft — só BASE_URL e API_KEY são usados por esta versão da API
+ACTIVESOFT_BASE_URL=           # host do SIGA da escola, ex. https://siga03.activesoft.com.br
+ACTIVESOFT_AUTH_TIPO=          # não usado — só existe Bearer nesta API
+ACTIVESOFT_CLIENT_ID=          # não usado — token já identifica a instituição
+ACTIVESOFT_CLIENT_SECRET=      # não usado
+ACTIVESOFT_API_KEY=            # token Bearer da instituição
+ACTIVESOFT_TENANT=             # não usado
 ACTIVESOFT_TIMEOUT_MS=30000
 ACTIVESOFT_PAGINA_TAMANHO=100
 
@@ -177,23 +177,28 @@ Credenciais ficam só no servidor (RNF-07). O navegador nunca vê nem o `base_ur
 | Campo obrigatório ausente | Registro entra com o campo vazio e marcação de pendência — não bloqueia os demais |
 | Resposta em formato inesperado | Falha na validação de schema (Zod) com o payload registrado no log de importação |
 
-## 8. O que precisa da documentação da API
+## 8. O que a documentação da API respondeu
 
-Lista para conferir assim que houver acesso:
+Analisado em 19/09/2026 a partir do schema OpenAPI (Swagger 2.0, "SigaWeb API", `version: v0`) publicado em `https://siga03.activesoft.com.br/docs/?format=openapi`. 41 endpoints; os relevantes para importação estão listados abaixo.
 
-- [ ] URL base e ambientes (produção / homologação)
-- [ ] Método de autenticação e validade do token
-- [ ] Endpoint de alunos — quais campos cadastrais, incluindo naturalidade e documentos
-- [ ] Endpoint de matrículas — série, turma, situação final, datas
-- [ ] Endpoint de notas — nota final por disciplina, carga horária, faltas
-- [ ] Como são representadas séries e disciplinas (código? descrição?)
-- [ ] Notas por bimestre/trimestre ou só a final?
-- [ ] Como vem o resultado de recuperação e conselho de classe
-- [ ] Paginação: parâmetros e limites
-- [ ] Filtro por data de atualização (delta)
-- [ ] Limite de requisições
-- [ ] Anos letivos disponíveis — até que ano retroage o histórico?
-- [ ] Conceitos da Educação Infantil e anos iniciais — como são expostos?
+- [x] **URL base e ambientes** — um host por escola/shard (aqui `siga03.activesoft.com.br`); não há ambiente de homologação documentado. Caminho fixo `/api/v0/...` (o parâmetro `version` é sempre `"0"`, conforme a própria doc).
+- [x] **Autenticação** — token **Bearer** único por instituição (`Authorization: Bearer <token>`), sem OAuth2/client_id/secret. O token já identifica a instituição — não existe parâmetro de tenant. Validade do token não documentada.
+- [x] **Alunos** — `lista_alunos` (cadastro básico: nome, CPF, sexo, nascimento, RA, vínculos de responsável) + `lista_alunos_dados_sensiveis` (RG, naturalidade, nacionalidade, cor/raça — **exige o escopo `dados_complementares`** no token) + `lista_responsaveis` (nomes, para resolver filiação a partir dos IDs).
+- [x] **Matrículas** — `enturmacao_com_detalhes` dá `situacao_aluno_turma` (texto cru), data de efetivação e a turma; `lista_turmas` dá série (`serie_codigo`, padrão MEC tipo `n11`), curso e turno.
+- [x] **Notas** — `aluno_notas` (por `aluno_id` + `turma_id`): hierarquia disciplina → fase → composições, com `nota_fase` e `faltas` **por fase**. **Não há nota final anual nem campos de recuperação/conselho de classe** — o adaptador calcula a média simples das fases lançadas como rascunho (conferir na grade de notas antes de emitir histórico).
+- [x] **Séries e disciplinas** — por ID numérico + descrição; disciplinas também têm `sigla`; séries também têm `serie_codigo` (código MEC estável entre anos, usado como `serieCodigoOrigem`).
+- [x] **Notas por período** — por fase (bimestre/trimestre/etc., quantidade configurável pela escola), nunca só a final.
+- [x] **Recuperação/conselho** — não exposto por nenhum endpoint desta versão da API.
+- [x] **Paginação** — `limit`/`offset`, envelope padrão DRF (`count`/`next`/`previous`/`results`).
+- [x] **Delta** — **não existe** nenhum parâmetro de filtro por data de atualização em nenhum dos 41 endpoints.
+- [ ] **Limite de requisições** — não documentado; o cliente respeita `Retry-After` num 429 e faz backoff, por precaução.
+- [ ] **Anos letivos disponíveis** — **não existe parâmetro de período** em `lista_turmas` nem em `enturmacao_com_detalhes`; ambos só devolvem o "ano atual" do SIGA (confirmado pela ausência do parâmetro no schema, apesar do texto da descrição mencionar filtro por período). O adaptador filtra pelo campo `sigla_periodo`; pedir um `anoLetivo` que o SIGA não esteja expondo como corrente dá zero resultados, não erro. **Vale abrir chamado com a Activesoft perguntando se há um parâmetro não documentado para anos anteriores** antes de depender disto para reimportar históricos.
+- [ ] **Conceitos (Educação Infantil/anos iniciais)** — a fase tem `nota_fase_exibicao` (texto) além de `nota_fase` (número); quando não há valor numérico lançado, o adaptador usa o texto de exibição como `conceito`. Não confirmado com a Activesoft se isso cobre todos os formatos de conceito usados pela escola.
+
+**Também em aberto, fora do escopo dos endpoints em si:**
+
+- [ ] `nome_civil` existe em `lista_alunos_dados_sensiveis` para os casos em que `nome` é o nome social — não confirmado qual dos dois deve ir no histórico oficial. O adaptador hoje só traz `nome`; o campo `nomeSocial` do contrato fica sem preencher até essa confirmação.
+- [ ] Carga horária por disciplina — não exposta (só "aulas dadas", unidade diferente); `capacidades().cargaHoraria = false`, como já era o comportamento sem a API.
 
 ---
 

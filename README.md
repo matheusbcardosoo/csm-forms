@@ -9,7 +9,7 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 | F0 — Fundação | Vite + React + TS, migrations, papéis (`usuario_perfil`), login em React, shell do painel | ✅ |
 | F1 — Instituição | Cadastro da instituição, atos legais, signatários, anos letivos, pré-visualização do cabeçalho | ✅ |
 | F2 — Cadastros base | Cursos, séries, componentes, versões curriculares (blocos → agrupamentos → itens, totais, vigência, duplicar/publicar), sistema de avaliação, estabelecimentos externos | ✅ |
-| F3 — Integração | Contrato canônico, pipeline de importação (simulação · efetiva · idempotente · divergências RF-INT-06 · pendências de mapeamento com sugestão), adaptadores `mock` e `arquivo` (CSV), tela de mapeamentos | ✅ · adaptador `activesoft` é um stub até a documentação da API |
+| F3 — Integração | Contrato canônico, pipeline de importação (simulação · efetiva · idempotente · divergências RF-INT-06 · pendências de mapeamento com sugestão), adaptadores `mock`, `arquivo` (CSV) e `activesoft` (API real), tela de mapeamentos | ✅ |
 | F4 — Alunos e notas | Lista com filtros, ficha (dados · trajetória · notas), cadastro manual, ano cursado em outra escola, grade de notas editável com motivo e auditoria, validação RF-ALU-08 | ✅ |
 | F5 — Histórico | Montagem, pré-visualização fiel, emissão, PDF, 2ª via | ⏳ |
 | F6 — Formulários | Migração dos wizards e das respostas para React | ⏳ (hoje continuam em EJS, acessíveis pelo painel) |
@@ -99,9 +99,11 @@ Checagem de tipos (cliente e servidor):
 npm run typecheck
 ```
 
-## Importação sem a API do Activesoft
+## Importação
 
-`IMPORTACAO_ADAPTADOR=mock` (padrão) usa dados de exemplo; a tela de importação também aceita **arquivos CSV** com as colunas do contrato canônico (modelos em `/api/importacoes/csv-modelo/{alunos|matriculas|notas}`). Quando a documentação da API chegar, só `server/adapters/activesoft/cliente.ts` muda.
+`IMPORTACAO_ADAPTADOR=mock` (padrão) usa dados de exemplo; a tela de importação também aceita **arquivos CSV** com as colunas do contrato canônico (modelos em `/api/importacoes/csv-modelo/{alunos|matriculas|notas}`).
+
+Para importar da API real do Activesoft, defina `IMPORTACAO_ADAPTADOR=activesoft`, `ACTIVESOFT_BASE_URL` (o host do SIGA da escola, ex. `https://siga03.activesoft.com.br`) e `ACTIVESOFT_API_KEY` (token Bearer gerado no painel do Activesoft para esta instituição). `ACTIVESOFT_CLIENT_ID`/`ACTIVESOFT_CLIENT_SECRET`/`ACTIVESOFT_TENANT` não são usados por esta versão da API. Limitações conhecidas da API (documentadas em `docs/03-integracao-activesoft.md` §8): sem filtro de período documentado (só o "ano atual" do SIGA), sem nota final anual (o adaptador traz a média das fases lançadas como rascunho) e documentos do aluno exigem o escopo `dados_complementares` no token.
 
 ## Ambiente local sem Supabase
 
