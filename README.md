@@ -12,7 +12,7 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 | F3 — Integração | Contrato canônico, pipeline de importação (simulação · efetiva · idempotente · divergências RF-INT-06 · pendências de mapeamento com sugestão), adaptadores `mock`, `arquivo` (CSV) e `activesoft` (API real), tela de mapeamentos | ✅ |
 | F4 — Alunos e notas | Lista com filtros, ficha (dados · trajetória · notas), cadastro manual, ano cursado em outra escola, grade de notas editável com motivo e auditoria, validação RF-ALU-08 | ✅ |
 | F5 — Histórico | Montagem, pré-visualização fiel, emissão, PDF, 2ª via | ⏳ |
-| F6 — Formulários | Migração dos wizards e das respostas para React | ⏳ (hoje continuam em EJS, acessíveis pelo painel) |
+| F6 — Formulários | Migração dos wizards e das respostas para React | 🟡 (respostas em React; wizards ainda em EJS — ver Incremento B) |
 
 ## Estrutura
 
@@ -83,7 +83,7 @@ npm run dev
 npm run dev:client
 ```
 
-Painel em http://localhost:5173/app/ (o Vite encaminha `/api` para o Express em :3000). Formulários públicos em http://localhost:3000/.
+Painel em http://localhost:5173/app/ (o Vite encaminha `/api` para o Express em :3000). Formulários públicos em http://localhost:3000/form-visitas e http://localhost:3000/form-avaliacao-substitutiva.
 
 Produção (compila o painel e sobe o servidor):
 
@@ -91,7 +91,7 @@ Produção (compila o painel e sobe o servidor):
 npm run build && npm start
 ```
 
-Painel em http://localhost:3000/app · formulários em http://localhost:3000/.
+Painel em http://localhost:3000/app · formulários em http://localhost:3000/form-visitas e http://localhost:3000/form-avaliacao-substitutiva.
 
 Checagem de tipos (cliente e servidor):
 
