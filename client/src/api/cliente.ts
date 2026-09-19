@@ -52,3 +52,34 @@ export function mensagemErro(err: unknown, padrao = 'Algo deu errado. Tente nova
   if (err instanceof Error) return err.message || padrao;
   return padrao;
 }
+
+/**
+ * Baixa um arquivo binário (ex.: PDF) preservando o nome sugerido pelo
+ * servidor via Content-Disposition. Diferente de `api.get`, que sempre
+ * espera JSON — aqui a resposta é um blob.
+ */
+export async function baixarArquivo(url: string, nomePadrao: string): Promise<void> {
+  const res = await fetch(url, { credentials: 'same-origin' });
+  if (res.status === 401) window.dispatchEvent(new CustomEvent('sessao:expirou'));
+  if (!res.ok) {
+    const texto = await res.text().catch(() => '');
+    let mensagem = `Erro ${res.status}`;
+    try {
+      const d = JSON.parse(texto) as { error?: string };
+      if (d.error) mensagem = d.error;
+    } catch { /* corpo não é JSON */ }
+    throw new ErroApi(res.status, mensagem);
+  }
+  const blob = await res.blob();
+  const disposicao = res.headers.get('Content-Disposition') || '';
+  const combinado = disposicao.match(/filename="?([^";]+)"?/);
+  const nome = combinado ? combinado[1] : nomePadrao;
+  const urlObjeto = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = urlObjeto;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(urlObjeto);
+}

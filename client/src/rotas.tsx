@@ -14,6 +14,7 @@ import { Importacoes } from '@/app/importacoes/Importacoes';
 import { ImportacaoDetalhe } from '@/app/importacoes/ImportacaoDetalhe';
 import { Mapeamentos } from '@/app/importacoes/Mapeamentos';
 import { Formularios } from '@/app/formularios/Formularios';
+import { Respostas } from '@/app/formularios/Respostas';
 import { Instituicao } from '@/app/configuracoes/Instituicao';
 import { AtosLegais } from '@/app/configuracoes/AtosLegais';
 import { Signatarios } from '@/app/configuracoes/Signatarios';
@@ -70,7 +71,10 @@ export const roteador = createBrowserRouter([
         { path: 'mapeamentos', element: <Mapeamentos /> },
         { path: ':id', element: <ImportacaoDetalhe /> }
       ] },
-      { path: 'formularios', element: <SoPapel papeis={['admin', 'secretaria', 'coordenacao']} />, children: [{ index: true, element: <Formularios /> }] },
+      { path: 'formularios', element: <SoPapel papeis={['admin', 'secretaria', 'coordenacao']} />, children: [
+        { index: true, element: <Formularios /> },
+        { path: 'respostas', element: <Respostas /> }
+      ] },
       {
         path: 'config',
         element: <SoPapel papeis={['admin', 'secretaria']} />,

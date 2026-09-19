@@ -91,6 +91,17 @@ export function Carregando({ texto = 'Carregando…' }: { texto?: string }) {
   return <div className="carregando" role="status"><span className="spinner" />{texto}</div>;
 }
 
+/* ---------- Campo somente leitura (revisão de dados já salvos) ---------- */
+export function CampoLeitura({ rotulo, valor, className = '' }: { rotulo: ReactNode; valor?: ReactNode; className?: string }) {
+  const vazio = valor === undefined || valor === null || valor === '';
+  return (
+    <div className={`campo ${className}`}>
+      <label>{rotulo}</label>
+      <div className={`campo-leitura ${vazio ? 'vazio' : ''}`}>{vazio ? '—' : valor}</div>
+    </div>
+  );
+}
+
 export function Aviso({ tipo = 'info', children }: { tipo?: 'info' | 'aviso' | 'erro' | 'ok'; children: ReactNode }) {
   return <div className={`nota-lateral n-${tipo}`}>{children}</div>;
 }
