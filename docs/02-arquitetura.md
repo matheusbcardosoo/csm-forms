@@ -106,7 +106,13 @@ csm-forms/
 > agrupamento de provas por data. Ver
 > docs/superpowers/specs/2026-09-19-formularios-react-f6-incremento-b-design.md.
 
-**Build:** `vite build` → `client/dist`; Express serve os estáticos e faz fallback para `index.html` em rotas não-`/api`. O Dockerfile ganha a etapa de build do cliente antes do `npm start`. O Chromium via apt continua como está.
+**Build:** dois bundles Vite, cada um com o próprio `vite build`. `vite build --config client/vite.config.ts` → `client/dist` (painel, servido em `/app` com fallback para `index.html` em rotas não-`/api`). `vite build --config client/vite.formularios.config.ts` → `client/dist-formularios` (os dois wizards públicos, `visita.html`/`avaliacao.html`, servidos em `/form-visitas` e `/form-avaliacao-substitutiva`, com os assets em `/assets-formularios`). `npm run build` roda os dois em sequência; Express serve os estáticos de ambos. O Dockerfile ganha a etapa de build do cliente antes do `npm start`. O Chromium via apt continua como está.
+
+> `public/js/main.js` e `public/js/review-renderer.js` são deliberadamente
+> mantidos fora dos bundles Vite: os wizards públicos que os usavam foram
+> migrados para React (`client/formularios/`), mas `views/pdf-visita.ejs`
+> e `views/pdf-avaliacao.ejs` (geração de PDF via Puppeteer, `routes/pdf.js`)
+> ainda dependem deles — feature à parte, não tocada por esta migração.
 
 ### 2.3 Migração de `supabase/schema.sql` para migrations
 

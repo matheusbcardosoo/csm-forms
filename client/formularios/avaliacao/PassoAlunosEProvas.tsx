@@ -4,7 +4,7 @@
 // controlado, levantado pro AssistenteAvaliacao.
 
 import { isFullName, toTitleCase, capFirst } from '../comum/validadores';
-import { compressImageFile, validarAnexoArquivo } from './arquivo';
+import { compressImageFile, validarAnexoArquivo, useObjectUrl } from './arquivo';
 import type { AlunoForm, ProvaForm, AnexoPorData } from './tipos';
 
 const MAX_PROVAS_POR_ALUNO = 3;
@@ -57,6 +57,18 @@ export function validarPassoAlunos(alunos: AlunoForm[], anexos: Map<string, Anex
     });
   });
   return chaves;
+}
+
+// Extraído como componente próprio (em vez de chamar useObjectUrl direto no
+// .map() de datas) porque hooks só podem ser chamados de dentro de um
+// componente React de verdade — nunca de um callback de .map() cujo número
+// de chamadas varia com o tamanho da lista.
+function AnexoPreviewArquivo({ arquivo }: { arquivo: File }) {
+  const url = useObjectUrl(arquivo);
+  if (!url) return null;
+  if (arquivo.type.startsWith('image/')) return <img src={url} alt="Pré-visualização do anexo" />;
+  if (arquivo.type === 'application/pdf') return <iframe src={url} title="Pré-visualização do anexo (PDF)" />;
+  return <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0 }}>Pré-visualização não disponível para este tipo de arquivo.</p>;
 }
 
 export function PassoAlunosEProvas({ alunos, setAlunos, anexos, setAnexos, erros }: {
@@ -282,11 +294,7 @@ export function PassoAlunosEProvas({ alunos, setAlunos, anexos, setAnexos, erros
                     {anexo?.arquivoOriginal && (
                       <div className="anexo-preview">
                         <div className="anexo-preview-name"><i className="fa-solid fa-paperclip"></i> {anexo.arquivoOriginal.name}</div>
-                        {anexo.arquivoOriginal.type.startsWith('image/')
-                          ? <img src={URL.createObjectURL(anexo.arquivoOriginal)} alt="Pré-visualização do anexo" />
-                          : anexo.arquivoOriginal.type === 'application/pdf'
-                            ? <iframe src={URL.createObjectURL(anexo.arquivoOriginal)} title="Pré-visualização do anexo (PDF)" />
-                            : <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0 }}>Pré-visualização não disponível para este tipo de arquivo.</p>}
+                        <AnexoPreviewArquivo arquivo={anexo.arquivoOriginal} />
                       </div>
                     )}
                   </div>

@@ -2,7 +2,7 @@
 // (com fileToBase64) e envia pra POST /api/avaliacoes — porta
 // collectData() + o nextBtn handler de wizard-avaliacao.js.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAssistente } from '@compartilhado/useAssistente';
 import { StepperPublico } from '../comum/StepperPublico';
 import { NavegacaoWizard } from '../comum/NavegacaoWizard';
@@ -29,6 +29,39 @@ export function AssistenteAvaliacao() {
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
+
+  const primeiraRenderizacao = useRef(true);
+  const consentRef = useRef<HTMLDivElement>(null);
+  const erroEnvioRef = useRef<HTMLDivElement>(null);
+
+  // Restaura o scroll-to-top em toda troca de passo (comportamento do
+  // wizard-avaliacao.js original) — exceto na renderização inicial, que já
+  // começa no topo.
+  useEffect(() => {
+    if (primeiraRenderizacao.current) {
+      primeiraRenderizacao.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [assistente.passo]);
+
+  useEffect(() => {
+    if (consentInvalido) consentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [consentInvalido]);
+
+  useEffect(() => {
+    if (erroEnvio) erroEnvioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [erroEnvio]);
+
+  // Revalidação ao vivo (Achado 2): só recomeça a "limpar" erros de campo
+  // conforme o usuário corrige depois de uma primeira tentativa de avançar
+  // ter falhado (erros.size > 0) — nunca antes disso.
+  useEffect(() => {
+    if (assistente.passo === 1 && erros.size > 0) {
+      setErros(validarPassoAlunos(alunos, anexos));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alunos, anexos]);
 
   async function aoClicarProximo() {
     if (assistente.passo === 1) {
@@ -112,9 +145,9 @@ export function AssistenteAvaliacao() {
             <section className="wizard-step" data-step="2">
               <h2 className="wizard-title">Revise seu requerimento</h2>
               <p className="wizard-desc">Confira se está tudo certo, incluindo os documentos anexados, antes de enviar.</p>
-              <RevisaoAvaliacaoPublica alunos={alunos} anexosPorAlunoEData={anexos} />
+              <RevisaoAvaliacaoPublica alunos={alunos} anexosPorAlunoEData={anexos} aoEditar={assistente.irPara} />
 
-              <div className={`field-group consent-group${consentInvalido ? ' invalid' : ''}`}>
+              <div ref={consentRef} className={`field-group consent-group${consentInvalido ? ' invalid' : ''}`}>
                 <label className="consent-label">
                   <input type="checkbox" checked={consentimento} onChange={e => { setConsentimento(e.target.checked); if (e.target.checked) setConsentInvalido(false); }} />
                   <span>
@@ -128,7 +161,7 @@ export function AssistenteAvaliacao() {
               </div>
 
               {erroEnvio && (
-                <div className="error-banner">
+                <div ref={erroEnvioRef} className="error-banner">
                   <i className="fa-solid fa-triangle-exclamation"></i>
                   <span>Não foi possível enviar o requerimento: {erroEnvio}</span>
                 </div>

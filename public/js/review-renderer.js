@@ -1,7 +1,14 @@
 /* ==========================================================
    review-renderer.js
-   Gera o HTML dos cards de revisão (usado tanto no passo de
-   revisão do wizard quanto no modal de respostas anteriores).
+   Gera o HTML dos cards de revisão usados nos templates de PDF.
+   Único consumidor atual: views/pdf-visita.ejs e views/pdf-avaliacao.ejs
+   (servidos por routes/pdf.js via Puppeteer). O passo de revisão do
+   wizard e o modal de "respostas anteriores" que este arquivo dizia
+   atender não existem mais nesta forma: a revisão do wizard agora é
+   React (client/formularios/*/Revisao*Publica.tsx) e a tela de
+   respostas é /app/formularios/respostas
+   (client/src/app/formularios/Respostas.tsx) — mantido apenas pela
+   geração de PDF, uma feature à parte.
    ========================================================== */
 
 (function () {

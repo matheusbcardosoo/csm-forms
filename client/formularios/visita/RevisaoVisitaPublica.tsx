@@ -19,11 +19,12 @@ function Item({ label, value, full }: { label: string; value?: string; full?: bo
   );
 }
 
-export function RevisaoVisitaPublica({ alunos, escolaNome, escolaCidade, pai, mae, extras }: {
+export function RevisaoVisitaPublica({ alunos, escolaNome, escolaCidade, pai, mae, extras, aoEditar }: {
   alunos: AlunoVisitaForm[];
   escolaNome: string; escolaCidade: string;
   pai: ResponsavelForm; mae: ResponsavelForm;
   extras: ExtrasForm;
+  aoEditar: (passo: number) => void;
 }) {
   return (
     <>
@@ -31,7 +32,7 @@ export function RevisaoVisitaPublica({ alunos, escolaNome, escolaCidade, pai, ma
         <div className="review-card-header">
           <div className="review-card-icon"><i className="fa-solid fa-user-graduate"></i></div>
           <h3>Aluno(s)</h3>
-          <button type="button" className="review-edit-btn" data-goto="1"><i className="fa-solid fa-pen"></i> Editar</button>
+          <button type="button" className="review-edit-btn" data-goto="1" onClick={() => aoEditar(1)}><i className="fa-solid fa-pen"></i> Editar</button>
         </div>
         <div className="review-card-body">
           {alunos.map((s, i) => (
@@ -51,7 +52,7 @@ export function RevisaoVisitaPublica({ alunos, escolaNome, escolaCidade, pai, ma
         <div className="review-card-header">
           <div className="review-card-icon"><i className="fa-solid fa-school"></i></div>
           <h3>Escola de origem</h3>
-          <button type="button" className="review-edit-btn" data-goto="2"><i className="fa-solid fa-pen"></i> Editar</button>
+          <button type="button" className="review-edit-btn" data-goto="2" onClick={() => aoEditar(2)}><i className="fa-solid fa-pen"></i> Editar</button>
         </div>
         <div className="review-card-body">
           <div className="review-grid">
@@ -65,7 +66,7 @@ export function RevisaoVisitaPublica({ alunos, escolaNome, escolaCidade, pai, ma
         <div className="review-card-header">
           <div className="review-card-icon"><i className="fa-solid fa-people-roof"></i></div>
           <h3>Responsáveis</h3>
-          <button type="button" className="review-edit-btn" data-goto="3"><i className="fa-solid fa-pen"></i> Editar</button>
+          <button type="button" className="review-edit-btn" data-goto="3" onClick={() => aoEditar(3)}><i className="fa-solid fa-pen"></i> Editar</button>
         </div>
         <div className="review-card-body">
           <div className="review-student">
@@ -91,7 +92,7 @@ export function RevisaoVisitaPublica({ alunos, escolaNome, escolaCidade, pai, ma
         <div className="review-card-header">
           <div className="review-card-icon"><i className="fa-solid fa-comment-dots"></i></div>
           <h3>Informações complementares</h3>
-          <button type="button" className="review-edit-btn" data-goto="4"><i className="fa-solid fa-pen"></i> Editar</button>
+          <button type="button" className="review-edit-btn" data-goto="4" onClick={() => aoEditar(4)}><i className="fa-solid fa-pen"></i> Editar</button>
         </div>
         <div className="review-card-body">
           <div className="review-grid">

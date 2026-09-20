@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAssistente } from '@compartilhado/useAssistente';
 import { StepperPublico } from '../comum/StepperPublico';
 import { NavegacaoWizard } from '../comum/NavegacaoWizard';
@@ -38,6 +38,65 @@ export function AssistenteVisita() {
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
+
+  const primeiraRenderizacao = useRef(true);
+  const consentRef = useRef<HTMLDivElement>(null);
+  const erroEnvioRef = useRef<HTMLDivElement>(null);
+
+  // Restaura o scroll-to-top em toda troca de passo (comportamento do
+  // wizard.js original) — exceto na renderização inicial, que já começa no topo.
+  useEffect(() => {
+    if (primeiraRenderizacao.current) {
+      primeiraRenderizacao.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [assistente.passo]);
+
+  useEffect(() => {
+    if (consentInvalido) consentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [consentInvalido]);
+
+  useEffect(() => {
+    if (erroEnvio) erroEnvioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [erroEnvio]);
+
+  // Revalidação ao vivo (Achado 2): só recomeça a "limpar" erros de campo
+  // conforme o usuário corrige depois de uma primeira tentativa de avançar
+  // ter falhado (erros.size > 0) — nunca antes disso, pra não introduzir
+  // validação eager que o wizard original não tinha.
+  useEffect(() => {
+    if (assistente.passo === 1 && erros.size > 0) {
+      setErros(validarPassoAluno(alunos));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alunos]);
+
+  useEffect(() => {
+    if (assistente.passo === 2 && erros.size > 0) {
+      const e = new Set<string>();
+      if (!escolaNome.trim()) e.add('escola-nome');
+      if (!escolaCidade.trim()) e.add('escola-cidade');
+      setErros(e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escolaNome, escolaCidade]);
+
+  useEffect(() => {
+    if (assistente.passo === 3 && (erros.size > 0 || nenhumResponsavel)) {
+      const { chaves, nenhumPreenchido } = validarPassoResponsaveis(pai, mae);
+      setErros(chaves);
+      setNenhumResponsavel(nenhumPreenchido);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pai, mae]);
+
+  useEffect(() => {
+    if (assistente.passo === 4 && erros.size > 0) {
+      setErros(validarPassoComplementares(extras));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extras]);
 
   function validarPassoAtual(): boolean {
     if (assistente.passo === 1) {
@@ -162,9 +221,9 @@ export function AssistenteVisita() {
             <section className="wizard-step" data-step="5">
               <h2 className="wizard-title">Revise suas respostas</h2>
               <p className="wizard-desc">Confira se está tudo certo antes de enviar.</p>
-              <RevisaoVisitaPublica alunos={alunos} escolaNome={escolaNome} escolaCidade={escolaCidade} pai={pai} mae={mae} extras={extras} />
+              <RevisaoVisitaPublica alunos={alunos} escolaNome={escolaNome} escolaCidade={escolaCidade} pai={pai} mae={mae} extras={extras} aoEditar={assistente.irPara} />
 
-              <div className={`field-group consent-group${consentInvalido ? ' invalid' : ''}`}>
+              <div ref={consentRef} className={`field-group consent-group${consentInvalido ? ' invalid' : ''}`}>
                 <label className="consent-label">
                   <input type="checkbox" checked={consentimento} onChange={e => { setConsentimento(e.target.checked); if (e.target.checked) setConsentInvalido(false); }} />
                   <span>
@@ -177,7 +236,7 @@ export function AssistenteVisita() {
               </div>
 
               {erroEnvio && (
-                <div className="error-banner">
+                <div ref={erroEnvioRef} className="error-banner">
                   <i className="fa-solid fa-triangle-exclamation"></i>
                   <span>Não foi possível enviar o formulário: {erroEnvio}</span>
                 </div>

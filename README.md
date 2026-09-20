@@ -18,13 +18,20 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 
 ```text
 .
-├── client/                 painel React (Vite) — servido em /app
-│   └── src/
-│       ├── app/            telas por módulo (inicio, alunos, historicos, importacoes, formularios, configuracoes)
-│       ├── auth/           login em React
-│       ├── componentes/    Shell (sidebar/topbar/drawer), ui (Botao, Card, Tabela responsiva, Modal…), ícones
-│       ├── hooks/          sessão, ano letivo global, toasts, carregamento de recursos
-│       └── estilos/        tokens e estilos do painel (tema claro/escuro)
+├── client/                 dois bundles Vite independentes
+│   ├── src/                painel React — servido em /app
+│   │   ├── app/            telas por módulo (inicio, alunos, historicos, importacoes, formularios, configuracoes)
+│   │   ├── auth/           login em React
+│   │   ├── componentes/    Shell (sidebar/topbar/drawer), ui (Botao, Card, Tabela responsiva, Modal…), ícones
+│   │   ├── hooks/          sessão, ano letivo global, toasts, carregamento de recursos
+│   │   ├── compartilhado/  useAssistente, agruparPorData — reaproveitado pelos formulários públicos
+│   │   └── estilos/        tokens e estilos do painel (tema claro/escuro)
+│   ├── formularios/        2º bundle Vite (client/vite.formularios.config.ts) — os dois wizards
+│   │   │                   públicos, sem router, servidos em /form-visitas e
+│   │   │                   /form-avaliacao-substitutiva
+│   │   ├── visita.html / avaliacao.html   entradas independentes
+│   │   ├── visita/, avaliacao/            um wizard cada
+│   │   └── comum/                         casco visual compartilhado entre os dois
 ├── server/                 servidor TypeScript (tsx)
 │   ├── index.ts            entrada — monta rotas antigas (JS) e novas (TS), serve client/dist em /app
 │   ├── lib/                autorização por papel (exigirPapel), validação (zod)
@@ -32,8 +39,14 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 │   ├── servicos/           importacao.ts — pipeline independente do adaptador
 │   └── rotas/              painel, usuarios, instituicao, anos-letivos, cadastros, versoes, importacoes, alunos
 ├── shared/types/           tipos compartilhados cliente ↔ servidor (+ montagem do cabeçalho do documento)
-├── lib/, routes/, views/   módulo original (formulários, respostas, PDFs via Puppeteer) — inalterado
-├── public/                 estáticos dos formulários públicos
+├── lib/, routes/, views/   módulo original (auth, respostas, PDFs via Puppeteer, n8n). `routes/pages.js`
+│                           foi reescrito no F6 incremento B: `/`, `/respostas`, `/form-visitas` e
+│                           `/form-avaliacao-substitutiva` agora servem/redirecionam para os bundles
+│                           React (`client/dist` e `client/dist-formularios`); `views/index.ejs` e
+│                           `views/respostas.ejs` foram removidas. `views/pdf-*.ejs` (Puppeteer) e
+│                           `public/js/main.js`/`review-renderer.js`, que os alimentam, continuam
+│                           inalterados
+├── public/                 estáticos legados (css/js usados só pelos templates de PDF, ver 02-arquitetura.md) e imagens
 ├── supabase/migrations/    001–005, imutáveis, aplicadas em ordem
 ├── scripts/ambiente-local/ Supabase local (Postgres + PostgREST + GoTrue falso) para desenvolver sem tocar produção
 ├── scripts/                provisionamento de contas
@@ -83,7 +96,15 @@ npm run dev
 npm run dev:client
 ```
 
-Painel em http://localhost:5173/app/ (o Vite encaminha `/api` para o Express em :3000). Formulários públicos em http://localhost:3000/form-visitas e http://localhost:3000/form-avaliacao-substitutiva.
+Painel em http://localhost:5173/app/ (o Vite encaminha `/api` para o Express em :3000).
+
+Para desenvolver os dois formulários públicos com hot reload (bundle Vite separado, `client/vite.formularios.config.ts`), rode em paralelo:
+
+```bash
+npm run dev:client:formularios
+```
+
+Formulários em http://localhost:5174/visita.html e http://localhost:5174/avaliacao.html (proxy de `/api`, `/css` e `/images` para o Express em :3000). Sem esse comando rodando, os formulários públicos servidos pelo Express em http://localhost:3000/form-visitas e http://localhost:3000/form-avaliacao-substitutiva usam o build estático de `client/dist-formularios` (rode `npm run build` para gerá-lo).
 
 Produção (compila o painel e sobe o servidor):
 

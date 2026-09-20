@@ -2,6 +2,32 @@
 // — específico deste wizard, não compartilhado, já que só ele lida com
 // upload de arquivo.
 
+import { useEffect, useState } from 'react';
+
+// Cria a Object URL de um File dentro do próprio useEffect (em vez de num
+// useMemo separado) e a guarda em estado — evita recriá-la a cada render,
+// o que, com `alunos`/`anexos` no estado do componente pai, reiniciava o
+// <iframe> de PDF a cada tecla digitada em qualquer outro campo do passo 1.
+// Criar a URL dentro do efeito (não num useMemo à parte) importa: assim
+// create/revoke ficam pareados na MESMA invocação do efeito, o que é
+// obrigatório sob StrictMode (que roda montagem→cleanup→montagem de novo
+// em dev) — com useMemo+useEffect separados, o cleanup da 1ª invocação
+// revogava a URL que o useMemo (não reexecutado) continuava devolvendo,
+// deixando o <iframe> apontando pra um blob já revogado.
+export function useObjectUrl(file: File | null): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file) {
+      setUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return url;
+}
+
 const ANEXO_COMPRESSAO_LIMIAR_BYTES = 1.2 * 1024 * 1024;
 const ANEXO_COMPRESSAO_MAX_DIMENSAO = 1600;
 const ANEXO_COMPRESSAO_QUALIDADE = 0.75;

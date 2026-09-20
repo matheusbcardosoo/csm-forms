@@ -1,5 +1,11 @@
 /* ==========================================================
-   main.js — utilitarios e lista de formularios (sem Supabase)
+   main.js — utilitários usados pelos templates EJS de PDF.
+   Único consumidor atual: views/pdf-visita.ejs e views/pdf-avaliacao.ejs
+   (servidos por routes/pdf.js via Puppeteer), que usam o objeto `SM`
+   (formatDateOnly, escapeHtml etc.). Os wizards públicos de visita e
+   avaliação substitutiva foram migrados para React
+   (client/formularios/) e não dependem mais deste arquivo — mantido
+   apenas pela geração de PDF, uma feature à parte.
    ========================================================== */
 
 const FORMS = [

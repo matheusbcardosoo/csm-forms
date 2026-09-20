@@ -4,6 +4,7 @@
 // enviado): {nome, tipo, url} com url = URL.createObjectURL(...).
 
 import { agruparPorData, anexosUnicosDoGrupo } from '@compartilhado/avaliacaoRevisao';
+import { useObjectUrl } from './arquivo';
 import type { AlunoForm, ProvaForm } from './tipos';
 import type { AnexoPorData } from './tipos';
 
@@ -18,8 +19,8 @@ function fmtDataOnly(value: string): string {
 }
 
 function AnexoPreview({ arquivo }: { arquivo: File | null }) {
-  if (!arquivo) return <span className="review-item-value muted">Nenhum documento anexado.</span>;
-  const url = URL.createObjectURL(arquivo);
+  const url = useObjectUrl(arquivo);
+  if (!arquivo || !url) return <span className="review-item-value muted">Nenhum documento anexado.</span>;
   return (
     <>
       <div className="review-item-full">
@@ -35,9 +36,10 @@ function AnexoPreview({ arquivo }: { arquivo: File | null }) {
   );
 }
 
-export function RevisaoAvaliacaoPublica({ alunos, anexosPorAlunoEData }: {
+export function RevisaoAvaliacaoPublica({ alunos, anexosPorAlunoEData, aoEditar }: {
   alunos: AlunoForm[];
   anexosPorAlunoEData: Map<string, AnexoPorData[]>; // chave: aluno.id
+  aoEditar: (passo: number) => void;
 }) {
   return (
     <>
@@ -51,7 +53,7 @@ export function RevisaoAvaliacaoPublica({ alunos, anexosPorAlunoEData }: {
             <div className="review-card-header">
               <div className="review-card-icon"><i className="fa-solid fa-user-graduate"></i></div>
               <h3>Aluno {alunoIdx + 1}{aluno.nome ? ` — ${aluno.nome}` : ''}</h3>
-              <button type="button" className="review-edit-btn" data-goto="1"><i className="fa-solid fa-pen"></i> Editar</button>
+              <button type="button" className="review-edit-btn" data-goto="1" onClick={() => aoEditar(1)}><i className="fa-solid fa-pen"></i> Editar</button>
             </div>
             <div className="review-card-body">
               <div className="review-grid">
