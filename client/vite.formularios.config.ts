@@ -23,7 +23,9 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 5174,
     proxy: {
-      '/api': { target: 'http://localhost:3000', changeOrigin: false }
+      '/api': { target: 'http://localhost:3000', changeOrigin: false },
+      '/css': { target: 'http://localhost:3000', changeOrigin: false },
+      '/images': { target: 'http://localhost:3000', changeOrigin: false }
     }
   },
   build: {
