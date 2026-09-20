@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# ---------- etapa 1: compila o painel React (client/dist) ----------
+# ---------- etapa 1: compila os dois bundles Vite (client/dist e client/dist-formularios) ----------
 FROM node:20-slim AS build-client
 WORKDIR /app
 ENV PUPPETEER_SKIP_DOWNLOAD=true
@@ -36,6 +36,7 @@ RUN npm ci --omit=dev
 
 COPY . .
 COPY --from=build-client /app/client/dist ./client/dist
+COPY --from=build-client /app/client/dist-formularios ./client/dist-formularios
 
 ENV NODE_ENV=production
 EXPOSE 3000
