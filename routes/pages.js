@@ -1,5 +1,7 @@
 'use strict';
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 
 // '/' e '/respostas' migraram para o painel React (F6 — ver
@@ -15,8 +17,30 @@ router.get('/respostas', (req, res) => {
   res.redirect(302, destino);
 });
 
-router.get('/form-visitas', (_req, res) => res.render('form-visitas'));
-router.get('/form-avaliacao-substitutiva', (_req, res) => res.render('form-avaliacao'));
+const DIST_FORMULARIOS = path.join(__dirname, '..', 'client', 'dist-formularios');
+
+// '/form-visitas' e '/form-avaliacao-substitutiva' migraram para React
+// (F6 incremento B — ver
+// docs/superpowers/specs/2026-09-19-formularios-react-f6-incremento-b-design.md).
+// Bundle público separado do painel, sem gate de login (nunca teve).
+function servirFormulario(arquivoHtml) {
+  return (_req, res) => {
+    const caminho = path.join(DIST_FORMULARIOS, arquivoHtml);
+    if (!fs.existsSync(caminho)) {
+      return res.status(503).type('html').send(
+        '<!doctype html><meta charset="utf-8"><title>Formulário não compilado</title>' +
+        '<body style="font-family:Inter,system-ui,sans-serif;padding:40px;max-width:640px;line-height:1.6">' +
+        '<h1 style="font-size:20px">Formulário ainda não foi compilado</h1>' +
+        '<p>Rode <code>npm run build</code> para gerar <code>client/dist-formularios</code>.</p></body>'
+      );
+    }
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(caminho);
+  };
+}
+
+router.get('/form-visitas', servirFormulario('visita.html'));
+router.get('/form-avaliacao-substitutiva', servirFormulario('avaliacao.html'));
 router.get('/politica-privacidade', (_req, res) => res.render('politica-privacidade'));
 
 module.exports = router;
