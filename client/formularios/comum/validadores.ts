@@ -6,7 +6,7 @@ export function isFullName(value: string): boolean {
   if (!value) return false;
   const words = value.trim().split(/\s+/).filter(Boolean);
   if (words.length < 2) return false;
-  const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ''-]+$/;
+  const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ'’-]+$/;
   return words.every(w => w.length >= 2 && nameRegex.test(w));
 }
 
