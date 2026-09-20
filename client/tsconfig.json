@@ -18,7 +18,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@shared/*": ["../shared/*"]
+      "@shared/*": ["../shared/*"],
+      "@compartilhado/*": ["src/compartilhado/*"]
     }
   },
   "include": ["src", "vite.config.ts", "vite.formularios.config.ts", "formularios", "../shared/types"]

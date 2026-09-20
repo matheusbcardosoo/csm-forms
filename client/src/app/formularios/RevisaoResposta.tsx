@@ -4,6 +4,7 @@
 // painel (Card, CampoLeitura, Tag) em vez das classes .review-* do site
 // público, que não existem no bundle do painel.
 import { Botao, Card, CampoLeitura, Tag, fmtData } from '@/componentes/ui';
+import { agruparPorData, anexosUnicosDoGrupo } from '@compartilhado/avaliacaoRevisao';
 
 export interface DadosVisita {
   students?: { nome?: string; nascimento?: string; turma?: string }[];
@@ -107,14 +108,7 @@ export function RevisaoAvaliacao({ data, aoAbrirAnexo, carregandoAnexos }: {
     <div className="pilha">
       {(data.alunos || []).map((aluno, alunoIdx) => {
         const provas = aluno.provas || [];
-        const grupos: { data?: string; provas: ProvaAvaliacao[] }[] = [];
-        const porData = new Map<string, { data?: string; provas: ProvaAvaliacao[] }>();
-        provas.forEach(prova => {
-          const chave = prova.data || `_sem-data-${grupos.length}`;
-          let grupo = porData.get(chave);
-          if (!grupo) { grupo = { data: prova.data, provas: [] }; porData.set(chave, grupo); grupos.push(grupo); }
-          grupo.provas.push(prova);
-        });
+        const grupos = agruparPorData(provas);
 
         let contador = 0;
 
@@ -126,15 +120,8 @@ export function RevisaoAvaliacao({ data, aoAbrirAnexo, carregandoAnexos }: {
             </div>
 
             {grupos.map((grupo, gi) => {
-              const anexosUnicos: { nome?: string; provaId: string }[] = [];
-              const vistos = new Set<string>();
-              grupo.provas.forEach(prova => {
-                if (!prova.anexo?.nome) return;
-                const chave = `${prova.anexo.nome}|${prova.anexo.tipo}`;
-                if (vistos.has(chave)) return;
-                vistos.add(chave);
-                anexosUnicos.push({ nome: prova.anexo.nome, provaId: prova.id });
-              });
+              const anexosUnicos = anexosUnicosDoGrupo(grupo.provas, p => p.anexo)
+                .map(a => ({ nome: a.nome, provaId: a.provaOrigem.id }));
               const disciplinasGrupo = grupo.provas.map(p => p.disciplina).filter(Boolean).join(', ');
               const sufixo = (grupo.data ? ` — ${fmtData(grupo.data)}` : '') + (disciplinasGrupo ? ` (${disciplinasGrupo})` : '');
 
