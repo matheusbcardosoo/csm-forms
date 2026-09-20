@@ -10,7 +10,8 @@
     "start": "tsx server/index.ts",
     "dev": "tsx watch --clear-screen=false server/index.ts",
     "dev:client": "vite --config client/vite.config.ts",
-    "build": "vite build --config client/vite.config.ts",
+    "dev:client:formularios": "vite --config client/vite.formularios.config.ts",
+    "build": "vite build --config client/vite.config.ts && vite build --config client/vite.formularios.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p client/tsconfig.json",
     "preview": "npm run build && npm start"
   },

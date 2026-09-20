@@ -75,6 +75,15 @@ if (distExiste) {
   });
 }
 
+/* ---------- Formulários públicos em React (client/dist-formularios) ---------- */
+// Segundo bundle, independente do painel (F6 incremento B). As duas
+// páginas (visita.html, avaliacao.html) são servidas por routes/pages.js
+// a partir da Tarefa 6 deste plano — aqui só o middleware de estáticos.
+const DIST_FORMULARIOS = path.join(RAIZ, 'client', 'dist-formularios');
+if (fs.existsSync(DIST_FORMULARIOS)) {
+  app.use('/assets-formularios', express.static(path.join(DIST_FORMULARIOS, 'assets'), { maxAge: '1y', immutable: true }));
+}
+
 app.use('/', pagesRouter);
 
 // Erro do body-parser (ex: JSON acima do limite configurado).
