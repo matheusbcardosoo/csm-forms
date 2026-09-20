@@ -12,7 +12,7 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 | F3 — Integração | Contrato canônico, pipeline de importação (simulação · efetiva · idempotente · divergências RF-INT-06 · pendências de mapeamento com sugestão), adaptadores `mock`, `arquivo` (CSV) e `activesoft` (API real), tela de mapeamentos | ✅ |
 | F4 — Alunos e notas | Lista com filtros, ficha (dados · trajetória · notas), cadastro manual, ano cursado em outra escola, grade de notas editável com motivo e auditoria, validação RF-ALU-08 | ✅ |
 | F5 — Histórico | Montagem, pré-visualização fiel, emissão, PDF, 2ª via | ⏳ |
-| F6 — Formulários | Migração dos wizards e das respostas para React | 🟡 (respostas em React; wizards ainda em EJS — ver Incremento B) |
+| F6 — Formulários | Migração dos wizards e das respostas para React | ✅ |
 
 ## Estrutura
 

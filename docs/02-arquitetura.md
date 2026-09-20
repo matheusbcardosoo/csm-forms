@@ -19,10 +19,14 @@ Pontos bons que ficam: sessão em cookie httpOnly assinado, `service_role` só n
 ## 2. Arquitetura alvo
 
 ```
-┌── Cliente ────────────────────────────────────────────┐
-│  React 19 + Vite + TypeScript + React Router          │
-│  ├── /app/*      painel da secretaria (autenticado)   │
-│  └── /form/*     formulários públicos                 │
+┌── Cliente: dois bundles Vite independentes ───────────┐
+│  ├── client/vite.config.ts              painel        │
+│  │     React 19 + TypeScript + React Router, /app/*   │
+│  └── client/vite.formularios.config.ts  formulários    │
+│        React 19 + TypeScript, SEM router (dois HTMLs   │
+│        de entrada): /form-visitas, /form-avaliacao-    │
+│        substitutiva — bundle leve, visitante não baixa  │
+│        o JS do painel administrativo                    │
 └───────────────────────────────────────────────────────┘
                  ↓ fetch /api (cookie httpOnly)
 ┌── Servidor: Express + TypeScript ─────────────────────┐
@@ -76,10 +80,15 @@ csm-forms/
 │   │   ├── rotas.tsx
 │   │   ├── app/                    painel
 │   │   │   ├── alunos/  historicos/  importacoes/  configuracoes/  formularios/
-│   │   ├── form/                   formulários públicos (wizards migrados)
 │   │   ├── componentes/            UI compartilhada
 │   │   ├── hooks/   api/   estilos/
-│   └── vite.config.ts
+│   │   └── compartilhado/          shared useAssistente, agruparPorData
+│   ├── vite.config.ts              painel
+│   ├── vite.formularios.config.ts
+│   └── formularios/                2º bundle Vite (public/, sem router):
+│       ├── visita.html / avaliacao.html  entradas independentes
+│       ├── visita/, avaliacao/           um wizard cada
+│       └── comum/                        casco visual compartilhado entre os dois
 ├── server/
 │   ├── index.ts
 │   ├── rotas/        auth alunos notas historicos importacoes instituicao formularios pdf
@@ -91,6 +100,11 @@ csm-forms/
 ├── supabase/migrations/   001_base.sql ... 0NN_*.sql
 └── docs/
 ```
+
+> `client/src/compartilhado/` guarda o que é reaproveitado pelos DOIS
+> bundles (painel e formulários): o hook `useAssistente` e a lógica de
+> agrupamento de provas por data. Ver
+> docs/superpowers/specs/2026-09-19-formularios-react-f6-incremento-b-design.md.
 
 **Build:** `vite build` → `client/dist`; Express serve os estáticos e faz fallback para `index.html` em rotas não-`/api`. O Dockerfile ganha a etapa de build do cliente antes do `npm start`. O Chromium via apt continua como está.
 
