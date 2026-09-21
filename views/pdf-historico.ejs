@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Histórico escolar</title>
+<%
+/*
+  Template de PDF do histórico escolar (F5).
+
+  Renderiza o MESMO objeto `HistoricoDocumento` que a tela de
+  pré-visualização (client/src/componentes/PreviaDocumento.tsx) e com o
+  MESMO CSS (shared/historico-documento.css, embutido abaixo pela rota).
+  É o que o RNF-04 exige: o que a secretaria vê na tela é o que imprime.
+  Mexeu num dos dois, mexa no outro.
+
+  Locals: doc (HistoricoDocumento) · css (string) · imagens (path → data URL)
+*/
+const colunas = doc.colunas || [];
+const nCols = colunas.length;
+const sed = (doc.registro_sed || '').trim()
+  ? 'Certificado expedido conforme publicação na SED, sob Registro / Visto Confere nº ' + doc.registro_sed.trim() + '.'
+  : null;
+%>
+<style>
+  html, body { margin: 0; padding: 0; background: #fff; }
+  <%- css %>
+</style>
+</head>
+<body>
+<div id="pdf-root">
+
+  <!-- ===================== PÁGINA 1 ===================== -->
+  <section class="doc-pagina">
+    <% if (doc.via > 1) { %><div class="doc-selo-via"><%= doc.via %>ª VIA</div><% } %>
+    <% if (doc.status !== 'emitido') { %><div class="doc-marca-agua"><%= doc.status === 'cancelado' ? 'Cancelado' : 'Rascunho' %></div><% } %>
+
+    <div class="doc-cabecalho">
+      <strong><%= doc.cabecalho.titulo %></strong>
+      <% (doc.cabecalho.linhas || []).forEach(function (l) { %><span><%= l %></span><% }); %>
+    </div>
+
+    <div class="doc-faixa"><%= doc.faixa %></div>
+
+    <table class="doc-tabela doc-identificacao">
+      <tbody>
+        <tr>
+          <th style="width:42mm">Nome do(a) aluno(a)</th>
+          <td colspan="3" class="doc-nome"><%= doc.aluno.nome %></td>
+        </tr>
+      </tbody>
+    </table>
+    <table class="doc-tabela doc-identificacao">
+      <thead>
+        <tr>
+          <th>Data de nascimento</th>
+          <th>Município / Estado</th>
+          <th>Nacionalidade</th>
+          <th>CIN / CPF nº</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><%= doc.aluno.nascimento || '—' %></td>
+          <td><%= doc.aluno.naturalidade || '—' %></td>
+          <td><%= doc.aluno.nacionalidade || '—' %></td>
+          <td><%= doc.aluno.documento || '—' %></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="doc-tabela doc-grade">
+      <thead>
+        <tr>
+          <th class="doc-col-bloco">Bloco</th>
+          <th class="doc-col-agrup">Área do conhecimento</th>
+          <th class="doc-col-comp">Componente curricular</th>
+          <% colunas.forEach(function (c) { %>
+            <th class="doc-col-ano doc-ano-cab"><b><%= c.ano %></b><span><%= c.serie_codigo %></span><span>Nota</span></th>
+          <% }); %>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!doc.blocos || !doc.blocos.length) { %>
+          <tr><td colspan="<%= 3 + nCols %>" style="text-align:center;padding:4mm">Sem componentes — verifique o currículo dos anos selecionados.</td></tr>
+        <% } else { doc.blocos.forEach(function (bloco) {
+             const totalBloco = bloco.agrupamentos.reduce(function (n, ag) { return n + ag.linhas.length; }, 0);
+             let primeiraDoBloco = true;
+             bloco.agrupamentos.forEach(function (ag) {
+               ag.linhas.forEach(function (linha, i) {
+                 const abreBloco = primeiraDoBloco; primeiraDoBloco = false; %>
+          <tr>
+            <% if (abreBloco) { %><td class="doc-bloco-vert" rowspan="<%= totalBloco %>"><%= bloco.nome %></td><% } %>
+            <% if (i === 0) { %><td class="doc-agrup" rowspan="<%= ag.linhas.length %>"><%= ag.nome %></td><% } %>
+            <td><%= linha.nome %></td>
+            <% linha.celulas.forEach(function (c) { %><td class="doc-nota"><%= c %></td><% }); %>
+          </tr>
+        <%     });
+             });
+           }); } %>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3">Total geral de aulas anuais</td>
+          <% doc.totais.aulas.forEach(function (t) { %><td class="doc-nota"><%= t %></td><% }); %>
+        </tr>
+        <tr>
+          <td colspan="3">Total geral de horas anuais</td>
+          <% doc.totais.horas.forEach(function (t) { %><td class="doc-nota"><%= t %></td><% }); %>
+        </tr>
+      </tfoot>
+    </table>
+
+    <table class="doc-tabela doc-estabelecimentos">
+      <thead>
+        <tr>
+          <th style="width:38mm">Ensino</th>
+          <th style="width:22mm">Ano / série</th>
+          <th style="width:18mm">Ano</th>
+          <th>Estabelecimento</th>
+          <th style="width:46mm">Município / Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% (doc.estabelecimentos || []).forEach(function (e, i) { %>
+          <tr>
+            <td><%= (i === 0 || doc.estabelecimentos[i - 1].ensino !== e.ensino) ? e.ensino : '' %></td>
+            <td><%= e.serie %></td>
+            <td><%= e.ano %></td>
+            <td class="doc-esq"><%= e.estabelecimento %></td>
+            <td><%= e.municipio_uf %></td>
+          </tr>
+        <% }); %>
+        <% if (!doc.estabelecimentos || !doc.estabelecimentos.length) { %>
+          <tr><td colspan="5" style="text-align:center">—</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== PÁGINA 2 ===================== -->
+  <section class="doc-pagina">
+    <% if (doc.via > 1) { %><div class="doc-selo-via"><%= doc.via %>ª VIA</div><% } %>
+    <% if (doc.status !== 'emitido') { %><div class="doc-marca-agua"><%= doc.status === 'cancelado' ? 'Cancelado' : 'Rascunho' %></div><% } %>
+
+    <div class="doc-secao doc-observacoes">
+      <h2>Observações:</h2>
+      <% if ((doc.observacoes || []).length) { doc.observacoes.forEach(function (o) { %>
+        <p><%= o %></p>
+      <% }); } else { %>
+        <p class="doc-vazio">— sem observações —</p>
+      <% } %>
+    </div>
+
+    <% if (doc.certificado) { %>
+      <div class="doc-secao doc-certificado">
+        <h2>Certificado</h2>
+        <p><%= doc.certificado.texto %></p>
+        <p class="doc-local"><%= doc.certificado.local_data %></p>
+      </div>
+    <% } %>
+
+    <% if (sed) { %><div class="doc-sed"><%= sed %></div><% } %>
+
+    <div class="doc-assinaturas">
+      <% (doc.assinaturas || []).forEach(function (a) { %>
+        <div>
+          <% if (a.assinatura_path && imagens[a.assinatura_path]) { %>
+            <img src="<%= imagens[a.assinatura_path] %>" alt="">
+          <% } %>
+          <b><%= a.nome %></b>
+          <span><%= a.cargo %></span>
+          <% if (a.rg) { %><span>R.G nº <%= a.rg %></span><% } %>
+          <% if (a.registro_autorizacao) { %><span>Reg. nº <%= a.registro_autorizacao %></span><% } %>
+        </div>
+      <% }); %>
+    </div>
+
+    <div class="doc-rodape">
+      <% if (doc.registro) { %>
+        <div class="doc-registro">
+          <span>Registro nº <%= doc.registro.numero %><%= doc.registro.livro ? ' · Livro ' + doc.registro.livro : '' %><%= doc.registro.folha ? ' · Folha ' + doc.registro.folha : '' %></span>
+          <span><%= doc.via > 1 ? doc.via + 'ª via' : '1ª via' %></span>
+        </div>
+      <% } %>
+      <div><%= doc.rodape %></div>
+    </div>
+  </section>
+
+</div>
+<script>
+  (function () {
+    // Mesma convenção dos outros PDFs (lib/pdf.js): só sinaliza pronto
+    // depois que as assinaturas digitalizadas carregaram (ou falharam).
+    function waitForImages() {
+      var imgs = document.querySelectorAll('img');
+      return Promise.all(Array.prototype.map.call(imgs, function (img) {
+        if (img.complete) return Promise.resolve();
+        return new Promise(function (resolve) {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      }));
+    }
+    waitForImages().then(function () { window.__PDF_READY__ = true; });
+  })();
+</script>
+</body>
+</html>

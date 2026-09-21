@@ -19,6 +19,8 @@ import { cadastrosRouter } from './rotas/cadastros';
 import { versoesRouter } from './rotas/versoes';
 import { importacoesRouter } from './rotas/importacoes';
 import { alunosRouter } from './rotas/alunos';
+import { historicosRouter } from './rotas/historicos';
+import { pdfInternoRouter } from './rotas/pdf-interno';
 
 const RAIZ = path.resolve(__dirname, '..');
 const app = express();
@@ -45,9 +47,11 @@ app.use('/api/cadastros', cadastrosRouter);
 app.use('/api/versoes', versoesRouter);
 app.use('/api/importacoes', importacoesRouter);
 app.use('/api/alunos', alunosRouter);
+app.use('/api/historicos', historicosRouter);
 // Módulo original (auth, formulários, respostas, PDFs)
 app.use('/api', apiRouter);
 app.use(pdfRouter);
+app.use(pdfInternoRouter);
 
 /* ---------- Painel React (client/dist) ---------- */
 // Em produção o Vite gera client/dist; o Express serve os estáticos em

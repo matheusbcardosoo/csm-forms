@@ -1,0 +1,128 @@
+/* ==========================================================
+   Layout do histórico escolar — ARQUIVO COMPARTILHADO.
+
+   É importado pela pré-visualização React (client, via @shared) e
+   embutido no template EJS de PDF (server, via fs.readFileSync). Um CSS
+   só para os dois renderizadores é o que sustenta o RNF-04: o que se vê
+   na tela é o que sai na impressora.
+
+   Cores são literais de propósito — o documento é papel, não segue o
+   tema do painel. Medidas em mm porque a folha é A4 de verdade.
+   ========================================================== */
+
+.doc-pagina {
+  box-sizing: border-box;
+  width: 210mm;
+  /* 1mm a menos que o A4 real: folga contra arredondamento de subpixel,
+     que sem isso empurra uma folha em branco a cada página no PDF. */
+  min-height: 296mm;
+  padding: 10mm 11mm 8mm;
+  background: #fff;
+  color: #000;
+  font-family: "Arial Narrow", "Helvetica Neue", Arial, Helvetica, sans-serif;
+  font-size: 8pt;
+  line-height: 1.3;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-pagina * { box-sizing: border-box; }
+
+/* ---------- cabeçalho institucional (05-modelo §1.1) ---------- */
+.doc-cabecalho { text-align: center; margin-bottom: 3mm; }
+.doc-cabecalho strong { display: block; font-size: 13pt; font-weight: 700; letter-spacing: .02em; }
+.doc-cabecalho span { display: block; font-size: 7.5pt; line-height: 1.45; }
+.doc-cabecalho .doc-vazio { color: #888; font-style: italic; }
+
+/* ---------- faixa de título ---------- */
+.doc-faixa {
+  text-align: center; font-weight: 700; font-size: 10pt; letter-spacing: .03em;
+  border: .3mm solid #000; padding: 1.4mm 2mm; margin-bottom: 2mm; text-transform: uppercase;
+}
+
+/* ---------- identificação do aluno (05-modelo §1.3) ---------- */
+.doc-tabela { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.doc-tabela th, .doc-tabela td { border: .2mm solid #000; padding: .9mm 1.2mm; vertical-align: middle; }
+.doc-tabela th { background: #e8e8e8; font-weight: 700; font-size: 7pt; text-transform: uppercase; letter-spacing: .02em; }
+
+.doc-identificacao { margin-bottom: 2mm; }
+.doc-identificacao td { text-align: center; font-size: 9pt; font-weight: 600; height: 6mm; }
+.doc-identificacao th { text-align: center; }
+.doc-identificacao .doc-nome { font-size: 10pt; letter-spacing: .02em; }
+
+/* ---------- grade de aproveitamento (05-modelo §1.4) ---------- */
+.doc-grade { margin-bottom: 2mm; font-size: 7.5pt; }
+.doc-grade th, .doc-grade td { padding: .6mm 1.2mm; }
+/* o rótulo do cabeçalho acompanha a coluna: em 7mm ele não caberia
+   deitado, e o conteúdo da coluna já é texto vertical */
+.doc-grade .doc-col-bloco { width: 7mm; }
+.doc-grade th.doc-col-bloco { writing-mode: vertical-rl; transform: rotate(180deg); padding: 1mm .3mm; }
+.doc-grade .doc-col-agrup { width: 32mm; }
+.doc-grade .doc-col-comp { width: auto; }
+.doc-grade .doc-col-ano { width: 13mm; text-align: center; }
+.doc-grade td.doc-nota { text-align: center; font-weight: 600; }
+.doc-grade td.doc-agrup { font-size: 7pt; vertical-align: top; }
+.doc-grade .doc-ano-cab { text-align: center; line-height: 1.25; }
+.doc-grade .doc-ano-cab b { display: block; font-size: 8pt; }
+.doc-grade .doc-ano-cab span { display: block; font-weight: 400; font-size: 6.5pt; }
+
+/* bloco vertical, com rowspan do bloco inteiro (05-modelo §3) */
+.doc-bloco-vert {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  text-align: center; white-space: nowrap; font-weight: 700; font-size: 6.5pt;
+  letter-spacing: .01em; padding: 1mm .4mm; background: #f2f2f2;
+}
+
+/* ---------- totais ---------- */
+.doc-grade tfoot td { font-weight: 700; font-size: 7.5pt; background: #f2f2f2; }
+.doc-grade tfoot td.doc-nota { background: #fff; }
+
+/* ---------- estabelecimentos (05-modelo §1.6) ---------- */
+.doc-estabelecimentos { font-size: 7.5pt; }
+.doc-estabelecimentos td { text-align: center; }
+.doc-estabelecimentos td.doc-esq { text-align: left; }
+
+/* ---------- página 2 ---------- */
+.doc-secao { border: .2mm solid #000; padding: 2mm 2.5mm; margin-bottom: 3mm; }
+.doc-secao > h2 {
+  font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  margin: 0 0 1.5mm; padding: 0;
+}
+.doc-observacoes p { margin: 0 0 1.6mm; text-align: justify; font-size: 8pt; line-height: 1.45; }
+.doc-observacoes p:last-child { margin-bottom: 0; }
+.doc-observacoes .doc-vazio { color: #888; font-style: italic; }
+
+.doc-certificado p { margin: 0 0 3mm; text-align: justify; font-size: 10pt; line-height: 1.55; }
+.doc-certificado .doc-local { text-align: center; margin-bottom: 0; }
+
+.doc-sed { text-align: center; font-size: 9pt; font-weight: 600; border: .2mm solid #000; padding: 2mm; margin-bottom: 4mm; }
+
+/* ---------- assinaturas (05-modelo §2.3) ---------- */
+.doc-assinaturas { display: flex; gap: 10mm; margin: 10mm 0 6mm; }
+.doc-assinaturas > div { flex: 1; text-align: center; font-size: 8.5pt; line-height: 1.45; }
+.doc-assinaturas b { display: block; font-weight: 700; }
+.doc-assinaturas span { display: block; font-weight: 400; }
+.doc-assinaturas img { max-height: 14mm; max-width: 60mm; display: block; margin: 0 auto 1mm; }
+
+.doc-rodape { margin-top: auto; padding-top: 3mm; font-size: 6.5pt; }
+.doc-registro { display: flex; justify-content: space-between; gap: 6mm; font-size: 7pt; color: #333; }
+
+/* ---------- marcas de estado ---------- */
+.doc-selo-via {
+  position: absolute; top: 8mm; right: 11mm;
+  border: .4mm solid #000; padding: 1mm 2.5mm; font-size: 8pt; font-weight: 700; letter-spacing: .06em;
+}
+.doc-marca-agua {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 46pt; font-weight: 700; color: rgba(0, 0, 0, .07); letter-spacing: .12em;
+  transform: rotate(-32deg); pointer-events: none; text-transform: uppercase;
+}
+
+/* ---------- paginação ----------
+   Fora de @media print de propósito: lib/pdf.js roda
+   page.emulateMediaType('screen') antes do page.pdf(), então uma regra
+   dentro de @media print nunca valeria na geração do PDF. Na tela, a
+   propriedade é inócua (cada folha já é um bloco isolado). */
+.doc-pagina { page-break-after: always; break-after: page; }
+.doc-pagina:last-child { page-break-after: auto; break-after: auto; }
