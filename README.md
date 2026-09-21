@@ -11,7 +11,7 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 | F2 — Cadastros base | Cursos, séries, componentes, versões curriculares (blocos → agrupamentos → itens, totais, vigência, duplicar/publicar), sistema de avaliação, estabelecimentos externos | ✅ |
 | F3 — Integração | Contrato canônico, pipeline de importação (simulação · efetiva · idempotente · divergências RF-INT-06 · pendências de mapeamento com sugestão), adaptadores `mock`, `arquivo` (CSV) e `activesoft` (API real), tela de mapeamentos | ✅ |
 | F4 — Alunos e notas | Lista com filtros, ficha (dados · trajetória · notas), cadastro manual, ano cursado em outra escola, grade de notas editável com motivo e auditoria, validação RF-ALU-08 | ✅ |
-| F5 — Histórico | Montagem, pré-visualização fiel, emissão, PDF, 2ª via | ⏳ |
+| F5 — Histórico | Assistente de geração, montagem da grade cruzando versões curriculares, pré-visualização fiel (mesmo CSS do PDF), edição, conferência, emissão com numeração e snapshot, PDF, 2ª via, cancelamento, textos-padrão de observação | ✅ |
 | F6 — Formulários | Migração dos wizards e das respostas para React | ✅ |
 
 ## Estrutura
@@ -37,17 +37,22 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 │   ├── lib/                autorização por papel (exigirPapel), validação (zod)
 │   ├── adapters/activesoft/ contrato do adaptador: mock, arquivo (CSV), cliente (API — stub)
 │   ├── servicos/           importacao.ts — pipeline independente do adaptador
-│   └── rotas/              painel, usuarios, instituicao, anos-letivos, cadastros, versoes, importacoes, alunos
+│   │                       historico/montar.ts — monta o HistoricoDocumento (fonte única da
+│   │                       pré-visualização e do PDF); historico/pdf.ts — Puppeteer + Storage
+│   └── rotas/              painel, usuarios, instituicao, anos-letivos, cadastros, versoes,
+│                           importacoes, alunos, historicos, pdf-interno (rota do Puppeteer)
 ├── shared/types/           tipos compartilhados cliente ↔ servidor (+ montagem do cabeçalho do documento)
+├── shared/historico-documento.css   CSS do documento — importado pela tela E embutido no PDF (RNF-04)
 ├── lib/, routes/, views/   módulo original (auth, respostas, PDFs via Puppeteer, n8n). `routes/pages.js`
 │                           foi reescrito no F6 incremento B: `/`, `/respostas`, `/form-visitas` e
 │                           `/form-avaliacao-substitutiva` agora servem/redirecionam para os bundles
 │                           React (`client/dist` e `client/dist-formularios`); `views/index.ejs` e
 │                           `views/respostas.ejs` foram removidas. `views/pdf-*.ejs` (Puppeteer) e
 │                           `public/js/main.js`/`review-renderer.js`, que os alimentam, continuam
-│                           inalterados
+│                           inalterados. `views/pdf-historico.ejs` (F5) é o par do componente
+│                           `PreviaDocumento.tsx`: mesmo objeto, mesmo CSS — mexeu num, mexa no outro
 ├── public/                 estáticos legados (css/js usados só pelos templates de PDF, ver 02-arquitetura.md) e imagens
-├── supabase/migrations/    001–005, imutáveis, aplicadas em ordem
+├── supabase/migrations/    001–006, imutáveis, aplicadas em ordem
 ├── scripts/ambiente-local/ Supabase local (Postgres + PostgREST + GoTrue falso) para desenvolver sem tocar produção
 ├── scripts/                provisionamento de contas
 └── docs/                   requisitos, arquitetura, modelo do histórico, mockup

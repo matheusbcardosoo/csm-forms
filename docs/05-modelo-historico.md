@@ -180,9 +180,8 @@ Texto fixo, fonte pequena, alinhado à esquerda.
 - [x] ~~O histórico de **Ensino Fundamental** usa o mesmo layout?~~ Sim — segundo a secretaria, o layout é o mesmo para todos os segmentos.
 - [x] ~~Desde que ano o colégio emite histórico?~~ 49 anos. Currículos antigos entram sob demanda — `06-versionamento-curricular.md` §6.
 - [x] ~~Nome de componente que muda no meio do curso?~~ Imprime sempre o mais recente, sem alternativa configurável.
-- [ ] Modelo de **transferência** (aluno não concluinte) — só temos o de conclusão.
 - → Pendências do acervo anterior ao Activesoft (título do 1º grau, ano de corte) migraram para [07-acervo-antigo-diferido.md](07-acervo-antigo-diferido.md) §5, junto com a feature.
-- [ ] Existe modelo de **transferência** (aluno não concluinte) — como fica sem o bloco de certificado?
+- [x] ~~Modelo de **transferência** (aluno não concluinte) — como fica sem o bloco de certificado?~~ Implementado na F5 pela regra do §3: **mesmo layout, sem o bloco CERTIFICADO** e sem a exigência do número de publicação da SED. O tipo do documento (`transferencia`, `conclusao_ef`, `conclusao_em`, `parcial`, `declaracao`) é escolhido no assistente e é ele que liga ou desliga o bloco. **Falta conferir com um documento real da secretaria** — se divergir, o ajuste é no template, não no modelo de dados.
 - [ ] **Educação Infantil** emite histórico ou só declaração/relatório?
 - [ ] Qual é a razão aulas→horas para cada curso? (0,75 no EM Bilíngue)
 - [ ] Existe versão do histórico para aluno com anos cursados em outra escola? Precisamos de um exemplo.

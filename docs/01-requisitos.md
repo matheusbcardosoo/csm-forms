@@ -91,7 +91,7 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-INT-05 | **Cópia local editável**: o dado importado é persistido no Supabase e pode ser corrigido sem alterar o Activesoft | Must |
 | RF-INT-06 | Reimportação não sobrescreve silenciosamente valor editado à mão — mostra a divergência e pede decisão | Must |
 | RF-INT-07 | Log de importação: quem executou, quando, quantos registros lidos/criados/atualizados/ignorados, erros e divergências | Must |
-| RF-INT-08 | Mapeamento de códigos do Activesoft ↔ itens da versão curricular, editável na interface, herdado ao duplicar a versão | Must |
+| RF-INT-08 | Mapeamento de códigos do Activesoft ↔ itens da versão curricular, editável na interface, herdado ao duplicar a versão. Código cujo destino é inequívoco (nome idêntico, ou muito parecido e isolado) é casado automaticamente na importação e fica marcado como tal; o ambíguo vira pendência, com aceite em lote das sugestões — ver `03-integracao-activesoft.md` §5 | Must |
 | RF-INT-09 | Importação alternativa por upload de arquivo (CSV/XLSX), usando o mesmo pipeline de validação | Should |
 | RF-INT-10 | Importação agendada (ex.: diária ao fim do ano letivo) | Could |
 | RF-INT-11 | Simulação ("dry run"): mostra o que seria importado sem gravar | Should |

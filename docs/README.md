@@ -22,13 +22,15 @@ A v1 atende o **cenário atual**: alunos cuja trajetória está no Activesoft. O
 
 ## Estado
 
-Implementação iniciada em 18/09/2026. **F0 a F4 implementadas**, incluindo o adaptador real da API do Activesoft (F3 tem `mock`, `arquivo` e `activesoft`). Detalhe (ver tabela no [README da raiz](../README.md)): painel React em `/app`, servidor TypeScript, migrations 001–004, papéis, configuração da instituição com pré-visualização do cabeçalho, cursos/séries/componentes e versões curriculares com duplicação, publicação e vigência por (ano letivo, série). F5–F6 seguem o roadmap de `02-arquitetura.md` §5.
+Implementação iniciada em 18/09/2026. **F0 a F6 implementadas**, incluindo o adaptador real da API do Activesoft (F3 tem `mock`, `arquivo` e `activesoft`). Detalhe (ver tabela no [README da raiz](../README.md)): painel React em `/app`, servidor TypeScript, migrations 001–006, papéis, configuração da instituição com pré-visualização do cabeçalho, cursos/séries/componentes e versões curriculares com duplicação, publicação e vigência por (ano letivo, série), alunos/notas com auditoria e, na F5, o histórico escolar de ponta a ponta: assistente, pré-visualização fiel, emissão com numeração e snapshot, PDF, 2ª via e cancelamento. Resta a **F7 — Refino**.
+
+**Onde está o histórico no código:** `server/servicos/historico/montar.ts` monta o `HistoricoDocumento` (fonte única, D2); `client/src/componentes/PreviaDocumento.tsx` e `views/pdf-historico.ejs` renderizam esse mesmo objeto com o mesmo `shared/historico-documento.css` — é o que garante o RNF-04. Numeração, snapshot e congelamento são funções do banco em `supabase/migrations/006_historico.sql`.
 
 ## Pendências que bloqueiam fases
 
 | Pendência | Bloqueia | Responsável |
 |---|---|---|
-| Modelo de **transferência** (aluno não concluinte) — só temos o de conclusão | Fase 5 | Secretaria do colégio |
+| Conferir o modelo de **transferência** impresso pelo sistema com um documento real da secretaria | Nada — a F5 foi implementada com a regra do §3 de `05-modelo-historico.md` (mesmo layout, sem o bloco de certificado). Se o modelo real divergir, o ajuste é no template | Secretaria do colégio |
 | Confirmar com a Activesoft se há parâmetro de período não documentado (a API só expõe o "ano atual" do SIGA) | Reimportar históricos de anos anteriores | Matheus |
 | Confirmar com a Activesoft qual nome (`nome` vs `nome_civil`) vai no histórico quando o aluno usa nome social | Fase 5 (dado do aluno, não bloqueia a importação) | Matheus |
 | (Opcional) Acesso à API NCA da SED para rede particular — chamado no Portal de Atendimento | Nada; RF-INT-12 é *Could* | Matheus |

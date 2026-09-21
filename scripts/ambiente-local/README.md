@@ -29,10 +29,15 @@ Depois `npm run build` (ou `npm run dev:client`) e entre em http://localhost:300
 ## Roteiro sugerido
 
 1. Importação › Nova importação › ano letivo **2025**, tipo **completo**, **Simular primeiro**.
-2. O relatório mostra as disciplinas do mock (`LP`, `MAT`, `PROJ-VD`…) como pendências de mapeamento, com sugestão por nome. Confirme em **Mapeamentos**.
-3. Importe de novo em modo efetivo: alunos, matrículas e notas entram. Rode uma terceira vez: `criados = 0` (idempotência).
-4. Abra um aluno › Notas, edite uma célula (pede motivo) e veja em **Histórico de alterações**.
-5. Para forçar uma divergência, altere `valor_importado` de uma nota no banco e reimporte: ela aparece no relatório com os dois valores lado a lado.
+2. O relatório mostra os códigos do mock (`LP`, `MAT`, `PROJ-VD`, `EM1`…) **casados automaticamente** por nome idêntico ao do cadastro — a lista aparece no topo do relatório e dá para trocar qualquer um em **Mapeamentos**.
+3. Importe em modo efetivo: alunos, matrículas e notas entram de uma vez (184 registros no mock). Rode de novo: `criados = 0` (idempotência).
+4. Repita para **2023** e **2024** — assim um aluno fica com as três séries e dá para gerar um histórico de conclusão.
+5. Abra um aluno › Notas, edite uma célula (pede motivo) e veja em **Histórico de alterações**.
+6. Ficha do aluno › **Gerar histórico** › conclusão do Ensino Médio → preencha o número da SED → conferir → emitir → baixar PDF → 2ª via.
+7. Para forçar uma divergência, altere `valor_importado` de uma nota no banco e reimporte: ela aparece no relatório com os dois valores lado a lado.
+8. Para ver o fluxo de pendência de mapeamento (o caso ambíguo), crie um segundo curso com séries de mesmo nome: as séries do mock passam a empatar, viram pendência, e o botão **Aceitar sugestões e importar de novo** resolve.
+
+> A lista de alunos é filtrada pelo **ano letivo do topo**. Importou 2025 e o seletor está em 2026? A tela diz isso e oferece o atalho para o ano certo — não é lista vazia por engano.
 
 ## Limpar
 
@@ -40,4 +45,4 @@ Depois `npm run build` (ou `npm run dev:client`) e entre em http://localhost:300
 docker compose -f scripts/ambiente-local/docker-compose.yml down -v
 ```
 
-O que não é imitado: Storage (assinaturas digitalizadas), troca de senha real, e-mails. Nada daqui vai para produção.
+O que não é imitado: Storage (assinaturas digitalizadas e **o PDF guardado do histórico emitido** — o download funciona, só regera a cada vez em vez de servir o arquivo do bucket), troca de senha real, e-mails. Nada daqui vai para produção.

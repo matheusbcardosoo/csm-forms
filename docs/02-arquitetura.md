@@ -108,6 +108,13 @@ csm-forms/
 
 **Build:** dois bundles Vite, cada um com o próprio `vite build`. `vite build --config client/vite.config.ts` → `client/dist` (painel, servido em `/app` com fallback para `index.html` em rotas não-`/api`). `vite build --config client/vite.formularios.config.ts` → `client/dist-formularios` (os dois wizards públicos, `visita.html`/`avaliacao.html`, servidos em `/form-visitas` e `/form-avaliacao-substitutiva`, com os assets em `/assets-formularios`). `npm run build` roda os dois em sequência; Express serve os estáticos de ambos. O Dockerfile ganha a etapa de build do cliente antes do `npm start`. O Chromium via apt continua como está.
 
+> **Onde os templates de PDF vivem de fato.** O alvo previa
+> `server/templates/`, mas os templates continuam em `views/` — é o
+> diretório que o Express já tem configurado (`app.set('views', …)`) e
+> mover os quatro arquivos existentes junto com a F5 seria risco sem
+> ganho. O de histórico entrou lá como `views/pdf-historico.ejs`. A
+> mudança de diretório, se valer a pena, é uma tarefa própria.
+
 > `public/js/main.js` e `public/js/review-renderer.js` são deliberadamente
 > mantidos fora dos bundles Vite: os wizards públicos que os usavam foram
 > migrados para React (`client/formularios/`), mas `views/pdf-visita.ejs`
@@ -351,7 +358,7 @@ Emitido, o `snapshot` é a verdade do documento. Reemissão da 2ª via renderiza
 | **F4 — Alunos e notas** | Lista, ficha, grade de notas editável, auditoria, anos cursados fora, validações | F3 |
 | **F5 — Histórico** | Montagem, pré-visualização, edição, emissão, numeração, PDF, 2ª via | F4 + **modelo validado com a DE de Mogi das Cruzes** + resposta sobre a SED (ver `01-requisitos.md` §5) |
 | **F6 — Formulários** | Migração dos wizards e da tela de respostas para React, aposentadoria das views EJS de página | F0 |
-| **F7 — Refino** | Geração em lote, importação agendada, QR de verificação, relatórios | F5 |
+| **F7 — Refino** | Geração em lote, importação agendada, QR de verificação, relatórios, máscaras de campos no painel (CNPJ, CPF, telefone etc.) | F5 |
 
 **Fora deste roadmap:** o acervo anterior ao Activesoft é feature própria, diferida — `07-acervo-antigo-diferido.md`. O schema das fases 1–5 já a acomoda; nada precisará ser refeito.
 

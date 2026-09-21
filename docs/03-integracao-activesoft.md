@@ -122,11 +122,17 @@ Implementações previstas: `ActivesoftApi`, `ArquivoCsv`, `Mock` (fixtures para
       ├─ existe, sem edição → ATUALIZAR
       ├─ existe, editado, valor da origem == valor_importado  → IGNORAR (só a origem não mudou)
       └─ existe, editado, valor da origem != valor_importado  → DIVERGÊNCIA
-5. Códigos sem mapeamento confirmado → pendência de mapeamento (não grava a nota)
+5. Código sem mapeamento confirmado → tenta casar por nome (§5); sem casamento inequívoco, vira pendência e a nota não é gravada
 6. Modo simulação: nada é gravado, só o relatório
 7. Conclui: contadores, divergências e pendências no log
 8. Secretaria resolve cada divergência: manter local | aceitar origem | ignorar
 ```
+
+### Ordem que importa: currículo antes de tudo
+
+A matrícula congela a versão curricular **na inserção** (`06-versionamento-curricular.md` §2.4). Importar antes de haver currículo publicado para o período cria matrícula sem grade — e sem grade não existe onde encaixar nota, então nenhuma nota entra e nenhum código de disciplina chega a virar mapeamento. O sintoma é "importação com erros e sem mapeamentos", e o relatório diz isso no topo, com o caminho para Currículos.
+
+Como o trigger só resolve a versão na inserção, a reimportação **repara** matrículas que ficaram sem versão: se agora existe vigência para (ano letivo, série), a importação liga a matrícula a ela e segue. Só preenche o que está vazio — versão já congelada nunca é trocada. Sem esse reparo, quem importasse antes de cadastrar o currículo ficaria com matrículas permanentemente sem grade, e nenhuma reimportação as consertaria.
 
 ### Regra central (RF-INT-06)
 
@@ -142,9 +148,22 @@ O Activesoft usa códigos próprios para disciplina, série, turma e situação.
 
 Ao duplicar uma versão, os mapeamentos cujo item foi copiado são recriados automaticamente apontando para o item novo. Sem isso, cada reforma obrigaria a remapear dezenas de códigos à mão, e um erro nesse remapeamento sai impresso num documento permanente. Códigos cujo item não sobreviveu à reforma entram como pendência, com aviso de que existiam na versão anterior. Ver `06-versionamento-curricular.md` §5.
 
-Na primeira importação, todo código novo entra como **pendente**. O sistema sugere destino por similaridade de nome (`MAT`/`Matemática` → disciplina Matemática), mas a confirmação é humana — uma disciplina mapeada errado sai errada no histórico e o documento é permanente.
+### Casamento automático, e onde ele para
 
-Notas de disciplina não mapeada não são gravadas. Aparecem como pendência no relatório.
+Na primeira importação todo código é novo. Exigir confirmação humana para **todos** eles trava a importação inteira antes de a primeira nota entrar — e a maioria não tem dúvida nenhuma: a origem manda "Língua Portuguesa" e o currículo tem "Língua Portuguesa". Então o pipeline resolve sozinho dois casos, e só esses:
+
+| Situação | O que acontece |
+|---|---|
+| **Nome idêntico** (normalizando acento, caixa e pontuação) e único | Casa sozinho, grava o mapeamento **confirmado** com observação de que veio da máquina |
+| **Muito parecido e isolado**: melhor ≥ 0.8 e o segundo colocado ≥ 0.3 atrás (`3ª Série - Ensino Médio` → `3ª série`, com o resto em 0.2) | Casa sozinho, mesma marcação |
+| **Empate ou quase-empate no topo** | **Pendência.** É o colégio com "Ensino Médio" e "Ensino Médio Bilíngue", cada um com uma "1ª série": a escolha é da secretaria |
+| **Nada parecido o bastante** | Pendência, com sugestão quando houver |
+
+A regra do isolamento é o que protege: mapear série ou disciplina errado sai impresso num documento permanente. O sistema não adivinha — mas também não pergunta o óbvio. Tudo que ele casou sozinho aparece no relatório da importação e pode ser trocado em Mapeamentos.
+
+O que sobra como pendência tem duas saídas na interface: **aceitar as sugestões em lote** (um clique, com reimportação em seguida) ou escolher destino a destino. Confirmar o mapeamento **não traz os registros sozinho** — é preciso repetir a importação, e é isso que o botão "Aceitar sugestões e importar de novo" faz de uma vez.
+
+Notas de disciplina não mapeada não são gravadas. Aparecem como pendência no relatório, com a contagem de quantos registros ficaram de fora.
 
 A importação resolve a versão pela matrícula (`matricula.versao_curricular_id`), nunca pela vigência do momento — reimportar notas de 2021 hoje usa o currículo de 2021.
 
