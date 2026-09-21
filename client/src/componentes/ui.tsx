@@ -163,16 +163,18 @@ export function CampoCheck({ rotulo, className = '', ...resto }: { rotulo: React
 export function Modal({ aberto, titulo, descricao, aoFechar, children, rodape, tamanho }:
   { aberto: boolean; titulo: ReactNode; descricao?: ReactNode; aoFechar: () => void; children: ReactNode; rodape?: ReactNode; tamanho?: 'sm' | 'lg' }) {
   const ref = useRef<HTMLDivElement>(null);
+  const aoFecharRef = useRef(aoFechar);
+  aoFecharRef.current = aoFechar;
   useEffect(() => {
     if (!aberto) return;
-    const aoTeclar = (e: KeyboardEvent) => { if (e.key === 'Escape') aoFechar(); };
+    const aoTeclar = (e: KeyboardEvent) => { if (e.key === 'Escape') aoFecharRef.current(); };
     document.addEventListener('keydown', aoTeclar);
     const anterior = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const foco = ref.current?.querySelector<HTMLElement>('input, select, textarea, button');
+    const foco = ref.current?.querySelector<HTMLElement>('.modal-corpo input, .modal-corpo select, .modal-corpo textarea, .modal-corpo button');
     foco?.focus();
     return () => { document.removeEventListener('keydown', aoTeclar); document.body.style.overflow = anterior; };
-  }, [aberto, aoFechar]);
+  }, [aberto]);
 
   if (!aberto) return null;
   return (
