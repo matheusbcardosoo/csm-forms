@@ -12,11 +12,15 @@ import { Icone } from '@/componentes/Icones';
 import { ROTULO_SITUACAO_ALUNO, ROTULO_SITUACAO_MATRICULA, type AlunoLista, type SituacaoAluno } from '@shared/types/aluno';
 import type { Curso, Serie } from '@shared/types/curriculo';
 
-interface Resposta { alunos: AlunoLista[]; total: number; pagina: number; tamanho: number }
+interface Resposta {
+  alunos: AlunoLista[]; total: number; pagina: number; tamanho: number;
+  /** Só vem quando a lista saiu vazia por causa do filtro de ano letivo. */
+  contexto?: { total_geral: number; anos_com_matricula: number[] };
+}
 
 export function Alunos() {
   const { podeEditar } = useSessao();
-  const { ano } = useAnoLetivo();
+  const { ano, setAno } = useAnoLetivo();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const q = params.get('q') || '';
@@ -99,13 +103,8 @@ export function Alunos() {
           <Tabela<AlunoLista>
             linhas={dados?.alunos || []}
             chave={a => a.id}
-            vazio={<EstadoVazio icone="alunos"
-              titulo={q || serie || turma || situacao ? 'Nenhum aluno com esses filtros' : !todosAnos && ano ? `Nenhum aluno com matrícula em ${ano}` : 'Nenhum aluno cadastrado'}
-              descricao={q || serie || turma || situacao ? 'Ajuste os filtros ou desmarque o ano letivo.' : !todosAnos && ano ? 'O ano letivo selecionado no topo filtra a lista. Veja todos os anos ou importe as matrículas deste ano.' : 'Os alunos entram pela importação do Activesoft (ou por arquivo CSV). Anos anteriores em outra escola são lançados na ficha.'}
-              acoes={<>
-                {!todosAnos && ano ? <Botao onClick={() => definir('todos', '1')}>Ver todos os anos</Botao> : null}
-                {podeEditar ? <BotaoLink to="/app/importacoes" variante="primario" icone="importar">Ir para importação</BotaoLink> : null}
-              </>} />}
+            vazio={<ListaVazia contexto={dados?.contexto} ano={ano} todosAnos={todosAnos} podeEditar={podeEditar}
+              temFiltro={!!(q || serie || turma || situacao)} verTodos={() => definir('todos', '1')} irParaAno={setAno} />}
             colunas={[
               { chave: 'nome', rotulo: 'Aluno', principal: true, render: a => <><Link className="nome-cel" to={`/app/alunos/${a.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{a.nome}</Link><span className="sub">nasc. {fmtData(a.data_nascimento)} · RA {a.ra || '—'}</span></> },
               { chave: 'cod', rotulo: 'Código', render: a => a.codigo_activesoft || <Tag>manual</Tag> },
@@ -134,3 +133,46 @@ export function Alunos() {
 }
 
 export { CampoSelect };
+
+/**
+ * Estado vazio que explica a causa em vez de só constatar o efeito. O caso
+ * que mais confunde: importou-se 2025, o seletor do topo está em 2026, e a
+ * lista aparece vazia mesmo com os alunos no banco. Aqui a tela diz isso e
+ * oferece o atalho para o ano certo.
+ */
+function ListaVazia({ contexto, ano, todosAnos, podeEditar, temFiltro, verTodos, irParaAno }: {
+  contexto?: { total_geral: number; anos_com_matricula: number[] };
+  ano: number | null; todosAnos: boolean; podeEditar: boolean; temFiltro: boolean;
+  verTodos: () => void; irParaAno: (a: number) => void;
+}) {
+  const anosComDados = contexto?.anos_com_matricula || [];
+  const escondidosPeloAno = !temFiltro && !todosAnos && !!ano && !!contexto?.total_geral;
+
+  if (escondidosPeloAno) {
+    const sugerido = anosComDados[0];
+    return (
+      <EstadoVazio icone="calendario"
+        titulo={`Nenhuma matrícula em ${ano} — mas há ${contexto!.total_geral} aluno(s) cadastrado(s)`}
+        descricao={anosComDados.length
+          ? `A lista é filtrada pelo ano letivo escolhido no topo da tela. Estes alunos têm matrícula em ${anosComDados.join(', ')}.`
+          : 'Os alunos foram cadastrados, mas nenhum tem matrícula em ano letivo nenhum. Importe as matrículas ou lance os anos na ficha de cada um.'}
+        acoes={<>
+          {sugerido ? <Botao variante="primario" icone="calendario" onClick={() => irParaAno(sugerido)}>Ver {sugerido}</Botao> : null}
+          <Botao onClick={verTodos}>Ver todos os anos</Botao>
+          {podeEditar ? <BotaoLink to="/app/importacoes" icone="importar">Importar matrículas de {ano}</BotaoLink> : null}
+        </>} />
+    );
+  }
+
+  return (
+    <EstadoVazio icone="alunos"
+      titulo={temFiltro ? 'Nenhum aluno com esses filtros' : !todosAnos && ano ? `Nenhum aluno com matrícula em ${ano}` : 'Nenhum aluno cadastrado'}
+      descricao={temFiltro ? 'Ajuste os filtros ou desmarque o ano letivo.'
+        : !todosAnos && ano ? 'O ano letivo selecionado no topo filtra a lista. Veja todos os anos ou importe as matrículas deste ano.'
+        : 'Os alunos entram pela importação do Activesoft (ou por arquivo CSV). Anos anteriores em outra escola são lançados na ficha.'}
+      acoes={<>
+        {!todosAnos && ano ? <Botao onClick={verTodos}>Ver todos os anos</Botao> : null}
+        {podeEditar ? <BotaoLink to="/app/importacoes" variante="primario" icone="importar">Ir para importação</BotaoLink> : null}
+      </>} />
+  );
+}

@@ -41,7 +41,25 @@ alunosRouter.get('/', exigirPapel(), seguro(async (req, res) => {
       matricula: m ? { id: m.id, ano: m.ano_letivo!.ano, serie: m.serie?.nome || '', curso: m.curso?.nome || '', turma: m.turma, situacao_final: m.situacao_final } : null
     };
   });
-  res.json({ alunos: linhas, total: count || 0, pagina, tamanho: TAMANHO_PAGINA });
+  // Lista vazia por causa do ano letivo do topo é a pegadinha mais comum
+  // logo depois de importar: o aluno entrou, mas a matrícula é de outro
+  // ano. Em vez de mostrar "nenhum aluno" e deixar o usuário procurando,
+  // a resposta já diz quantos existem e em que anos há matrícula.
+  let contexto: { total_geral: number; anos_com_matricula: number[] } | undefined;
+  if (!linhas.length && ano && !q && !serie && !turma && !situacao) {
+    const { count: totalGeral } = await client.from('aluno').select('id', { count: 'exact', head: true });
+    const anosComMatricula: number[] = [];
+    if (totalGeral) {
+      const { data: anos } = await client.from('ano_letivo').select('id, ano').order('ano', { ascending: false }).limit(12);
+      for (const a of anos || []) {
+        const { count: n } = await client.from('matricula').select('id', { count: 'exact', head: true }).eq('ano_letivo_id', a.id);
+        if (n) anosComMatricula.push(a.ano);
+      }
+    }
+    contexto = { total_geral: totalGeral || 0, anos_com_matricula: anosComMatricula };
+  }
+
+  res.json({ alunos: linhas, total: count || 0, pagina, tamanho: TAMANHO_PAGINA, contexto });
 }));
 
 /* ---------- criar (manual) ---------- */
