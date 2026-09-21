@@ -20,6 +20,7 @@ import { versoesRouter } from './rotas/versoes';
 import { importacoesRouter } from './rotas/importacoes';
 import { alunosRouter } from './rotas/alunos';
 import { historicosRouter } from './rotas/historicos';
+import { historicosLoteRouter } from './rotas/historicos-lote';
 import { pdfInternoRouter } from './rotas/pdf-interno';
 import { verificacaoRouter } from './rotas/verificacao';
 
@@ -48,6 +49,8 @@ app.use('/api/cadastros', cadastrosRouter);
 app.use('/api/versoes', versoesRouter);
 app.use('/api/importacoes', importacoesRouter);
 app.use('/api/alunos', alunosRouter);
+// o lote vem antes: '/api/historicos/:id' engoliria '/api/historicos/lote/...'
+app.use('/api/historicos/lote', historicosLoteRouter);
 app.use('/api/historicos', historicosRouter);
 // Módulo original (auth, formulários, respostas, PDFs)
 app.use('/api', apiRouter);

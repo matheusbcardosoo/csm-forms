@@ -35,7 +35,10 @@ export function Historicos() {
   return (
     <div className="wrap">
       <Cabecalho titulo="Históricos escolares" descricao="Documentos gerados, com status, número de registro e 2ª via"
-        acoes={<BotaoLink to="/app/alunos" variante="primario" icone="alunos">Gerar para um aluno</BotaoLink>} />
+        acoes={<>
+          <BotaoLink to="/app/historicos/lote" icone="grade">Gerar em lote</BotaoLink>
+          <BotaoLink to="/app/alunos" variante="primario" icone="alunos">Gerar para um aluno</BotaoLink>
+        </>} />
 
       <div className="grade g4" style={{ marginBottom: 16 }}>
         <Kpi rotulo="Documentos" valor={linhas.length} detalhe="nos filtros atuais" />

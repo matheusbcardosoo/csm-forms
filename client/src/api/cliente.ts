@@ -57,9 +57,19 @@ export function mensagemErro(err: unknown, padrao = 'Algo deu errado. Tente nova
  * Baixa um arquivo binário (ex.: PDF) preservando o nome sugerido pelo
  * servidor via Content-Disposition. Diferente de `api.get`, que sempre
  * espera JSON — aqui a resposta é um blob.
+ *
+ * `corpo` existe para o download em lote, que manda a lista de
+ * documentos: seriam 60 UUIDs na query string, e o servidor tem mais o
+ * que fazer do que reparsear isso.
  */
-export async function baixarArquivo(url: string, nomePadrao: string): Promise<void> {
-  const res = await fetch(url, { credentials: 'same-origin' });
+export async function baixarArquivo(url: string, nomePadrao: string, corpo?: unknown): Promise<void> {
+  const res = corpo === undefined
+    ? await fetch(url, { credentials: 'same-origin' })
+    : await fetch(url, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo)
+      });
   if (res.status === 401) window.dispatchEvent(new CustomEvent('sessao:expirou'));
   if (!res.ok) {
     const texto = await res.text().catch(() => '');
