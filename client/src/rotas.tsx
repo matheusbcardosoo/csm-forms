@@ -10,6 +10,8 @@ import { Inicio } from '@/app/inicio/Inicio';
 import { Alunos } from '@/app/alunos/Alunos';
 import { AlunoFicha } from '@/app/alunos/AlunoFicha';
 import { Historicos } from '@/app/historicos/Historicos';
+import { HistoricoNovo } from '@/app/historicos/HistoricoNovo';
+import { HistoricoDetalhe } from '@/app/historicos/HistoricoDetalhe';
 import { Importacoes } from '@/app/importacoes/Importacoes';
 import { ImportacaoDetalhe } from '@/app/importacoes/ImportacaoDetalhe';
 import { Mapeamentos } from '@/app/importacoes/Mapeamentos';
@@ -24,6 +26,7 @@ import { Componentes } from '@/app/configuracoes/Componentes';
 import { Curriculos } from '@/app/configuracoes/Curriculos';
 import { VersaoDetalhe } from '@/app/configuracoes/VersaoDetalhe';
 import { Estabelecimentos } from '@/app/configuracoes/Estabelecimentos';
+import { Observacoes } from '@/app/configuracoes/Observacoes';
 import { Usuarios } from '@/app/configuracoes/Usuarios';
 import { EstadoVazio, BotaoLink, Carregando } from '@/componentes/ui';
 import type { Papel } from '@shared/types/usuario';
@@ -65,7 +68,9 @@ export const roteador = createBrowserRouter([
       { index: true, element: <Inicio /> },
       { path: 'alunos', element: <Alunos /> },
       { path: 'alunos/:id', element: <AlunoFicha /> },
+      { path: 'alunos/:id/historico/novo', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [{ index: true, element: <HistoricoNovo /> }] },
       { path: 'historicos', element: <Historicos /> },
+      { path: 'historicos/:id', element: <HistoricoDetalhe /> },
       { path: 'importacoes', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [
         { index: true, element: <Importacoes /> },
         { path: 'mapeamentos', element: <Mapeamentos /> },
@@ -89,6 +94,7 @@ export const roteador = createBrowserRouter([
           { path: 'curriculos', element: <Curriculos /> },
           { path: 'curriculos/:id', element: <VersaoDetalhe /> },
           { path: 'estabelecimentos', element: <Estabelecimentos /> },
+          { path: 'observacoes', element: <Observacoes /> },
           { path: 'usuarios', element: <SoPapel papeis={['admin']} />, children: [{ index: true, element: <Usuarios /> }] }
         ]
       },

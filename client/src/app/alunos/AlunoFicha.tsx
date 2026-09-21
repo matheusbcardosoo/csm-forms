@@ -6,7 +6,8 @@ import { api, ErroApi, mensagemErro, type CampoInvalido } from '@/api/cliente';
 import { useRecurso } from '@/hooks/useRecurso';
 import { useSessao } from '@/hooks/useSessao';
 import { useToast } from '@/hooks/useToast';
-import { Aviso, Botao, CampoArea, CampoSelect, CampoTexto, Card, Carregando, EstadoVazio, Modal, Tag, fmtData, fmtDataHora, iniciais } from '@/componentes/ui';
+import { Aviso, Botao, BotaoLink, CampoArea, CampoSelect, CampoTexto, Card, Carregando, EstadoVazio, Modal, Tabela, Tag, fmtData, fmtDataHora, iniciais } from '@/componentes/ui';
+import { ROTULO_STATUS_HISTORICO, ROTULO_TIPO_HISTORICO, type HistoricoLista, type StatusHistorico } from '@shared/types/historico';
 import { Icone } from '@/componentes/Icones';
 import { CAMPOS_OBRIGATORIOS_HISTORICO, ROTULO_ORIGEM, ROTULO_SITUACAO_ALUNO, ROTULO_SITUACAO_MATRICULA, ROTULO_SITUACAO_NOTA, type Aluno, type AlunoDetalhe, type Auditoria, type GradeNotas, type MatriculaDetalhe, type SituacaoAluno, type SituacaoMatricula, type SituacaoNota } from '@shared/types/aluno';
 import type { Curso, EstabelecimentoExterno, Serie } from '@shared/types/curriculo';
@@ -45,7 +46,7 @@ export function AlunoFicha() {
         </div>
         <div className="acoes">
           {podeEditar ? <Botao icone="editar" onClick={() => irPara('dados')}>Editar dados</Botao> : null}
-          <Botao variante="destaque" icone="documento" disabled title="Geração de histórico chega na fase 5">Gerar histórico</Botao>
+          {podeEditar ? <BotaoLink to={`/app/alunos/${aluno.id}/historico/novo`} variante="destaque" icone="documento">Gerar histórico</BotaoLink> : null}
         </div>
       </div>
 
@@ -70,7 +71,7 @@ export function AlunoFicha() {
       {aba === 'dados' ? <AbaDados aluno={aluno} podeEditar={podeEditar} aoSalvar={recarregar} /> : null}
       {aba === 'trajetoria' ? <AbaTrajetoria aluno={aluno} matriculas={matriculas} podeEditar={podeEditar} aoMudar={recarregar} aoVerNotas={m => { const p = new URLSearchParams(params); p.set('aba', 'notas'); p.set('matricula', m.id); setParams(p); }} /> : null}
       {aba === 'notas' ? <AbaNotas alunoId={aluno.id} matriculas={matriculas} podeEditar={podeEditar} aoMudar={recarregar} /> : null}
-      {aba === 'historicos' ? <Card semCorpo><EstadoVazio icone="documento" titulo="Nenhum histórico gerado" descricao="Geração, pré-visualização e emissão são a fase 5. A conferência acima já mostra o que precisa estar pronto." /></Card> : null}
+      {aba === 'historicos' ? <AbaHistoricos aluno={aluno} podeEditar={podeEditar} /> : null}
     </div>
   );
 }
@@ -220,6 +221,38 @@ function AbaTrajetoria({ aluno, matriculas, podeEditar, aoMudar, aoVerNotas }: {
         </div> : null}
       </Modal>
     </div>
+  );
+}
+
+/* ================= HISTÓRICOS ================= */
+const COR_STATUS_DOC: Record<StatusHistorico, 'ok' | 'aviso' | 'info' | 'erro'> = {
+  rascunho: 'aviso', conferido: 'info', emitido: 'ok', cancelado: 'erro'
+};
+
+function AbaHistoricos({ aluno, podeEditar }: { aluno: Aluno; podeEditar: boolean }) {
+  const { dados, carregando } = useRecurso<HistoricoLista[]>(`/api/historicos?aluno_id=${aluno.id}`);
+  if (carregando && !dados) return <Card semCorpo><Carregando /></Card>;
+  return (
+    <Card semCorpo titulo="Documentos deste aluno" descricao="Rascunhos, emitidos e 2ª via"
+      acoes={podeEditar ? <BotaoLink to={`/app/alunos/${aluno.id}/historico/novo`} variante="primario" pequeno icone="documento">Gerar histórico</BotaoLink> : undefined}>
+      <Tabela<HistoricoLista>
+        linhas={dados || []}
+        chave={h => h.id}
+        vazio={<EstadoVazio icone="documento" titulo="Nenhum histórico gerado"
+          descricao="O assistente monta a grade a partir da trajetória e das notas, mostra o documento como ele vai sair e só então emite."
+          acoes={podeEditar ? <BotaoLink to={`/app/alunos/${aluno.id}/historico/novo`} variante="primario" icone="documento">Gerar histórico</BotaoLink> : undefined} />}
+        colunas={[
+          { chave: 'tipo', rotulo: 'Documento', principal: true, render: h => <>
+            <Link className="nome-cel" to={`/app/historicos/${h.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{ROTULO_TIPO_HISTORICO[h.tipo]}</Link>
+            <span className="sub">{h.curso?.nome}{h.via > 1 ? ` · ${h.via}ª via` : ''} · criado {fmtDataHora(h.criado_em)}</span>
+          </> },
+          { chave: 'registro', rotulo: 'Registro', render: h => h.numero_registro != null ? <b>{h.numero_registro}/{h.ano_registro}</b> : <span className="cel-sub">—</span> },
+          { chave: 'status', rotulo: 'Status', render: h => <Tag tipo={COR_STATUS_DOC[h.status]} ponto>{ROTULO_STATUS_HISTORICO[h.status]}</Tag> },
+          { chave: 'quando', rotulo: 'Emitido em', render: h => h.emitido_em ? fmtData(h.emitido_em) : <span className="cel-sub">—</span> },
+          { chave: 'a', rotulo: 'Ações', acoes: true, render: h => <Link className="btn btn-sm" to={`/app/historicos/${h.id}`}>Abrir</Link> }
+        ]}
+      />
+    </Card>
   );
 }
 

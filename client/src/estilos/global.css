@@ -301,6 +301,32 @@ td code, .nome-cel code { white-space: nowrap; }
 .folha-ass img { max-height: 34px; max-width: 120px; display: block; margin: 0 auto 2px; }
 .folha-rot { font-family: Inter, sans-serif; font-size: 10px; color: var(--texto-3); align-self: flex-start; }
 
+/* ---------- pré-visualização do histórico (F5) ----------
+   O documento em si vive em shared/historico-documento.css, compartilhado
+   com o template de PDF. O que está aqui é só a moldura do painel: as
+   duas colunas, a barra de zoom e a caixa que escala a folha. */
+.previa { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
+.previa-doc { position: sticky; top: calc(var(--topbar-h) + 16px); display: flex; flex-direction: column; gap: 10px; }
+.previa-painel { display: flex; flex-direction: column; gap: 12px; }
+.previa-barra { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.previa .palco { max-height: calc(100dvh - var(--topbar-h) - 120px); }
+
+/* a folha é escalada por transform; a caixa reserva o espaço já escalado */
+.doc-palco { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.doc-caixa { position: relative; overflow: hidden; flex: 0 0 auto; box-shadow: 0 2px 6px rgba(0,0,0,.16), 0 10px 30px rgba(0,0,0,.14); border-radius: 2px; background: #fff; }
+
+/* opção em cartão (assistente de histórico) */
+.opcao-card { display: flex; gap: 11px; align-items: center; padding: 11px 13px; border: 1px solid var(--linha); border-radius: var(--r-md); background: var(--superficie); cursor: pointer; }
+.opcao-card.marcada { border-color: var(--azul); background: color-mix(in srgb, var(--azul) 5%, transparent); }
+.opcao-card input { margin: 0; accent-color: var(--azul); flex: 0 0 auto; }
+.opcao-card > div { flex: 1; min-width: 0; }
+.opcao-card b { display: block; font-size: 13.5px; }
+.opcao-card span { display: block; font-size: 12px; color: var(--texto-2); }
+.opcao-card.compacta { padding: 7px 10px; }
+.opcao-card.compacta b { font-size: 12.5px; }
+.opcao-card.compacta span { font-size: 11.5px; }
+.opcao-card:has(input:disabled) { cursor: default; opacity: .75; }
+
 /* ---------- estrutura curricular (editor) ---------- */
 .bloco-cur { border: 1px solid var(--linha); border-radius: var(--r-md); overflow: hidden; margin-bottom: 12px; background: var(--superficie); }
 .bloco-cur-cab { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--superficie-2); border-bottom: 1px solid var(--linha); flex-wrap: wrap; }
@@ -411,6 +437,10 @@ td code, .nome-cel code { white-space: nowrap; }
 @media (max-width: 1100px) {
   .conf { grid-template-columns: 1fr; }
   .conf-lado { position: static; }
+  /* o documento passa a vir antes do painel de edição, empilhado */
+  .previa { grid-template-columns: 1fr; }
+  .previa-doc { position: static; }
+  .previa .palco { max-height: 70dvh; }
   .g4 { grid-template-columns: repeat(2, 1fr); }
   .g3 { grid-template-columns: repeat(2, 1fr); }
 }

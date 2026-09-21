@@ -28,6 +28,7 @@ const CONFIGURACAO: ItemNav[] = [
   { to: '/app/config/componentes', rotulo: 'Componentes', icone: 'grade', papeis: ['admin', 'secretaria'] },
   { to: '/app/config/curriculos', rotulo: 'Currículos', icone: 'grade', papeis: ['admin', 'secretaria'] },
   { to: '/app/config/estabelecimentos', rotulo: 'Outras escolas', icone: 'escola', papeis: ['admin', 'secretaria'] },
+  { to: '/app/config/observacoes', rotulo: 'Observações', icone: 'documento', papeis: ['admin', 'secretaria'] },
   { to: '/app/config/usuarios', rotulo: 'Usuários', icone: 'usuarios', papeis: ['admin'] }
 ];
 
