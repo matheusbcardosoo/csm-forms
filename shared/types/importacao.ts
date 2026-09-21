@@ -106,6 +106,24 @@ export interface RelatorioImportacao {
   avisos: string[];
   linhas: LinhaRelatorio[];              // amostra (limitada) por ação
   divergenciasPrevistas?: DivergenciaPrevista[];   // só na simulação
+  /** Códigos que a importação casou sozinha por nome idêntico ao cadastro. */
+  mapeamentosAutomaticos?: MapeamentoAutomatico[];
+  /**
+   * (ano letivo, série) sem versão curricular publicada. Enquanto isso
+   * existe, a matrícula entra sem grade e NENHUMA nota daquela série pode
+   * ser gravada (RF-VER-11) — é o bloqueio que precede o de mapeamento.
+   */
+  seriesSemCurriculo?: SerieSemCurriculo[];
+}
+
+export interface SerieSemCurriculo { ano: number; serie: string; serie_id: string; matriculas: number }
+
+export interface MapeamentoAutomatico {
+  tipo: 'disciplina' | 'serie';
+  codigo_origem: string;
+  descricao_origem: string | null;
+  destino: string;
+  registros: number;
 }
 
 export interface DivergenciaPrevista { entidade: string; descricao: string; campo: string; valor_local: unknown; valor_origem: unknown }

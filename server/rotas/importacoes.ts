@@ -45,6 +45,35 @@ importacoesRouter.get('/mapeamentos', exigirPapel('admin', 'secretaria'), seguro
   res.json(data);
 }));
 
+/**
+ * Aceita de uma vez todos os mapeamentos pendentes que já têm sugestão
+ * (RF-INT-08). Sem isso, a primeira importação de um colégio de verdade
+ * obriga a secretaria a escolher dezenas de destinos num a um, sem que o
+ * sistema tenha dúvida nenhuma sobre nenhum deles.
+ */
+importacoesRouter.post('/mapeamentos/aceitar-sugestoes', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
+  const { client, perfil } = ctx(res);
+  let q = client.from('mapeamento_activesoft').select('id, tipo, codigo_origem, sugestao_item_id, destino_valor').eq('confirmado', false);
+  if (req.query.versao) q = q.eq('versao_id', String(req.query.versao));
+  const { data, error } = await q;
+  if (error) throw error;
+
+  const OBS = `Sugestão aceita em lote por ${perfil.email}. Troque aqui se não for isso.`;
+  let aceitos = 0;
+  for (const m of data || []) {
+    // disciplina resolve pelo item sugerido; série/situação pelo destino
+    // que a importação já tinha deixado preenchido como sugestão
+    const patch = m.tipo === 'disciplina'
+      ? (m.sugestao_item_id ? { versao_item_id: m.sugestao_item_id, confirmado: true, observacao: OBS } : null)
+      : (m.destino_valor ? { confirmado: true, observacao: OBS } : null);
+    if (!patch) continue;
+    const { error: e } = await client.from('mapeamento_activesoft').update(patch).eq('id', m.id);
+    if (e) throw e;
+    aceitos++;
+  }
+  res.json({ aceitos, restantes: (data || []).length - aceitos });
+}));
+
 const mapSchema = z.object({
   versao_item_id: z.preprocess(v => (v === '' ? null : v), uuid.nullable().optional()),
   destino_valor: texto,

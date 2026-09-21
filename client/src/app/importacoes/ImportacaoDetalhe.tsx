@@ -2,7 +2,7 @@
 // Divergências (comparador lado a lado, ação por linha e em lote),
 // Pendências de mapeamento, Registros e Erros.
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, mensagemErro } from '@/api/cliente';
 import { useRecurso } from '@/hooks/useRecurso';
 import { useToast } from '@/hooks/useToast';
@@ -24,6 +24,7 @@ function valorTexto(v: unknown): string {
 export function ImportacaoDetalhe() {
   const { id = '' } = useParams();
   const toast = useToast();
+  const navegar = useNavigate();
   const { dados, carregando, erro, recarregar } = useRecurso<Resposta>(`/api/importacoes/${id}`);
   const [aba, setAba] = useState<Aba | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -52,6 +53,32 @@ export function ImportacaoDetalhe() {
 
   const rotuloRes: Record<ResolucaoDivergencia, string> = { pendente: 'Pendente', manter_local: 'Mantido local', aceitar_origem: 'Origem aceita', ignorada: 'Ignorada' };
 
+  const comSugestao = pendencias.filter(p => (p.tipo === 'disciplina' ? p.sugestao_item_id : p.destino_valor));
+  const registrosDeFora = pendencias.reduce((n, p) => n + p.registros_afetados, 0);
+
+  /**
+   * Resolver a pendência e repetir a importação são duas metades da mesma
+   * tarefa — confirmar o mapeamento sozinho não traz nenhum registro de
+   * volta. Por isso o botão faz as duas e leva ao relatório novo.
+   */
+  async function aceitarEReimportar() {
+    setOcupado('lote-map');
+    try {
+      const r = await api.post<{ aceitos: number; restantes: number }>('/api/importacoes/mapeamentos/aceitar-sugestoes');
+      if (!r.aceitos) { toast.erro('Nenhuma sugestão para aceitar — escolha o destino em Mapeamentos.'); return; }
+      const nova = await api.post<{ id: string }>('/api/importacoes', {
+        tipo: imp.tipo, modo: 'efetiva',
+        anoLetivo: String(imp.parametros.anoLetivo ?? ''),
+        serieCodigoOrigem: imp.parametros.serieCodigoOrigem || '',
+        turma: imp.parametros.turma || '',
+        alunoCodigoOrigem: imp.parametros.alunoCodigoOrigem || ''
+      });
+      toast.ok(`${r.aceitos} mapeamento(s) confirmado(s) e importação repetida.${r.restantes ? ` ${r.restantes} código(s) seguem sem sugestão.` : ''}`);
+      navegar(`/app/importacoes/${nova.id}`);
+    } catch (err) { toast.erro(mensagemErro(err)); }
+    finally { setOcupado(null); }
+  }
+
   return (
     <div className="wrap">
       <Cabecalho voltar={{ to: '/app/importacoes', rotulo: 'Importações' }}
@@ -68,6 +95,56 @@ export function ImportacaoDetalhe() {
         <Kpi rotulo="Divergências" valor={imp.com_divergencia} detalhe={simulacao ? 'previstas' : `${pendentes.length} aguardando decisão`} tipo="aviso" />
         <Kpi rotulo="Sem mapeamento" valor={imp.pendentes_mapeamento} detalhe={`${pendencias.length} código(s) pendente(s) · ${imp.erros} erro(s)`} tipo="erro" />
       </div>
+
+      {rel?.seriesSemCurriculo?.length ? (
+        <div style={{ marginBottom: 14 }}>
+          <Aviso tipo="erro">
+            <b>Nenhum currículo publicado para {rel.seriesSemCurriculo.map(s => `${s.ano} · ${s.serie}`).join(', ')}.</b>{' '}
+            As matrículas entram, mas ficam <b>sem grade curricular</b> — e sem grade não há onde encaixar nota nenhuma, então
+            nenhuma nota dessas séries foi gravada e nenhum código de disciplina chegou a virar mapeamento (RF-VER-11).
+            É por isso que a importação mostra erros <b>e</b> nenhuma pendência de mapeamento: o problema é um passo antes.
+            <div style={{ marginTop: 6, fontSize: 12.5 }}>
+              {rel.seriesSemCurriculo.map(s => <div key={s.serie_id + s.ano}>{s.ano} · {s.serie} — {s.matriculas} matrícula(s) sem grade</div>)}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              O caminho: <b>Configuração › Currículos</b> → criar a versão do curso (blocos → agrupamentos → componentes por série),
+              definir os totais anuais, <b>publicar</b> e marcar a vigência de cada ano letivo. Depois importe de novo.
+            </div>
+            <div className="acoes" style={{ marginTop: 10 }}>
+              <Link className="btn btn-sm btn-1" to="/app/config/curriculos">Ir para Currículos</Link>
+            </div>
+          </Aviso>
+        </div>
+      ) : null}
+
+      {pendencias.length ? (
+        <div style={{ marginBottom: 14 }}>
+          <Aviso tipo="erro">
+            <b>Falta confirmar {pendencias.length} código(s) da origem{registrosDeFora ? ` — ${registrosDeFora} registro(s) ficaram de fora` : ''}.</b>{' '}
+            O sistema casa sozinho o que é inequívoco; estes aqui ele não quis decidir por conta própria.
+            {comSugestao.length ? <> Há sugestão para {comSugestao.length} deles.</> : <> Nenhum tem sugestão — escolha o destino à mão.</>}
+            {' '}Confirmar o mapeamento não traz os registros sozinho: é preciso <b>importar de novo</b> depois.
+            <div className="acoes" style={{ marginTop: 10 }}>
+              {comSugestao.length && !simulacao ? <Botao pequeno variante="primario" icone="check" carregando={ocupado === 'lote-map'} onClick={aceitarEReimportar}>Aceitar {comSugestao.length} sugestão(ões) e importar de novo</Botao> : null}
+              <Link className="btn btn-sm" to="/app/importacoes/mapeamentos?pendentes=1">Ver e escolher um a um</Link>
+            </div>
+          </Aviso>
+        </div>
+      ) : null}
+
+      {rel?.mapeamentosAutomaticos?.length ? (
+        <div style={{ marginBottom: 14 }}>
+          <Aviso tipo="ok">
+            <b>{rel.mapeamentosAutomaticos.length} código(s) casado(s) automaticamente</b> — o nome na origem é idêntico ao do cadastro, ou era o único destino parecido.
+            <div style={{ marginTop: 6, fontSize: 12.5, display: 'flex', flexWrap: 'wrap', gap: '2px 14px' }}>
+              {rel.mapeamentosAutomaticos.map(m => (
+                <span key={m.tipo + m.codigo_origem}><code>{m.codigo_origem}</code> → {m.destino} <span className="cel-sub">({m.registros})</span></span>
+              ))}
+            </div>
+            <div style={{ marginTop: 6 }}><Link to="/app/importacoes/mapeamentos">Conferir ou trocar em Mapeamentos</Link></div>
+          </Aviso>
+        </div>
+      ) : null}
 
       {rel?.avisos.length ? <div className="pilha" style={{ marginBottom: 14 }}>{[...new Set(rel.avisos)].map((a, i) => <Aviso key={i} tipo="aviso">{a}</Aviso>)}</div> : null}
 

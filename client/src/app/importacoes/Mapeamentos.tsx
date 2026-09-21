@@ -45,6 +45,18 @@ export function Mapeamentos() {
     finally { setOcupado(null); }
   }
 
+  async function aceitarSugestoes() {
+    setOcupado('lote');
+    try {
+      const r = await api.post<{ aceitos: number; restantes: number }>(`/api/importacoes/mapeamentos/aceitar-sugestoes${versaoFiltro ? `?versao=${versaoFiltro}` : ''}`);
+      toast.ok(r.aceitos
+        ? `${r.aceitos} sugestão(ões) aceita(s)${r.restantes ? ` · ${r.restantes} sem sugestão, escolha o destino à mão` : ''}. Reimporte para trazer os registros que ficaram de fora.`
+        : 'Nenhuma sugestão para aceitar — escolha o destino de cada código.');
+      recarregar();
+    } catch (err) { toast.erro(mensagemErro(err)); }
+    finally { setOcupado(null); }
+  }
+
   async function criar() {
     if (!novo) return;
     setOcupado('novo');
@@ -56,12 +68,27 @@ export function Mapeamentos() {
   const series = (cadastros.dados?.series || []).sort((a, b) => a.ordem - b.ordem);
   const nomeSerie = (id: string | null) => series.find(s => s.id === id)?.nome || '';
   const definir = (k: string, v: string) => { const p = new URLSearchParams(params); if (v) p.set(k, v); else p.delete(k); setParams(p); };
+  const pendentes = (dados || []).filter(m => !m.confirmado);
+  const comSugestao = pendentes.filter(m => (m.tipo === 'disciplina' ? m.sugestao_item_id : m.destino_valor));
 
   return (
     <div className="wrap">
       <Cabecalho voltar={{ to: '/app/importacoes', rotulo: 'Importações' }} titulo="Mapeamento de códigos" descricao="Códigos do Activesoft (ou do arquivo) ↔ cadastro local. Disciplina é mapeada por versão curricular; série e situação valem para todas."
-        acoes={<Botao variante="primario" icone="mais" onClick={() => setNovo({ tipo: 'disciplina', codigo_origem: '', descricao_origem: '', versao_id: (versoes.dados || []).find(v => v.status === 'vigente')?.id || '' })}>Cadastrar código</Botao>} />
+        acoes={<>
+          {comSugestao.length ? <Botao variante="primario" icone="check" carregando={ocupado === 'lote'} onClick={aceitarSugestoes}>Aceitar {comSugestao.length} sugestão(ões)</Botao> : null}
+          <Botao icone="mais" onClick={() => setNovo({ tipo: 'disciplina', codigo_origem: '', descricao_origem: '', versao_id: (versoes.dados || []).find(v => v.status === 'vigente')?.id || '' })}>Cadastrar código</Botao>
+        </>} />
       {erro ? <Aviso tipo="erro">{erro}</Aviso> : null}
+
+      {pendentes.length ? (
+        <div style={{ marginBottom: 14 }}>
+          <Aviso tipo="aviso">
+            <b>{pendentes.length} código(s) pendente(s) — os registros ligados a eles ficaram de fora da importação.</b>
+            {comSugestao.length ? <> O sistema tem sugestão para {comSugestao.length}: confira a coluna Destino e aceite em lote, ou escolha um a um.</> : <> Escolha o destino de cada um na coluna Destino.</>}
+            <> Depois de confirmar, <b>rode a importação de novo</b> — é ela que traz os registros que faltaram.</>
+          </Aviso>
+        </div>
+      ) : null}
 
       <div className="filtros">
         <label className="f-campo">Currículo: <select value={versaoFiltro} onChange={e => definir('versao', e.target.value)} aria-label="Versão curricular"><option value="">Todos</option>{(versoes.dados || []).map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}</select></label>

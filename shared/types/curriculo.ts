@@ -7,6 +7,18 @@ export const ROTULO_ETAPA: Record<EtapaEnsino, string> = {
   em: 'Ensino Médio'
 };
 
+/**
+ * Como a etapa sai na coluna ENSINO da tabela de estabelecimentos do
+ * histórico (05-modelo §1.6): lá vai a etapa, não o curso — o modelo real
+ * imprime "ENSINO MÉDIO" mesmo quando o título é "ENSINO MÉDIO BILÍNGUE".
+ */
+export const ROTULO_ETAPA_CURTO: Record<EtapaEnsino, string> = {
+  ei: 'EDUCAÇÃO INFANTIL',
+  ef_iniciais: 'ENSINO FUNDAMENTAL',
+  ef_finais: 'ENSINO FUNDAMENTAL',
+  em: 'ENSINO MÉDIO'
+};
+
 export interface Curso {
   id: string;
   etapa: EtapaEnsino;
