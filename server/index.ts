@@ -21,6 +21,7 @@ import { importacoesRouter } from './rotas/importacoes';
 import { alunosRouter } from './rotas/alunos';
 import { historicosRouter } from './rotas/historicos';
 import { pdfInternoRouter } from './rotas/pdf-interno';
+import { verificacaoRouter } from './rotas/verificacao';
 
 const RAIZ = path.resolve(__dirname, '..');
 const app = express();
@@ -52,6 +53,11 @@ app.use('/api/historicos', historicosRouter);
 app.use('/api', apiRouter);
 app.use(pdfRouter);
 app.use(pdfInternoRouter);
+
+/* ---------- Verificação pública do documento (RF-HIST-14) ---------- */
+// Única rota sem sessão do sistema. Fica antes do SPA e das páginas
+// públicas porque /verificar/:codigo é endereço próprio, impresso no QR.
+app.use(verificacaoRouter);
 
 /* ---------- Painel React (client/dist) ---------- */
 // Em produção o Vite gera client/dist; o Express serve os estáticos em

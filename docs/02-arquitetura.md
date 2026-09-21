@@ -115,6 +115,15 @@ csm-forms/
 > ganho. O de histórico entrou lá como `views/pdf-historico.ejs`. A
 > mudança de diretório, se valer a pena, é uma tarefa própria.
 
+> **A página pública de verificação é a exceção deliberada à migração
+> para React.** `/verificar/:codigo` (F7) é renderizada no servidor, em
+> `views/verificacao.ejs`, e não como mais uma entrada do bundle público.
+> O motivo é o uso: alguém aponta a câmera do celular para um papel e
+> espera uma resposta imediata, muitas vezes em rede ruim e sem nenhuma
+> interação depois. Baixar um bundle React para exibir seis linhas de
+> texto seria pior justamente no cenário que a tela existe para atender.
+> A regra de F6 continua valendo para tudo que é interativo.
+
 > `public/js/main.js` e `public/js/review-renderer.js` são deliberadamente
 > mantidos fora dos bundles Vite: os wizards públicos que os usavam foram
 > migrados para React (`client/formularios/`), mas `views/pdf-visita.ejs`

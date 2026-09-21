@@ -6,6 +6,7 @@
 // divergir.
 import type { EtapaEnsino } from './curriculo';
 import type { ItemValidacao } from './aluno';
+import type { DesenhoQR } from '../qr';
 
 export type TipoHistorico = 'transferencia' | 'conclusao_ef' | 'conclusao_em' | 'parcial' | 'declaracao';
 export type StatusHistorico = 'rascunho' | 'conferido' | 'emitido' | 'cancelado';
@@ -68,6 +69,10 @@ export interface Historico {
    *  rotas de detalhe — a lista não carrega o snapshot. */
   snapshot?: HistoricoDocumento | null;
   pdf_path: string | null;
+  /** Identificador público do QR (RF-HIST-14). Uma vez atribuído, nunca
+   *  muda — o QR impresso aponta para ele. Nulo em documento emitido
+   *  antes da migration 008, até que se gere o dele. */
+  codigo_verificacao: string | null;
   criado_por: string | null;
   conferido_por: string | null;
   emitido_por: string | null;
@@ -160,6 +165,21 @@ export interface HistoricoDocumento {
   registro: { numero: string; livro: string | null; folha: string | null; emitido_em: string | null } | null;
   rodape: string;
   gerado_em: string;
+  /**
+   * QR de autenticidade (RF-HIST-14). **Não faz parte do snapshot** —
+   * é injetado na leitura, a partir do código da linha. O código
+   * identifica a via impressa, não o conteúdo: a 2ª via é outro papel,
+   * com outro código, e herda o mesmo snapshot da 1ª. Ausente em
+   * documento sem código (emitido antes da migration 008).
+   */
+  verificacao?: VerificacaoDocumento | null;
+}
+
+/** O QR e o endereço que ele carrega, prontos para desenhar. */
+export interface VerificacaoDocumento {
+  codigo: string;
+  url: string;
+  qr: DesenhoQR;
 }
 
 /** O que a tela de pré-visualização recebe (RF-HIST-02/03). */

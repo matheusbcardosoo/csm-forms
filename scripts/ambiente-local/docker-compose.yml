@@ -15,6 +15,8 @@ services:
       - ../../supabase/migrations/004_cadastros_base.sql:/docker-entrypoint-initdb.d/04.sql:ro
       - ../../supabase/migrations/005_alunos_notas_importacao.sql:/docker-entrypoint-initdb.d/05.sql:ro
       - ../../supabase/migrations/006_historico.sql:/docker-entrypoint-initdb.d/06.sql:ro
+      - ../../supabase/migrations/007_endurecer_rpcs.sql:/docker-entrypoint-initdb.d/07.sql:ro
+      - ../../supabase/migrations/008_verificacao.sql:/docker-entrypoint-initdb.d/08.sql:ro
       - ./seed.sql:/docker-entrypoint-initdb.d/99-seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]

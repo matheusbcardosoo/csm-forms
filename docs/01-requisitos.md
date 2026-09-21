@@ -130,7 +130,7 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-HIST-11 | Histórico de alterações do documento (quem gerou, quem conferiu, quem emitiu, quando) | Must |
 | RF-HIST-12 | Lista de documentos emitidos, filtrável por aluno, tipo, período e status | Must |
 | RF-HIST-13 | Geração em lote para uma turma inteira (ex.: concluintes do 9º ano) | Could |
-| RF-HIST-14 | QR code / código de verificação de autenticidade do documento | Could |
+| RF-HIST-14 | QR code / código de verificação de autenticidade do documento. O QR sai no rodapé e leva a uma página pública que confirma o documento sem expor o aluno — nome abreviado, sem nota, CPF ou nascimento. O código é aleatório, não o número de registro, para que ninguém possa varrer os documentos emitidos; e identifica a **via impressa**, então a 2ª via tem o seu | Could |
 | RF-HIST-15 | Campo de **número de publicação da SED** ("Registro / Visto Confere") nos históricos de conclusão, preenchido manualmente, com bloqueio de emissão enquanto vazio | Must |
 | RF-HIST-16 | Bloco **Certificado** com texto-modelo interpolado, presente só em histórico de conclusão e omitido em transferência | Must |
 | RF-HIST-17 | Grade renderizada como união das matrizes das séries envolvidas, casadas por (agrupamento, componente), com `-` onde o componente não foi cursado | Must |

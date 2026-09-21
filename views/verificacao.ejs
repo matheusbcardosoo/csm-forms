@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Verificação de documento · Colégio São Marcos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --azul: #0F385A; --vermelho: #c5251a; --fundo: #F4F6F9;
+    --texto: #1b2733; --texto-2: #5a6b7b; --linha: #dfe5ec;
+    --ok: #1c7a4a; --ok-fundo: #eaf6ef;
+    --erro-fundo: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+    background: var(--fundo); color: var(--texto);
+    font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px; line-height: 1.55;
+    display: flex; justify-content: center;
+  }
+  .caixa { width: 100%; max-width: 520px; }
+  .marca { text-align: center; margin-bottom: 18px; }
+  .marca b { display: block; color: var(--azul); font-size: 17px; letter-spacing: .2px; }
+  .marca span { color: var(--texto-2); font-size: 13px; }
+
+  .cartao {
+    background: #fff; border: 1px solid var(--linha); border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(16,38,58,.04), 0 8px 24px rgba(16,38,58,.06);
+    overflow: hidden;
+  }
+  .selo { padding: 20px 22px; display: flex; gap: 13px; align-items: center; }
+  .selo.valido { background: var(--ok-fundo); border-bottom: 1px solid #cfe8da; }
+  .selo.invalido { background: var(--erro-fundo); border-bottom: 1px solid #f5cdc8; }
+  .selo.neutro { background: #eef2f7; border-bottom: 1px solid var(--linha); }
+  .selo svg { flex: 0 0 auto; }
+  .selo b { display: block; font-size: 16px; }
+  .selo.valido b { color: var(--ok); }
+  .selo.invalido b { color: var(--vermelho); }
+  .selo span { display: block; font-size: 13px; color: var(--texto-2); margin-top: 1px; }
+
+  dl { margin: 0; padding: 6px 22px 18px; }
+  .item { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--linha); }
+  .item:last-child { border-bottom: 0; }
+  dt { color: var(--texto-2); font-size: 13px; }
+  dd { margin: 0; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+
+  .rodape { margin-top: 16px; color: var(--texto-2); font-size: 12.5px; text-align: center; line-height: 1.6; }
+  .vazio { padding: 22px; color: var(--texto-2); font-size: 14px; }
+  @media (max-width: 400px) {
+    .item { flex-direction: column; gap: 2px; }
+    dd { text-align: left; }
+  }
+</style>
+</head>
+<body>
+  <div class="caixa">
+    <div class="marca">
+      <b>Colégio São Marcos</b>
+      <span>Verificação de autenticidade de documento escolar</span>
+    </div>
+
+    <div class="cartao">
+      <% if (resultado && !resultado.cancelado) { %>
+        <div class="selo valido">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1c7a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <div>
+            <b>Documento autêntico</b>
+            <span>Este documento foi emitido por esta escola.</span>
+          </div>
+        </div>
+      <% } else if (resultado && resultado.cancelado) { %>
+        <div class="selo invalido">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c5251a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+          <div>
+            <b>Documento cancelado</b>
+            <span>Foi emitido por esta escola, mas não vale mais.</span>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="selo neutro">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5a6b7b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+          <div>
+            <b><%= mensagem ? 'Não foi possível verificar' : 'Documento não encontrado' %></b>
+            <span><%= mensagem ? mensagem : 'Nenhum documento emitido corresponde a este código.' %></span>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (resultado) { %>
+        <dl>
+          <div class="item"><dt>Escola</dt><dd><%= resultado.escola %></dd></div>
+          <div class="item"><dt>Documento</dt><dd><%= resultado.tipo %><%= resultado.via > 1 ? ' · ' + resultado.via + 'ª via' : '' %></dd></div>
+          <div class="item"><dt>Aluno(a)</dt><dd><%= resultado.aluno %></dd></div>
+          <% if (resultado.registro) { %>
+            <div class="item"><dt>Registro</dt><dd><%= resultado.registro %></dd></div>
+          <% } %>
+          <% if (resultado.emitido_em) { %>
+            <div class="item"><dt>Emitido em</dt><dd><%= resultado.emitido_em %></dd></div>
+          <% } %>
+          <% if (resultado.cancelado && resultado.cancelado_em) { %>
+            <div class="item"><dt>Cancelado em</dt><dd><%= resultado.cancelado_em %></dd></div>
+          <% } %>
+        </dl>
+      <% } else if (!mensagem) { %>
+        <div class="vazio">
+          Confira se o endereço foi digitado por inteiro. O código faz parte do
+          link impresso junto ao QR do documento.
+        </div>
+      <% } %>
+    </div>
+
+    <p class="rodape">
+      O nome do aluno aparece abreviado de propósito — esta página é pública e
+      confirma a autenticidade do documento, não substitui o documento.<br>
+      Em caso de dúvida, procure a secretaria da escola.
+    </p>
+  </div>
+</body>
+</html>

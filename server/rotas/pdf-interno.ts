@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { getServiceClient } from '../../lib/supabase';
 import { montarDocumento } from '../servicos/historico/montar';
+import { verificacaoDoDocumento } from '../servicos/historico/verificacao';
 import type { Historico, HistoricoDocumento } from '../../shared/types/historico';
 
 export const pdfInternoRouter = Router();
@@ -53,9 +54,11 @@ pdfInternoRouter.get('/internal/pdf/historico/:id', async (req, res) => {
     // Mesma regra da tela (server/rotas/historicos.ts): o snapshot manda
     // no conteúdo, a linha manda no status — documento cancelado imprime
     // com a marca, sem reescrever o que foi congelado.
-    const doc = (h.status === 'emitido' || h.status === 'cancelado') && h.snapshot
+    const base = (h.status === 'emitido' || h.status === 'cancelado') && h.snapshot
       ? { ...(h.snapshot as unknown as HistoricoDocumento), status: h.status, via: h.via }
       : (await montarDocumento(client, h)).documento;
+    // mesma injeção da tela: o QR vem da linha, não do snapshot
+    const doc: HistoricoDocumento = { ...base, verificacao: verificacaoDoDocumento(h.codigo_verificacao) };
 
     res.render('pdf-historico', { doc, css: cssDocumento(), imagens: await carregarImagens(client, doc) });
   } catch (err) {

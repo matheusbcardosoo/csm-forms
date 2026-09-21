@@ -224,6 +224,20 @@ function Pagina2({ doc, imagens }: { doc: HistoricoDocumento; imagens: Record<st
           </div>
         ) : null}
         <div>{doc.rodape}</div>
+        {/* par do bloco em views/pdf-historico.ejs — mexeu num, mexa no outro (RNF-04) */}
+        {doc.verificacao ? (
+          <div className="doc-verificacao">
+            <svg viewBox={`0 0 ${doc.verificacao.qr.lado} ${doc.verificacao.qr.lado}`} shapeRendering="crispEdges" role="img" aria-label="QR de verificação">
+              <rect width={doc.verificacao.qr.lado} height={doc.verificacao.qr.lado} fill="#fff" />
+              <path d={doc.verificacao.qr.caminho} fill="#000" />
+            </svg>
+            <div className="doc-verificacao-texto">
+              <b>Verificação de autenticidade</b>
+              Aponte a câmera para o código ou acesse{' '}
+              <span className="doc-verificacao-url">{doc.verificacao.url}</span>
+            </div>
+          </div>
+        ) : null}
       </div>
     </>
   );

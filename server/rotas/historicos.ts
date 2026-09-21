@@ -11,6 +11,7 @@ import { validar, z, texto, uuid } from '../lib/validacao';
 import { getServiceClient } from '../../lib/supabase';
 import { montarDocumento, observacoesIniciais } from '../servicos/historico/montar';
 import { nomeArquivo, obterPdf } from '../servicos/historico/pdf';
+import { gerarCodigo, verificacaoDoDocumento } from '../servicos/historico/verificacao';
 import { metaTipo, type Historico, type HistoricoDocumento, type ObservacaoModelo } from '../../shared/types/historico';
 import type { ItemValidacao } from '../../shared/types/aluno';
 import type { Curso, EtapaEnsino } from '../../shared/types/curriculo';
@@ -19,7 +20,7 @@ export const historicosRouter = Router();
 
 // A lista não carrega `snapshot` — é o documento inteiro em jsonb, e
 // trazê-lo para 200 linhas deixaria a tela pesada à toa.
-const COLUNAS_LISTA = 'id, aluno_id, curso_id, tipo, status, matricula_ids, via, via_de_id, numero_registro, ano_registro, livro, folha, numero_registro_gdae, com_certificado, signatario_diretor_id, signatario_secretario_id, observacoes, pdf_path, criado_por, conferido_por, emitido_por, cancelado_por, motivo_cancelamento, criado_em, atualizado_em, conferido_em, emitido_em, cancelado_em, aluno(id, nome, ra, codigo_activesoft), curso(id, nome, etapa)';
+const COLUNAS_LISTA = 'id, aluno_id, curso_id, tipo, status, matricula_ids, via, via_de_id, numero_registro, ano_registro, livro, folha, numero_registro_gdae, com_certificado, signatario_diretor_id, signatario_secretario_id, observacoes, pdf_path, codigo_verificacao, criado_por, conferido_por, emitido_por, cancelado_por, motivo_cancelamento, criado_em, atualizado_em, conferido_em, emitido_em, cancelado_em, aluno(id, nome, ra, codigo_activesoft), curso(id, nome, etapa)';
 
 type Cliente = ReturnType<typeof ctx>['client'];
 
@@ -210,6 +211,10 @@ historicosRouter.post('/', exigirPapel('admin', 'secretaria'), seguro(async (req
     numero_registro_gdae: body.numero_registro_gdae ?? null,
     livro: body.livro ?? null,
     folha: body.folha ?? null,
+    // o código nasce com o rascunho, não na emissão: assim o QR já
+    // aparece na pré-visualização e o que se confere na tela é o que
+    // vai no papel (RNF-04)
+    codigo_verificacao: gerarCodigo(),
     criado_por: perfil.email
   }).select().single();
   if (error) throw error;
@@ -228,9 +233,13 @@ async function montarResposta(client: Cliente, h: Historico) {
   // Documento emitido renderiza o snapshot, nunca recalcula (RF-HIST-06).
   // O status vem da linha, não do snapshot: cancelar não reescreve o
   // documento congelado, mas a folha tem de sair com a marca de cancelado.
-  const documento = congelado
+  const base = congelado
     ? { ...(h.snapshot as unknown as HistoricoDocumento), status: h.status, via: h.via }
     : montado!.documento;
+  // O QR não faz parte do snapshot: ele identifica a via impressa, e a
+  // 2ª via herda o snapshot da 1ª com um código só dela. Por isso entra
+  // aqui, na leitura, a partir da linha (RF-HIST-14).
+  const documento: HistoricoDocumento = { ...base, verificacao: verificacaoDoDocumento(h.codigo_verificacao) };
 
   const [{ data: aluno }, { data: curso }, signatarios, modelos, todasMats, vias] = await Promise.all([
     client.from('aluno').select('id, nome, ra').eq('id', h.aluno_id).single(),
@@ -346,6 +355,16 @@ historicosRouter.post('/:id/emitir', exigirPapel('admin', 'secretaria'), seguro(
   if (h.status === 'emitido') return res.status(422).json({ error: 'Este histórico já foi emitido.' });
   if (h.status === 'cancelado') return res.status(422).json({ error: 'Este histórico está cancelado.' });
 
+  // Documento criado antes da migration 008 não tem código. Atribui-se
+  // aqui, enquanto ainda é rascunho, para que nasça emitido já
+  // verificável — depois de congelado só o backfill explícito resolve.
+  if (!h.codigo_verificacao) {
+    const { data: comCodigo, error: eCodigo } = await client.from('historico')
+      .update({ codigo_verificacao: gerarCodigo() }).eq('id', h.id).select().single();
+    if (eCodigo) throw eCodigo;
+    h.codigo_verificacao = (comCodigo as Historico).codigo_verificacao;
+  }
+
   const { documento, validacao } = await montarDocumento(client, h);
   const bloqueios = validacao.filter(v => v.nivel === 'bloqueia');
   if (bloqueios.length) {
@@ -380,7 +399,34 @@ historicosRouter.post('/:id/segunda-via', exigirPapel('admin', 'secretaria'), se
   const { client, perfil } = ctx(res);
   const { data, error } = await client.rpc('criar_segunda_via', { p_id: req.params.id, p_usuario: perfil.email });
   if (error) throw error;
-  res.status(201).json(await montarResposta(client, data as Historico));
+
+  // A 2ª via é outro papel: herda o snapshot da 1ª, mas precisa do
+  // código dela. `criar_segunda_via` não copia o campo (a unicidade do
+  // índice impediria), então ele é atribuído aqui.
+  const nova = data as Historico;
+  const { data: comCodigo, error: eCodigo } = await client.from('historico')
+    .update({ codigo_verificacao: gerarCodigo() }).eq('id', nova.id).select().single();
+  if (eCodigo) throw eCodigo;
+
+  res.status(201).json(await montarResposta(client, comCodigo as Historico));
+}));
+
+/**
+ * Backfill para documento emitido antes da migration 008 (RF-HIST-14).
+ * Não reemite nem toca no snapshot — só dá um código a quem não tem,
+ * para que uma 2ª via impressa de agora em diante saia verificável. O
+ * papel já entregue continua sem QR, e não há o que fazer quanto a isso.
+ */
+historicosRouter.post('/:id/codigo-verificacao', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
+  const { client } = ctx(res);
+  const h = await carregarHistorico(client, req.params.id);
+  if (!h) return res.status(404).json({ error: 'Histórico não encontrado.' });
+  if (h.codigo_verificacao) return res.status(422).json({ error: 'Este documento já tem código de verificação.' });
+
+  const { data, error } = await client.from('historico')
+    .update({ codigo_verificacao: gerarCodigo() }).eq('id', h.id).select().single();
+  if (error) throw error;
+  res.json(await montarResposta(client, data as Historico));
 }));
 
 /* ==================== PDF (RF-HIST-08) ==================== */

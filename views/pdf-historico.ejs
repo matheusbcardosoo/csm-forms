@@ -183,6 +183,20 @@ const sed = (doc.registro_sed || '').trim()
         </div>
       <% } %>
       <div><%= doc.rodape %></div>
+      <% if (doc.verificacao) { %>
+        <%# par do bloco em client/src/componentes/PreviaDocumento.tsx — mexeu num, mexa no outro (RNF-04) %>
+        <div class="doc-verificacao">
+          <svg viewBox="0 0 <%= doc.verificacao.qr.lado %> <%= doc.verificacao.qr.lado %>" shape-rendering="crispEdges" role="img" aria-label="QR de verificação">
+            <rect width="<%= doc.verificacao.qr.lado %>" height="<%= doc.verificacao.qr.lado %>" fill="#fff"/>
+            <path d="<%= doc.verificacao.qr.caminho %>" fill="#000"/>
+          </svg>
+          <div class="doc-verificacao-texto">
+            <b>Verificação de autenticidade</b>
+            Aponte a câmera para o código ou acesse
+            <span class="doc-verificacao-url"><%= doc.verificacao.url %></span>
+          </div>
+        </div>
+      <% } %>
     </div>
   </section>
 

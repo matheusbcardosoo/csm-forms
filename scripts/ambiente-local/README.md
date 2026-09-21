@@ -34,8 +34,10 @@ Depois `npm run build` (ou `npm run dev:client`) e entre em http://localhost:300
 4. Repita para **2023** e **2024** — assim um aluno fica com as três séries e dá para gerar um histórico de conclusão.
 5. Abra um aluno › Notas, edite uma célula (pede motivo) e veja em **Histórico de alterações**.
 6. Ficha do aluno › **Gerar histórico** › conclusão do Ensino Médio → preencha o número da SED → conferir → emitir → baixar PDF → 2ª via.
-7. Para forçar uma divergência, altere `valor_importado` de uma nota no banco e reimporte: ela aparece no relatório com os dois valores lado a lado.
-8. Para ver o fluxo de pendência de mapeamento (o caso ambíguo), crie um segundo curso com séries de mesmo nome: as séries do mock passam a empatar, viram pendência, e o botão **Aceitar sugestões e importar de novo** resolve.
+7. Depois de emitir, o rodapé do documento traz o **QR de verificação**. Abra o endereço que aparece ao lado dele (ou o botão **Copiar** no cartão "Verificação de autenticidade") e confira: a página pública mostra registro, data e o nome do aluno abreviado. Cancele o documento e recarregue — a mesma página passa a dizer *cancelado*. Um código de rascunho responde 404 de propósito.
+   > O QR só é impresso se `APP_BASE_URL` estiver definida (ex.: `APP_BASE_URL=http://localhost:3000`) — sem ela o código apontaria para lugar nenhum.
+8. Para forçar uma divergência, altere `valor_importado` de uma nota no banco e reimporte: ela aparece no relatório com os dois valores lado a lado.
+9. Para ver o fluxo de pendência de mapeamento (o caso ambíguo), crie um segundo curso com séries de mesmo nome: as séries do mock passam a empatar, viram pendência, e o botão **Aceitar sugestões e importar de novo** resolve.
 
 > A lista de alunos é filtrada pelo **ano letivo do topo**. Importou 2025 e o seletor está em 2026? A tela diz isso e oferece o atalho para o ano certo — não é lista vazia por engano.
 

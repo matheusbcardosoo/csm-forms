@@ -159,6 +159,17 @@ O rótulo oficial é **"Registro / Visto Confere"** — é o número que sai do 
 
 Texto fixo, fonte pequena, alinhado à esquerda.
 
+Abaixo dele, o **QR de verificação** (RF-HIST-14): um quadrado de 16mm à
+esquerda e, ao lado, o endereço em texto. Os 16mm não são estéticos —
+abaixo disso a câmera de celular erra a leitura num papel que foi dobrado
+ou fotocopiado, que é exatamente a situação em que alguém confere. O
+endereço vai escrito por extenso porque nem todo mundo aponta a câmera:
+quem recebe o documento pela secretaria de outra escola muitas vezes
+digita.
+
+Documento emitido antes da migration 008 não tem código, e o rodapé sai
+sem o bloco — o espaço é ocupado pelo texto fixo, sem buraco.
+
 ---
 
 ## 3. Regras de renderização

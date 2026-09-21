@@ -108,6 +108,14 @@
 .doc-rodape { margin-top: auto; padding-top: 3mm; font-size: 6.5pt; }
 .doc-registro { display: flex; justify-content: space-between; gap: 6mm; font-size: 7pt; color: #333; }
 
+/* QR de autenticidade (RF-HIST-14). O tamanho não é decorativo: abaixo de
+   ~15mm impresso, câmera de celular em papel fotocopiado erra a leitura. */
+.doc-verificacao { display: flex; align-items: center; gap: 2.5mm; margin-top: 2mm; }
+.doc-verificacao svg { width: 16mm; height: 16mm; flex: 0 0 auto; }
+.doc-verificacao-texto { font-size: 6pt; line-height: 1.35; color: #333; }
+.doc-verificacao-texto b { display: block; font-size: 6.5pt; }
+.doc-verificacao-url { word-break: break-all; }
+
 /* ---------- marcas de estado ---------- */
 .doc-selo-via {
   position: absolute; top: 8mm; right: 11mm;

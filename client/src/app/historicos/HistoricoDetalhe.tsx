@@ -256,6 +256,46 @@ export function HistoricoDetalhe() {
             </div>
           </Card>
 
+          <Card titulo="Verificação de autenticidade" descricao="O QR impresso no rodapé do documento" semCorpo>
+            <div className="card-corpo" style={{ paddingTop: 12 }}>
+              {h.codigo_verificacao ? (
+                <>
+                  <p className="cel-sub" style={{ margin: 0 }}>
+                    Quem recebe o documento aponta a câmera para o QR e vê que ele é autêntico, sem precisar ligar para a secretaria.
+                    A página mostra só o registro, a data e o nome abreviado do aluno.
+                  </p>
+                  {dados.documento.verificacao ? (
+                    <div className="linha-h" style={{ marginTop: 10, gap: 8 }}>
+                      <code style={{ fontSize: 12, wordBreak: 'break-all' }}>{dados.documento.verificacao.url}</code>
+                      <Botao pequeno icone="copiar" onClick={() => {
+                        navigator.clipboard.writeText(dados.documento.verificacao!.url).then(() => toast.ok('Endereço copiado.'), () => toast.erro('Não consegui copiar.'));
+                      }}>Copiar</Botao>
+                    </div>
+                  ) : (
+                    <Aviso tipo="aviso">
+                      O documento tem código, mas o endereço público do sistema (<code>APP_BASE_URL</code>) não está configurado —
+                      sem ele o QR apontaria para lugar nenhum, então não é impresso.
+                    </Aviso>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="cel-sub" style={{ margin: 0 }}>
+                    Este documento foi emitido antes de o código de verificação existir. Dá para gerar o dele agora, sem reemitir
+                    e sem alterar o que foi congelado — o QR passa a sair nas próximas impressões, inclusive nas 2ª vias.
+                    O papel já entregue continua sem QR.
+                  </p>
+                  <div style={{ marginTop: 10 }}>
+                    <Botao pequeno icone="mais" carregando={salvando}
+                      onClick={() => executar(() => api.post<Detalhe>(`/api/historicos/${id}/codigo-verificacao`), 'Código de verificação gerado.')}>
+                      Gerar código
+                    </Botao>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+
           {dados.vias.length > 1 ? (
             <Card titulo="Vias emitidas" semCorpo>
               <div className="card-corpo" style={{ paddingTop: 12, fontSize: 12.5 }}>
