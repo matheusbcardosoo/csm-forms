@@ -1,8 +1,9 @@
 // Componentes de interface compartilhados do painel (04-telas §4).
-import { useEffect, useId, useRef, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useEffect, useId, useRef, type ChangeEvent, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
 import { Icone, type NomeIcone } from './Icones';
 import type { CampoInvalido } from '@/api/cliente';
+import { mascarar, tamanhoMaximo, type Formato } from '@shared/formatos';
 
 /* ---------- Botão ---------- */
 type Variante = 'padrao' | 'primario' | 'destaque' | 'perigo' | 'fantasma';
@@ -114,13 +115,32 @@ function erroDoCampo(campos: CampoInvalido[] | undefined, nome: string | undefin
 
 interface PropsCampoBase { rotulo: ReactNode; dica?: ReactNode; erros?: CampoInvalido[]; className?: string; obrigatorio?: boolean }
 
-export function CampoTexto({ rotulo, dica, erros, className = '', obrigatorio, ...resto }: PropsCampoBase & InputHTMLAttributes<HTMLInputElement>) {
+/**
+ * `formato` liga a máscara de CPF/CNPJ/CEP/telefone (shared/formatos.ts).
+ * É prop, e não um `CampoCPF` por formato, porque todos os campos
+ * afetados já são CampoTexto — criar cinco componentes espalharia a
+ * mesma decisão por cinco lugares para ganhar nada.
+ */
+export function CampoTexto({ rotulo, dica, erros, className = '', obrigatorio, formato, onChange, ...resto }:
+  PropsCampoBase & { formato?: Formato } & InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
   const erro = erroDoCampo(erros, resto.name);
+
+  // a máscara reescreve o valor antes de o dono do estado vê-lo
+  const aoDigitar = formato && onChange
+    ? (e: ChangeEvent<HTMLInputElement>) => {
+        e.target.value = mascarar(formato, e.target.value);
+        onChange(e);
+      }
+    : onChange;
+
   return (
     <div className={`campo ${erro ? 'invalido' : ''} ${className}`}>
       <label htmlFor={id}>{rotulo}{obrigatorio ? <small> · obrigatório</small> : null}</label>
-      <input id={id} aria-invalid={!!erro} aria-describedby={erro ? `${id}-erro` : undefined} {...resto} />
+      <input id={id} aria-invalid={!!erro} aria-describedby={erro ? `${id}-erro` : undefined} {...resto}
+        onChange={aoDigitar}
+        inputMode={resto.inputMode ?? (formato ? (formato === 'telefone' ? 'tel' : 'numeric') : undefined)}
+        maxLength={resto.maxLength ?? (formato ? tamanhoMaximo(formato) : undefined)} />
       {erro ? <div className="erro" id={`${id}-erro`}>{erro}</div> : dica ? <div className="dica">{dica}</div> : null}
     </div>
   );

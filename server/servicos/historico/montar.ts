@@ -15,6 +15,7 @@ import {
 import { linhasCabecalho, type AtoLegal, type Instituicao, type Signatario } from '../../../shared/types/instituicao';
 import { CAMPOS_OBRIGATORIOS_HISTORICO, type Aluno, type ItemValidacao } from '../../../shared/types/aluno';
 import { ROTULO_ETAPA_CURTO, type Curso, type EtapaEnsino } from '../../../shared/types/curriculo';
+import { formatarDocumentoPessoal } from '../../../shared/formatos';
 
 type Cliente = SupabaseClient;
 
@@ -367,7 +368,7 @@ export async function montarDocumento(client: Cliente, historico: Historico): Pr
       nacionalidade: aluno.nacionalidade || '',
       municipio: aluno.municipio_nascimento || '',
       uf: aluno.uf_nascimento || '',
-      cpf: aluno.cpf || '',
+      cpf: formatarDocumentoPessoal(aluno.cpf),
       ra: aluno.ra || '',
       nascimento: dataCurta(aluno.data_nascimento),
       curso: curso.nome,
@@ -391,7 +392,9 @@ export async function montarDocumento(client: Cliente, historico: Historico): Pr
       nascimento: dataCurta(aluno.data_nascimento),
       naturalidade: [aluno.municipio_nascimento, aluno.uf_nascimento].filter(Boolean).join(' / '),
       nacionalidade: aluno.nacionalidade || '',
-      documento: [aluno.cin, aluno.cpf].filter(Boolean).join(' / '),
+      // formata aqui, não só na digitação: CPF que veio da importação do
+      // Activesoft chega sem pontuação e não pode sair assim no papel
+      documento: [aluno.cin, aluno.cpf].filter(Boolean).map(formatarDocumentoPessoal).join(' / '),
       ra: aluno.ra || ''
     },
     colunas,

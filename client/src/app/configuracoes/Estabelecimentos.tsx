@@ -7,6 +7,7 @@ import { useSessao } from '@/hooks/useSessao';
 import { useToast } from '@/hooks/useToast';
 import { Aviso, Botao, Cabecalho, CampoCheck, CampoTexto, Card, Carregando, EstadoVazio, Modal, Tabela, Tag } from '@/componentes/ui';
 import { Icone } from '@/componentes/Icones';
+import { formatarCNPJ } from '@shared/formatos';
 import type { EstabelecimentoExterno } from '@shared/types/curriculo';
 
 export function Estabelecimentos() {
@@ -59,7 +60,7 @@ export function Estabelecimentos() {
             colunas={[
               { chave: 'nome', rotulo: 'Escola', principal: true, render: e => <><span className="nome-cel">{e.nome}</span><span className="sub">{[e.municipio, e.uf].filter(Boolean).join(' / ') || '—'}</span></> },
               { chave: 'inep', rotulo: 'INEP', render: e => e.codigo_inep || '—' },
-              { chave: 'cnpj', rotulo: 'CNPJ', render: e => e.cnpj || '—' },
+              { chave: 'cnpj', rotulo: 'CNPJ', render: e => formatarCNPJ(e.cnpj) || '—' },
               { chave: 'status', rotulo: 'Status', render: e => e.ativo ? <Tag tipo="ok" ponto>Ativo</Tag> : <Tag ponto>Inativo</Tag> },
               { chave: 'acoes', rotulo: 'Ações', acoes: true, render: e => podeEditar ? <Botao pequeno onClick={() => { setEditando({ ...e }); setCampos([]); }}>Editar</Botao> : null }
             ]}
@@ -75,7 +76,7 @@ export function Estabelecimentos() {
             <CampoTexto rotulo="Município" name="municipio" value={editando.municipio || ''} onChange={def('municipio')} erros={campos} />
             <CampoTexto rotulo="UF" name="uf" maxLength={2} value={editando.uf || ''} onChange={def('uf')} erros={campos} />
             <CampoTexto rotulo="Código INEP" name="codigo_inep" inputMode="numeric" value={editando.codigo_inep || ''} onChange={def('codigo_inep')} erros={campos} />
-            <CampoTexto rotulo="CNPJ" name="cnpj" inputMode="numeric" value={editando.cnpj || ''} onChange={def('cnpj')} erros={campos} />
+            <CampoTexto rotulo="CNPJ" name="cnpj" formato="cnpj" value={editando.cnpj || ''} onChange={def('cnpj')} erros={campos} />
             <div className="col-2"><CampoCheck rotulo="Ativo" checked={editando.ativo !== false} onChange={e => setEditando(f => ({ ...f, ativo: e.target.checked }))} /></div>
           </div>
         ) : null}

@@ -122,7 +122,7 @@ export function Alunos() {
         {novo ? <div className="form-grade">
           <CampoTexto className="col-2" rotulo="Nome completo" name="nome" value={novo.nome} onChange={e => setNovo(n => n && ({ ...n, nome: e.target.value }))} erros={campos} obrigatorio autoFocus />
           <CampoTexto rotulo="Data de nascimento" name="data_nascimento" type="date" value={novo.data_nascimento} onChange={e => setNovo(n => n && ({ ...n, data_nascimento: e.target.value }))} erros={campos} />
-          <CampoTexto rotulo="CPF" name="cpf" inputMode="numeric" value={novo.cpf} onChange={e => setNovo(n => n && ({ ...n, cpf: e.target.value }))} erros={campos} />
+          <CampoTexto rotulo="CPF" name="cpf" formato="cpf" value={novo.cpf} onChange={e => setNovo(n => n && ({ ...n, cpf: e.target.value }))} erros={campos} />
           <CampoTexto rotulo="Município de nascimento" name="municipio_nascimento" value={novo.municipio_nascimento} onChange={e => setNovo(n => n && ({ ...n, municipio_nascimento: e.target.value }))} erros={campos} />
           <CampoTexto rotulo="UF" name="uf_nascimento" maxLength={2} value={novo.uf_nascimento} onChange={e => setNovo(n => n && ({ ...n, uf_nascimento: e.target.value.toUpperCase() }))} erros={campos} />
           <CampoTexto rotulo="RA" name="ra" value={novo.ra} onChange={e => setNovo(n => n && ({ ...n, ra: e.target.value }))} erros={campos} />

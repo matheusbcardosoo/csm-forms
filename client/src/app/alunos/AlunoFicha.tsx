@@ -121,7 +121,7 @@ function AbaDados({ aluno, podeEditar, aoSalvar }: { aluno: Aluno; podeEditar: b
             <CampoTexto rotulo="País" name="pais_nascimento" value={v('pais_nascimento')} onChange={def('pais_nascimento')} erros={campos} />
           </div></div>
           <div className="form-sec"><h3>Documentos</h3><p>O histórico imprime CIN/CPF na identificação e o RA só no certificado.</p><div className="form-grade g3">
-            <CampoTexto rotulo={<>CPF <small>· histórico</small></>} name="cpf" inputMode="numeric" value={v('cpf')} onChange={def('cpf')} erros={campos} className={!v('cpf') && !v('cin') ? 'invalido' : ''} />
+            <CampoTexto rotulo={<>CPF <small>· histórico</small></>} name="cpf" formato="cpf" value={v('cpf')} onChange={def('cpf')} erros={campos} className={!v('cpf') && !v('cin') ? 'invalido' : ''} />
             <CampoTexto rotulo="CIN" name="cin" value={v('cin')} onChange={def('cin')} erros={campos} />
             <CampoTexto rotulo={<>RA <small>· certificado</small></>} name="ra" value={v('ra')} onChange={def('ra')} erros={campos} />
             <CampoTexto rotulo="RG" name="rg" value={v('rg')} onChange={def('rg')} erros={campos} />
