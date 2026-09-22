@@ -23,6 +23,8 @@ import { historicosRouter } from './rotas/historicos';
 import { historicosLoteRouter } from './rotas/historicos-lote';
 import { pdfInternoRouter } from './rotas/pdf-interno';
 import { verificacaoRouter } from './rotas/verificacao';
+import { relatoriosRouter } from './rotas/relatorios';
+import { iniciarAgendador } from './servicos/agendador';
 
 const RAIZ = path.resolve(__dirname, '..');
 const app = express();
@@ -52,6 +54,7 @@ app.use('/api/alunos', alunosRouter);
 // o lote vem antes: '/api/historicos/:id' engoliria '/api/historicos/lote/...'
 app.use('/api/historicos/lote', historicosLoteRouter);
 app.use('/api/historicos', historicosRouter);
+app.use('/api/relatorios', relatoriosRouter);
 // Módulo original (auth, formulários, respostas, PDFs)
 app.use('/api', apiRouter);
 app.use(pdfRouter);
@@ -108,6 +111,10 @@ app.use((err: { type?: string }, _req: express.Request, res: express.Response, n
   }
   next(err);
 });
+
+// Importação agendada (RF-INT-10): o relógio roda no próprio processo.
+// A trava contra execução dupla é no banco, não aqui — ver servicos/agendador.ts.
+iniciarAgendador();
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}` + (distExiste ? ' · painel em /app' : ' · painel não compilado (npm run build)'));

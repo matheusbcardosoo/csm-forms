@@ -38,9 +38,19 @@ Depois `npm run build` (ou `npm run dev:client`) e entre em http://localhost:300
    > O QR só é impresso se `APP_BASE_URL` estiver definida (ex.: `APP_BASE_URL=http://localhost:3000`) — sem ela o código apontaria para lugar nenhum.
 8. Para forçar uma divergência, altere `valor_importado` de uma nota no banco e reimporte: ela aparece no relatório com os dois valores lado a lado.
 9. **Históricos › Gerar em lote** › ano **2025**, série **3ª série**, tipo **conclusão do Ensino Médio** › *Conferir turma*: dos 4 alunos do mock, 2 saem prontos e 2 bloqueados (um sem município de nascimento, outro sem RA) — é a conferência real, a mesma da emissão individual. Crie os rascunhos, tente emitir **sem** o número da SED (os dois falham e continuam rascunho, de propósito), preencha os números e emita. O ZIP sai em *Baixar PDF(s)*.
-10. Para ver o fluxo de pendência de mapeamento (o caso ambíguo), crie um segundo curso com séries de mesmo nome: as séries do mock passam a empatar, viram pendência, e o botão **Aceitar sugestões e importar de novo** resolve.
+10. **Relatórios** › as três abas (documentos emitidos, importações, divergências em aberto) com o período do mês; o botão **Baixar CSV** entrega um arquivo `;` com BOM, que o Excel brasileiro abre com dois cliques.
+11. **Importação › Importação agendada**: ligue, escolha horário e dias, salve. Para ver funcionando sem esperar a madrugada, use **Rodar agora** — ou ponha o horário no minuto seguinte (o relógio confere a cada 30s, no fuso de São Paulo).
+12. Para ver o fluxo de pendência de mapeamento (o caso ambíguo), crie um segundo curso com séries de mesmo nome: as séries do mock passam a empatar, viram pendência, e o botão **Aceitar sugestões e importar de novo** resolve.
 
 > A lista de alunos é filtrada pelo **ano letivo do topo**. Importou 2025 e o seletor está em 2026? A tela diz isso e oferece o atalho para o ano certo — não é lista vazia por engano.
+
+> **Criou tabela nova (migration nova)?** O PostgREST local cacheia o schema quando sobe, e uma tabela criada depois responde 404 até ele recarregar:
+>
+> ```bash
+> docker compose -f scripts/ambiente-local/docker-compose.yml restart rest
+> ```
+>
+> No Supabase de verdade isso não acontece — lá o cache recarrega sozinho depois do DDL.
 
 ## Limpar
 

@@ -14,6 +14,7 @@ import { HistoricoNovo } from '@/app/historicos/HistoricoNovo';
 import { HistoricoLote } from '@/app/historicos/HistoricoLote';
 import { HistoricoDetalhe } from '@/app/historicos/HistoricoDetalhe';
 import { Importacoes } from '@/app/importacoes/Importacoes';
+import { Relatorios } from '@/app/relatorios/Relatorios';
 import { ImportacaoDetalhe } from '@/app/importacoes/ImportacaoDetalhe';
 import { Mapeamentos } from '@/app/importacoes/Mapeamentos';
 import { Formularios } from '@/app/formularios/Formularios';
@@ -73,6 +74,7 @@ export const roteador = createBrowserRouter([
       { path: 'historicos', element: <Historicos /> },
       { path: 'historicos/lote', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [{ index: true, element: <HistoricoLote /> }] },
       { path: 'historicos/:id', element: <HistoricoDetalhe /> },
+      { path: 'relatorios', element: <Relatorios /> },
       { path: 'importacoes', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [
         { index: true, element: <Importacoes /> },
         { path: 'mapeamentos', element: <Mapeamentos /> },

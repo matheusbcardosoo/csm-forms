@@ -6,6 +6,7 @@ import { exigirPapel, ctx, seguro } from '../lib/autorizacao';
 import { validar, z, texto, uuid } from '../lib/validacao';
 import { getServiceClient } from '../../lib/supabase';
 import { adaptadorPadrao, criarAdaptador, COLUNAS_MODELO, type NomeAdaptador } from '../adapters/activesoft';
+import { rodar } from '../servicos/agendador';
 import { executarImportacao } from '../servicos/importacao';
 
 export const importacoesRouter = Router();
@@ -135,6 +136,53 @@ importacoesRouter.post('/', exigirPapel('admin', 'secretaria'), seguro(async (re
   } catch (err) {
     res.status(422).json({ error: (err as Error).message });
   }
+}));
+
+/* ---------- agendamento (RF-INT-10) ---------- */
+// Fica antes de '/:id' porque '/agendamento' seria lido como um id.
+importacoesRouter.get('/agendamento', exigirPapel(), seguro(async (_req, res) => {
+  const { client } = ctx(res);
+  const { data, error } = await client.from('importacao_agendamento').select('*').maybeSingle();
+  if (error) throw error;
+  res.json(data);
+}));
+
+const agendamentoSchema = z.object({
+  ativo: z.boolean(),
+  hora: z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/, 'Horário no formato HH:MM.'),
+  dias_semana: z.array(z.number().int().min(0).max(6)).min(1, 'Escolha ao menos um dia da semana.'),
+  tipo: z.enum(['alunos', 'matriculas', 'notas', 'completo'])
+});
+
+importacoesRouter.put('/agendamento', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
+  const body = validar(agendamentoSchema, req, res);
+  if (!body) return;
+  const { client, perfil } = ctx(res);
+  const { data: atual, error: eAtual } = await client.from('importacao_agendamento').select('id').maybeSingle();
+  if (eAtual) throw eAtual;
+  if (!atual) return res.status(500).json({ error: 'Agendamento não inicializado — a migration 009 já foi aplicada?' });
+
+  const { data, error } = await client.from('importacao_agendamento')
+    .update({ ...body, atualizado_por: perfil.email }).eq('id', atual.id).select().single();
+  if (error) throw error;
+  res.json(data);
+}));
+
+/**
+ * Roda agora o que o agendamento rodaria de madrugada. Existe para a
+ * secretaria conferir que a configuração funciona sem esperar até as
+ * três da manhã para descobrir que a origem estava fora do ar.
+ */
+importacoesRouter.post('/agendamento/executar', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
+  const body = validar(z.object({ anoLetivo: z.coerce.number().int().min(1900).max(2200) }), req, res);
+  if (!body) return;
+  const { client, perfil } = ctx(res);
+  const { data: cfg, error } = await client.from('importacao_agendamento').select('*').maybeSingle();
+  if (error) throw error;
+  if (!cfg) return res.status(500).json({ error: 'Agendamento não inicializado.' });
+
+  const resultado = await rodar((cfg as { tipo: 'alunos' | 'matriculas' | 'notas' | 'completo' }).tipo, body.anoLetivo, perfil.email);
+  res.json(resultado);
 }));
 
 importacoesRouter.get('/:id', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {

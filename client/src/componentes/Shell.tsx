@@ -16,6 +16,7 @@ const OPERACAO: ItemNav[] = [
   { to: '/app/alunos', rotulo: 'Alunos', icone: 'alunos' },
   { to: '/app/historicos', rotulo: 'Históricos', icone: 'documento' },
   { to: '/app/importacoes', rotulo: 'Importação', icone: 'importar', papeis: ['admin', 'secretaria'] },
+  { to: '/app/relatorios', rotulo: 'Relatórios', icone: 'grade' },
   { to: '/app/formularios', rotulo: 'Formulários', icone: 'formulario', papeis: ['admin', 'secretaria', 'coordenacao'] }
 ];
 

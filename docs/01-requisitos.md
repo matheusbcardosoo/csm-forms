@@ -93,7 +93,7 @@ Este documento define a evolução para **Secretaria Digital**: um sistema de ge
 | RF-INT-07 | Log de importação: quem executou, quando, quantos registros lidos/criados/atualizados/ignorados, erros e divergências | Must |
 | RF-INT-08 | Mapeamento de códigos do Activesoft ↔ itens da versão curricular, editável na interface, herdado ao duplicar a versão. Código cujo destino é inequívoco (nome idêntico, ou muito parecido e isolado) é casado automaticamente na importação e fica marcado como tal; o ambíguo vira pendência, com aceite em lote das sugestões — ver `03-integracao-activesoft.md` §5 | Must |
 | RF-INT-09 | Importação alternativa por upload de arquivo (CSV/XLSX), usando o mesmo pipeline de validação | Should |
-| RF-INT-10 | Importação agendada (ex.: diária ao fim do ano letivo) | Could |
+| RF-INT-10 | Importação agendada (ex.: diária ao fim do ano letivo). Relógio no próprio processo, horário de São Paulo, sempre em modo efetivo e do ano corrente; a trava contra execução dupla é um `update` condicional no banco, então mais de uma réplica não importa. Código ambíguo continua virando pendência — escolher destino não vira decisão automática de madrugada | Could |
 | RF-INT-11 | Simulação ("dry run"): mostra o que seria importado sem gravar | Should |
 | RF-INT-12 | Consulta de RA e ficha do aluno na **API NCA da SED**, como fonte secundária para completar dados cadastrais faltantes (naturalidade, documentos) | Could |
 

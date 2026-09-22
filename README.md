@@ -13,7 +13,7 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 | F4 — Alunos e notas | Lista com filtros, ficha (dados · trajetória · notas), cadastro manual, ano cursado em outra escola, grade de notas editável com motivo e auditoria, validação RF-ALU-08 | ✅ |
 | F5 — Histórico | Assistente de geração, montagem da grade cruzando versões curriculares, pré-visualização fiel (mesmo CSS do PDF), edição, conferência, emissão com numeração e snapshot, PDF, 2ª via, cancelamento, textos-padrão de observação | ✅ |
 | F6 — Formulários | Migração dos wizards e das respostas para React | ✅ |
-| F7 — Refino | Máscaras de campo (A), QR de verificação com página pública (B) e geração em lote por turma (C) prontos; faltam relatórios + importação agendada (D) | 🚧 |
+| F7 — Refino | Máscaras de campo, QR de verificação com página pública, geração em lote por turma, relatórios (documentos · importações · divergências, com CSV) e importação agendada | ✅ |
 
 ## Estrutura
 

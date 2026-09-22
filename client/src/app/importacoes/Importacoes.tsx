@@ -1,6 +1,6 @@
 // /app/importacoes — lista de importações + nova importação (04-telas §3.6):
 // "Simular primeiro" é o botão primário; "Importar agora" o secundário.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ErroApi, mensagemErro, type CampoInvalido } from '@/api/cliente';
 import { useRecurso } from '@/hooks/useRecurso';
@@ -74,6 +74,10 @@ export function Importacoes() {
         </div>
       </div>
 
+      <div style={{ marginBottom: 16 }}>
+        <CartaoAgendamento ano={ano} aoRodar={() => lista.recarregar()} />
+      </div>
+
       <Card titulo="Importações" descricao="Mais recentes primeiro" semCorpo>
         {lista.carregando && !lista.dados ? <Carregando /> : (
           <Tabela<Importacao>
@@ -122,5 +126,111 @@ export function Importacoes() {
         </div> : null}
       </Modal>
     </div>
+  );
+}
+
+const DIAS_SEMANA = [
+  { n: 1, r: 'seg' }, { n: 2, r: 'ter' }, { n: 3, r: 'qua' }, { n: 4, r: 'qui' },
+  { n: 5, r: 'sex' }, { n: 6, r: 'sáb' }, { n: 0, r: 'dom' }
+];
+
+interface Agendamento {
+  ativo: boolean; hora: string; dias_semana: number[]; tipo: TipoImportacao;
+  ultima_execucao: string | null; atualizado_por: string | null;
+  ultimo_resultado: { quando: string; ano: number; ok: boolean; importacao_id?: string; criados?: number; atualizados?: number; pendentes?: number; erro?: string } | null;
+}
+
+/**
+ * Importação agendada (RF-INT-10). O "Rodar agora" não é conveniência:
+ * é como se descobre que a origem está fora do ar sem esperar até as
+ * três da manhã para o silêncio contar.
+ */
+function CartaoAgendamento({ ano, aoRodar }: { ano: number | null; aoRodar: () => void }) {
+  const toast = useToast();
+  const { dados, erro, recarregar } = useRecurso<Agendamento | null>('/api/importacoes/agendamento');
+  const [form, setForm] = useState<Agendamento | null>(null);
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const atual = form || dados;
+
+  useEffect(() => { setForm(null); }, [dados]);
+  if (erro) return <Card titulo="Importação agendada"><Aviso tipo="erro">{erro}</Aviso></Card>;
+  if (!atual) return <Card titulo="Importação agendada"><Carregando /></Card>;
+
+  const mudar = <C extends keyof Agendamento>(campo: C, valor: Agendamento[C]) => setForm({ ...atual, [campo]: valor });
+  const sujo = !!form;
+
+  async function salvar() {
+    setOcupado('salvar');
+    try {
+      await api.put('/api/importacoes/agendamento', {
+        ativo: atual!.ativo, hora: atual!.hora, dias_semana: atual!.dias_semana, tipo: atual!.tipo
+      });
+      toast.ok(atual!.ativo ? `Agendada para ${atual!.hora}.` : 'Agendamento desligado.');
+      await recarregar();
+    } catch (err) { toast.erro(mensagemErro(err)); }
+    finally { setOcupado(null); }
+  }
+
+  async function rodarAgora() {
+    setOcupado('rodar');
+    try {
+      const r = await api.post<{ ok: boolean; criados?: number; atualizados?: number; erro?: string }>('/api/importacoes/agendamento/executar', { anoLetivo: ano || new Date().getFullYear() });
+      if (r.ok) toast.ok(`Importação concluída: ${r.criados} criado(s), ${r.atualizados} atualizado(s).`);
+      else toast.erro(r.erro || 'A importação falhou.');
+      await recarregar();
+      aoRodar();
+    } catch (err) { toast.erro(mensagemErro(err)); }
+    finally { setOcupado(null); }
+  }
+
+  const resultado = atual.ultimo_resultado;
+  return (
+    <Card titulo="Importação agendada" descricao="Roda sozinha, em modo efetivo, no horário de São Paulo"
+      acoes={<Botao pequeno carregando={ocupado === 'rodar'} icone="importar" onClick={rodarAgora}>Rodar agora</Botao>}>
+      <div className="linha-h" style={{ gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+        <label className="linha-h" style={{ gap: 6, fontSize: 13 }}>
+          <input type="checkbox" checked={atual.ativo} onChange={e => mudar('ativo', e.target.checked)} style={{ accentColor: 'var(--azul)' }} />
+          Ligada
+        </label>
+        <label className="f-campo">Horário: <input type="time" value={atual.hora} onChange={e => mudar('hora', e.target.value)}
+          style={{ border: 0, background: 'transparent', outline: 0, color: 'var(--texto)' }} /></label>
+        <label className="f-campo">Importar: <select value={atual.tipo} onChange={e => mudar('tipo', e.target.value as TipoImportacao)}>
+          {(Object.keys(ROTULO_TIPO_IMPORTACAO) as TipoImportacao[]).map(t => <option key={t} value={t}>{ROTULO_TIPO_IMPORTACAO[t]}</option>)}
+        </select></label>
+      </div>
+
+      <div className="linha-h" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+        {DIAS_SEMANA.map(d => (
+          <label key={d.n} className={`opcao-card compacta ${atual.dias_semana.includes(d.n) ? 'marcada' : ''}`} style={{ padding: '4px 9px' }}>
+            <input type="checkbox" checked={atual.dias_semana.includes(d.n)}
+              onChange={e => mudar('dias_semana', e.target.checked
+                ? [...atual.dias_semana, d.n].sort()
+                : atual.dias_semana.filter(x => x !== d.n))} />
+            <span style={{ fontSize: 12 }}>{d.r}</span>
+          </label>
+        ))}
+      </div>
+
+      <p className="cel-sub" style={{ margin: 0 }}>
+        Importa o <b>ano corrente</b> — é o que a API do Activesoft expõe (03-integracao §8). Código de série ou disciplina
+        que o sistema não casa sozinho continua virando pendência: escolher destino ambíguo é decisão humana, inclusive de madrugada.
+      </p>
+
+      {resultado ? (
+        <div style={{ marginTop: 10, fontSize: 12.5 }}>
+          <b>Última execução:</b> {fmtDataHora(resultado.quando)} ({resultado.ano}) —{' '}
+          {resultado.ok
+            ? <>{resultado.criados} criado(s), {resultado.atualizados} atualizado(s), {resultado.pendentes} pendência(s){resultado.importacao_id ? <> · <Link to={`/app/importacoes/${resultado.importacao_id}`}>ver relatório</Link></> : null}</>
+            : <span style={{ color: 'var(--erro)' }}>falhou: {resultado.erro}</span>}
+        </div>
+      ) : null}
+
+      {sujo ? (
+        <div className="acoes" style={{ marginTop: 12 }}>
+          <Botao variante="primario" icone="check" carregando={ocupado === 'salvar'} onClick={salvar}>Salvar agendamento</Botao>
+          <Botao onClick={() => setForm(null)}>Descartar</Botao>
+        </div>
+      ) : null}
+    </Card>
   );
 }
