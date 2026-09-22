@@ -242,7 +242,11 @@ async function paginarTudo<T>(cfg: ConfigActivesoft, caminho: string, itemSchema
     itens.push(...lote);
     const acabou = Array.isArray(pagina) ? true : !pagina.next;
     if (acabou || lote.length === 0) break;
-    offset += cfg.paginaTamanho;
+    // avança pelo que VEIO, não pelo que foi pedido: se a API limitar a
+    // página abaixo de `paginaTamanho` (e ainda assim indicar `next`),
+    // somar o valor pedido pula registros — e some aluno da importação
+    // sem erro nenhum, só faltando nota no histórico lá na frente
+    offset += lote.length;
     if (offset > 500000) throw new Error(`Activesoft API — paginação sem fim em ${caminho}`);
   }
   return itens;

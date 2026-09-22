@@ -312,7 +312,20 @@ historicosLoteRouter.post('/pdf', exigirPapel(), seguro(async (req, res) => {
 
   const zip = new JSZip();
   const problemas: string[] = [];
+  const usados = new Set<string>();
   let incluidos = 0;
+
+  // Dois documentos podem gerar o mesmo nome — `nomeArquivo` só tem o
+  // aluno e o registro, e rascunho não tem registro. O JSZip guardaria só
+  // o último, e o PDF sumiria do pacote sem entrar no aviso de falhas,
+  // porque nada falhou.
+  const nomeUnico = (base: string) => {
+    if (!usados.has(base)) { usados.add(base); return base; }
+    for (let n = 2; ; n++) {
+      const tentativa = base.replace(/\.pdf$/, `-${n}.pdf`);
+      if (!usados.has(tentativa)) { usados.add(tentativa); return tentativa; }
+    }
+  };
 
   for (const id of body.ids) {
     try {
@@ -321,7 +334,7 @@ historicosLoteRouter.post('/pdf', exigirPapel(), seguro(async (req, res) => {
       if (!data) throw new Error('não encontrado');
       const h = data as unknown as Historico & { aluno: { nome: string } | null };
       const pdf = await obterPdf(client as Cliente, h);
-      zip.file(nomeArquivo(h, h.aluno?.nome || 'aluno'), pdf);
+      zip.file(nomeUnico(nomeArquivo(h, h.aluno?.nome || 'aluno')), pdf);
       incluidos++;
     } catch (err) {
       problemas.push(`${id}: ${(err as Error).message}`);

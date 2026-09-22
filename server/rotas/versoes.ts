@@ -17,21 +17,21 @@ versoesRouter.get('/', exigirPapel(), seguro(async (req, res) => {
   const { data: versoes, error } = await q;
   if (error) throw error;
 
-  // Contagem de itens por versão (uma consulta, agregada em memória).
+  // Contagem de itens por versão. Uma contagem exata por versão, e não
+  // uma varredura de `versao_item` agregada em memória: a varredura não
+  // filtrava por versão nenhuma e batia no teto de linhas do PostgREST
+  // (1000 por padrão), passando a devolver total MENOR que o real sem
+  // erro nenhum — a tela dizia que uma grade publicada estava incompleta.
   const ids = (versoes || []).map(v => v.id);
-  let contagem: Record<string, number> = {};
-  if (ids.length) {
-    const { data: itens, error: e2 } = await client
-      .from('versao_item')
-      .select('id, versao_agrupamento:versao_agrupamento_id(versao_bloco:versao_bloco_id(versao_id))');
-    if (e2) throw e2;
-    contagem = {};
-    for (const it of (itens || []) as unknown as { versao_agrupamento: { versao_bloco: { versao_id: string } } }[]) {
-      const vid = it.versao_agrupamento?.versao_bloco?.versao_id;
-      if (vid) contagem[vid] = (contagem[vid] || 0) + 1;
-    }
-  }
-  res.json((versoes || []).map(v => ({ ...v, total_itens: contagem[v.id] || 0 })));
+  const contagens = await Promise.all(ids.map(async id => {
+    const { count, error } = await client.from('versao_item')
+      .select('id, versao_agrupamento!inner(versao_bloco!inner(versao_id))', { count: 'exact', head: true })
+      .eq('versao_agrupamento.versao_bloco.versao_id', id);
+    if (error) throw error;
+    return [id, count || 0] as const;
+  }));
+  const contagem = new Map(contagens);
+  res.json((versoes || []).map(v => ({ ...v, total_itens: contagem.get(v.id) || 0 })));
 }));
 
 /* ---------- detalhe ---------- */

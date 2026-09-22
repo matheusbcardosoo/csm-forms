@@ -39,14 +39,45 @@ function enviarCSV(res: Parameters<Parameters<typeof relatoriosRouter.get>[1]>[1
   res.send(csv);
 }
 
+const FUSO = 'America/Sao_Paulo';
+
+/**
+ * Instante em que o dia começa em São Paulo, em UTC.
+ *
+ * Comparar `timestamptz` com 'YYYY-MM-DD' cru corta à meia-noite UTC, e
+ * o documento emitido às 21h30 do dia 30 (horário de Brasília) já está
+ * no dia 1º em UTC: caía no relatório do mês seguinte e o fechamento da
+ * secretaria não batia com o livro de registro. O deslocamento é lido do
+ * próprio fuso, e não fixado em -03:00, para não passar a mentir caso o
+ * horário de verão volte.
+ */
+function inicioDoDiaEmSaoPaulo(dia: string): string {
+  const palpite = new Date(`${dia}T00:00:00Z`);
+  if (Number.isNaN(palpite.getTime())) throw Object.assign(new Error(`Data inválida: ${dia}`), { status: 422 });
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: FUSO, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const p = Object.fromEntries(fmt.formatToParts(palpite).map(x => [x.type, x.value])) as Record<string, string>;
+  const comoSeFosseUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
+  return new Date(palpite.getTime() - (comoSeFosseUtc - palpite.getTime())).toISOString();
+}
+
+const DIA_MS = 24 * 3600_000;
+
 /** Período pedido, com um mês para trás como padrão. */
 function periodo(req: { query: Record<string, unknown> }) {
   const hoje = new Date();
-  const umMesAtras = new Date(hoje.getTime() - 30 * 24 * 3600_000);
-  const de = String(req.query.de || umMesAtras.toISOString().slice(0, 10));
+  const de = String(req.query.de || new Date(hoje.getTime() - 30 * DIA_MS).toISOString().slice(0, 10));
   const ate = String(req.query.ate || hoje.toISOString().slice(0, 10));
-  // `ate` é dia inclusivo: quem pede 01/09 a 30/09 espera o dia 30 inteiro
-  return { de, ate, ateExclusivo: new Date(new Date(ate).getTime() + 24 * 3600_000).toISOString().slice(0, 10) };
+
+  // `ate` é dia inclusivo: quem pede 01/09 a 30/09 espera o dia 30
+  // inteiro, então o corte é o começo do dia seguinte
+  const diaSeguinte = new Date(`${ate}T00:00:00Z`);
+  if (Number.isNaN(diaSeguinte.getTime())) throw Object.assign(new Error(`Data inválida: ${ate}`), { status: 422 });
+  diaSeguinte.setUTCDate(diaSeguinte.getUTCDate() + 1);
+
+  return { de, ate, inicio: inicioDoDiaEmSaoPaulo(de), fimExclusivo: inicioDoDiaEmSaoPaulo(diaSeguinte.toISOString().slice(0, 10)) };
 }
 
 const dataBR = (iso: string | null) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
@@ -61,10 +92,10 @@ interface LinhaDocumento {
   curso: { nome: string } | null;
 }
 
-async function documentos(client: Cliente, de: string, ateExclusivo: string) {
+async function documentos(client: Cliente, inicio: string, fimExclusivo: string) {
   const { data, error } = await client.from('historico')
     .select('id, tipo, status, via, numero_registro, ano_registro, emitido_em, emitido_por, cancelado_em, motivo_cancelamento, aluno(nome, ra), curso(nome)')
-    .gte('emitido_em', de).lt('emitido_em', ateExclusivo)
+    .gte('emitido_em', inicio).lt('emitido_em', fimExclusivo)
     .in('status', ['emitido', 'cancelado'])
     .order('numero_registro');
   if (error) throw error;
@@ -73,8 +104,8 @@ async function documentos(client: Cliente, de: string, ateExclusivo: string) {
 
 relatoriosRouter.get('/documentos', exigirPapel(), seguro(async (req, res) => {
   const { client } = ctx(res);
-  const { de, ate, ateExclusivo } = periodo(req);
-  const linhas = await documentos(client, de, ateExclusivo);
+  const { de, ate, inicio, fimExclusivo } = periodo(req);
+  const linhas = await documentos(client, inicio, fimExclusivo);
 
   const porTipo: Record<string, number> = {};
   for (const l of linhas) porTipo[ROTULO_TIPO_HISTORICO[l.tipo]] = (porTipo[ROTULO_TIPO_HISTORICO[l.tipo]] || 0) + 1;
@@ -107,8 +138,8 @@ relatoriosRouter.get('/documentos', exigirPapel(), seguro(async (req, res) => {
 
 relatoriosRouter.get('/documentos.csv', exigirPapel(), seguro(async (req, res) => {
   const { client } = ctx(res);
-  const { de, ate, ateExclusivo } = periodo(req);
-  const linhas = await documentos(client, de, ateExclusivo);
+  const { de, ate, inicio, fimExclusivo } = periodo(req);
+  const linhas = await documentos(client, inicio, fimExclusivo);
   enviarCSV(res, `documentos-${de}-a-${ate}.csv`, paraCSV(
     ['Registro', 'Aluno', 'RA', 'Curso', 'Documento', 'Via', 'Status', 'Emitido em', 'Emitido por', 'Cancelado em', 'Motivo do cancelamento'],
     linhas.map(l => [
@@ -129,10 +160,10 @@ interface LinhaImportacao {
   parametros: { anoLetivo?: number } | null;
 }
 
-async function importacoes(client: Cliente, de: string, ateExclusivo: string) {
+async function importacoes(client: Cliente, inicio: string, fimExclusivo: string) {
   const { data, error } = await client.from('importacao')
     .select('id, origem, tipo, modo, status, lidos, criados, atualizados, ignorados, com_divergencia, pendentes_mapeamento, erros, erro, iniciado_por, iniciado_em, concluido_em, parametros')
-    .gte('iniciado_em', de).lt('iniciado_em', ateExclusivo)
+    .gte('iniciado_em', inicio).lt('iniciado_em', fimExclusivo)
     .order('iniciado_em', { ascending: false });
   if (error) throw error;
   return (data || []) as unknown as LinhaImportacao[];
@@ -143,8 +174,8 @@ const AGENDADOR = 'agendador';
 
 relatoriosRouter.get('/importacoes', exigirPapel(), seguro(async (req, res) => {
   const { client } = ctx(res);
-  const { de, ate, ateExclusivo } = periodo(req);
-  const linhas = await importacoes(client, de, ateExclusivo);
+  const { de, ate, inicio, fimExclusivo } = periodo(req);
+  const linhas = await importacoes(client, inicio, fimExclusivo);
   const efetivas = linhas.filter(l => l.modo === 'efetiva');
 
   res.json({
@@ -172,8 +203,8 @@ relatoriosRouter.get('/importacoes', exigirPapel(), seguro(async (req, res) => {
 
 relatoriosRouter.get('/importacoes.csv', exigirPapel(), seguro(async (req, res) => {
   const { client } = ctx(res);
-  const { de, ate, ateExclusivo } = periodo(req);
-  const linhas = await importacoes(client, de, ateExclusivo);
+  const { de, ate, inicio, fimExclusivo } = periodo(req);
+  const linhas = await importacoes(client, inicio, fimExclusivo);
   enviarCSV(res, `importacoes-${de}-a-${ate}.csv`, paraCSV(
     ['Quando', 'Ano', 'Origem', 'Tipo', 'Modo', 'Disparo', 'Status', 'Lidos', 'Criados', 'Atualizados', 'Divergências', 'Pendências', 'Erros', 'Erro'],
     linhas.map(l => [

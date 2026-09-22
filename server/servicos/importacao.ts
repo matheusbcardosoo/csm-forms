@@ -415,11 +415,28 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
         if (error) throw error;
         for (const n of data || []) notasLocais.set(`${n.matricula_id}|${n.versao_item_id}`, n);
       }
+      // Motivo da última edição, só das notas que de fato foram editadas
+      // à mão — são elas que podem virar divergência. Antes isto trazia a
+      // auditoria inteira do banco, sem filtro nem limite: passando do
+      // teto de linhas do PostgREST, a nota corrigida há dois anos
+      // aparecia sem o motivo, que é justamente o que a secretaria lê
+      // para decidir entre manter o valor local e aceitar o da origem.
       const motivosAuditoria = new Map<string, string>();
-      if (idsMat.length) {
-        const { data: aud } = await db.from('auditoria').select('entidade_id, motivo').eq('entidade', 'nota').eq('acao', 'editar').order('criado_em', { ascending: false });
+      const idsEditadas = [...notasLocais.values()].filter(n => n.editado).map(n => n.id);
+      for (let i = 0; i < idsEditadas.length; i += 100) {
+        const { data: aud, error } = await db.from('auditoria').select('entidade_id, motivo')
+          .eq('entidade', 'nota').eq('acao', 'editar')
+          .in('entidade_id', idsEditadas.slice(i, i + 100))
+          .order('criado_em', { ascending: false });
+        if (error) throw error;
         for (const a of aud || []) if (a.entidade_id && !motivosAuditoria.has(a.entidade_id)) motivosAuditoria.set(a.entidade_id, a.motivo || '');
       }
+
+      // nome do aluno por id, montado uma vez: a busca linear aqui dentro
+      // custava uma cópia do mapa inteiro por nota (13 mil notas × 900
+      // alunos numa importação anual de verdade)
+      const alunoPorId = new Map<string, string>();
+      for (const a of alunosPorCodigo.values()) alunoPorId.set(a.id, (a.nome as string) || '');
 
       for (const n of notas) {
         const mat = matriculasPorCodigo.get(n.matriculaCodigoOrigem);
@@ -428,8 +445,7 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
           linha({ entidade: 'nota', acao: 'erro', chave: `${n.matriculaCodigoOrigem}/${n.disciplinaCodigoOrigem}`, descricao: `Matrícula ${n.matriculaCodigoOrigem} não existe localmente`, detalhe: 'Importe as matrículas antes das notas.' });
           continue;
         }
-        const aluno = [...alunosPorCodigo.values()].find(a => a.id === mat.aluno_id);
-        const nomeAluno = (aluno?.nome as string) || mat.aluno_id;
+        const nomeAluno = alunoPorId.get(mat.aluno_id) || mat.aluno_id;
         if (!mat.versao_curricular_id) {
           cont.erros++;
           registrarSemCurriculo(p.filtro.anoLetivo, mat.serie_id, seriesLocais.find(s => s.id === mat.serie_id)?.nome || 'série', mat.id);
@@ -575,7 +591,12 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
     for (const pd of pendencias.values()) {
       const existente = maps.find(m => m.tipo === pd.tipo && m.codigo_origem === pd.codigo_origem && (m.versao_id || null) === (pd.versao_id || null));
       if (existente) {
-        await db.from('mapeamento_activesoft').update({ registros_afetados: pd.registros, descricao_origem: pd.descricao_origem, sugestao_item_id: pd.sugestao_item_id }).eq('id', existente.id);
+        const { error } = await db.from('mapeamento_activesoft')
+          .update({ registros_afetados: pd.registros, descricao_origem: pd.descricao_origem, sugestao_item_id: pd.sugestao_item_id })
+          .eq('id', existente.id);
+        // sem isto, a falha passava calada e a tela de Mapeamentos seguia
+        // mostrando a contagem da execução anterior
+        if (error) throw error;
       } else {
         const { error } = await db.from('mapeamento_activesoft').insert({
           versao_id: pd.versao_id, tipo: pd.tipo, codigo_origem: pd.codigo_origem, descricao_origem: pd.descricao_origem,
