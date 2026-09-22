@@ -106,7 +106,10 @@ code { font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; f
 }
 .hamburguer { display: none; width: 38px; height: 38px; border-radius: var(--r-sm); align-items: center; justify-content: center; border: 1px solid var(--linha); background: var(--superficie); flex: 0 0 auto; }
 .hamburguer svg { width: 18px; height: 18px; }
-.busca { flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px; background: var(--superficie-2); border: 1px solid var(--linha); border-radius: 99px; padding: 7px 14px; color: var(--texto-3); font-size: 13px; min-height: 36px; }
+/* `min-width: 0` não é detalhe: sem ele a busca fica presa no tamanho
+   mínimo do próprio conteúdo, não encolhe, e empurra o seletor de ano e o
+   menu do usuário para fora da tela no celular — o menu fica inalcançável. */
+.busca { flex: 1; min-width: 0; max-width: 420px; display: flex; align-items: center; gap: 8px; background: var(--superficie-2); border: 1px solid var(--linha); border-radius: 99px; padding: 7px 14px; color: var(--texto-3); font-size: 13px; min-height: 36px; }
 .busca svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .busca input { flex: 1; min-width: 0; border: 0; background: transparent; outline: 0; color: var(--texto); }
 .busca input::placeholder { color: var(--texto-3); }
@@ -306,8 +309,11 @@ td code, .nome-cel code { white-space: nowrap; }
    com o template de PDF. O que está aqui é só a moldura do painel: as
    duas colunas, a barra de zoom e a caixa que escala a folha. */
 .previa { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
-.previa-doc { position: sticky; top: calc(var(--topbar-h) + 16px); display: flex; flex-direction: column; gap: 10px; }
-.previa-painel { display: flex; flex-direction: column; gap: 12px; }
+/* `min-width: 0` nas duas colunas: sem isso a coluna do documento não
+   encolhe abaixo da largura da folha A4 e quem rola de lado é a PÁGINA
+   inteira, em vez do palco do documento (que já tem overflow próprio). */
+.previa-doc { position: sticky; top: calc(var(--topbar-h) + 16px); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.previa-painel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .previa-barra { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .previa .palco { max-height: calc(100dvh - var(--topbar-h) - 120px); }
 
@@ -456,8 +462,12 @@ td code, .nome-cel code { white-space: nowrap; }
   .sidebar-fechar svg { width: 16px; height: 16px; }
   .hamburguer { display: inline-flex; }
   .conteudo { padding: 16px 16px calc(56px + env(safe-area-inset-bottom, 0px)); }
-  .topbar { padding-left: 12px; padding-right: 12px; }
+  .topbar { padding-left: 12px; padding-right: 12px; gap: 8px; }
   .busca { max-width: none; }
+  /* no desktop o espaçador empurra ano e usuário para a direita; no
+     celular ele só disputaria largura com a busca, que já é o que
+     encolhe */
+  .topbar-espaco { display: none; }
 }
 @media (max-width: 760px) {
   .g4, .g3, .g2 { grid-template-columns: 1fr; }
