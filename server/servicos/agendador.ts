@@ -42,6 +42,8 @@ export interface ResultadoAgendado {
   criados?: number;
   atualizados?: number;
   pendentes?: number;
+  /** Registros que ficaram de fora sem derrubar a execução. */
+  erros?: number;
   erro?: string;
 }
 
@@ -135,7 +137,7 @@ export async function rodar(tipo: Agendamento['tipo'], ano: number, usuario: str
     });
     return {
       quando, ano, ok: true, importacao_id: r.id,
-      criados: r.criados, atualizados: r.atualizados, pendentes: r.pendentes_mapeamento
+      criados: r.criados, atualizados: r.atualizados, pendentes: r.pendentes_mapeamento, erros: r.erros
     };
   } catch (err) {
     // falha vira resultado gravado, não exceção solta: o ponto da

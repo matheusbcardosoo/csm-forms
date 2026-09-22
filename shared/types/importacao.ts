@@ -114,7 +114,17 @@ export interface RelatorioImportacao {
    * ser gravada (RF-VER-11) — é o bloqueio que precede o de mapeamento.
    */
   seriesSemCurriculo?: SerieSemCurriculo[];
+  /**
+   * Erros agrupados por causa, com o que fazer para resolver cada uma.
+   * A importação não para no primeiro erro: o registro que falhou entra
+   * aqui e na aba Erros, e os demais seguem sendo gravados.
+   */
+  errosResumo?: ResumoErro[];
+  /** Erros que passaram do teto de linhas do relatório e não foram listados um a um. */
+  errosOmitidos?: number;
 }
+
+export interface ResumoErro { causa: string; sugestao: string; quantidade: number }
 
 export interface SerieSemCurriculo { ano: number; serie: string; serie_id: string; matriculas: number }
 

@@ -87,6 +87,15 @@ export function ImportacaoDetalhe() {
         acoes={<><BotaoLink to="/app/importacoes/mapeamentos" icone="grade">Mapeamentos</BotaoLink><BotaoLink to="/app/importacoes" variante="primario" icone="importar">Nova importação</BotaoLink></>} />
 
       {imp.erro ? <div style={{ marginBottom: 14 }}><Aviso tipo="erro"><b>A importação parou.</b> {imp.erro}</Aviso></div> : null}
+      {!imp.erro && imp.erros ? (
+        <div style={{ marginBottom: 14 }}>
+          <Aviso tipo="aviso">
+            <b>{imp.erros} registro(s) ficaram de fora</b> — o resto foi importado normalmente.
+            A aba Erros lista cada um com o que fazer para resolver.
+            <div className="acoes" style={{ marginTop: 10 }}><Botao pequeno onClick={() => setAba('erros')}>Ver os erros</Botao></div>
+          </Aviso>
+        </div>
+      ) : null}
       {simulacao ? <div style={{ marginBottom: 14 }}><Aviso><b>Simulação:</b> nenhum aluno, matrícula ou nota foi gravado. Só as pendências de mapeamento ficaram registradas, para você resolvê-las antes de importar de verdade.</Aviso></div> : null}
 
       <div className="grade g4" style={{ marginBottom: 16 }}>
@@ -218,6 +227,17 @@ export function ImportacaoDetalhe() {
           {(() => {
             const linhas = (abaAtual === 'erros' ? erros : (rel?.linhas || []).filter(l => !filtroAcao || l.acao === filtroAcao));
             return !linhas.length ? <EstadoVazio icone={abaAtual === 'erros' ? 'check' : 'info'} titulo={abaAtual === 'erros' ? 'Nenhum erro' : 'Nenhum registro nesta seleção'} /> : (
+              <>
+              {abaAtual === 'erros' && rel?.errosResumo?.length ? (
+                <div className="pilha" style={{ padding: '14px 16px 4px' }}>
+                  {rel.errosResumo.map((e, i) => (
+                    <Aviso key={i} tipo="aviso">
+                      <b>{e.causa} — {e.quantidade} registro(s).</b> {e.sugestao}
+                    </Aviso>
+                  ))}
+                  {rel.errosOmitidos ? <Aviso tipo="aviso">Mais {rel.errosOmitidos} erro(s) da mesma leva não foram listados um a um — o relatório guarda os {erros.length} primeiros.</Aviso> : null}
+                </div>
+              ) : null}
               <div className="tab-box"><table className="responsiva">
                 <thead><tr><th>Entidade</th><th>Ação</th><th>Chave na origem</th><th>Registro</th><th>Detalhe</th></tr></thead>
                 <tbody>{linhas.map((l, i) => (
@@ -230,6 +250,7 @@ export function ImportacaoDetalhe() {
                   </tr>
                 ))}</tbody>
               </table></div>
+              </>
             );
           })()}
         </Card>

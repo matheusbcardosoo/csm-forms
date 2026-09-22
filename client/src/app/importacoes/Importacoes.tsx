@@ -137,7 +137,7 @@ const DIAS_SEMANA = [
 interface Agendamento {
   ativo: boolean; hora: string; dias_semana: number[]; tipo: TipoImportacao;
   ultima_execucao: string | null; atualizado_por: string | null;
-  ultimo_resultado: { quando: string; ano: number; ok: boolean; importacao_id?: string; criados?: number; atualizados?: number; pendentes?: number; erro?: string } | null;
+  ultimo_resultado: { quando: string; ano: number; ok: boolean; importacao_id?: string; criados?: number; atualizados?: number; pendentes?: number; erros?: number; erro?: string } | null;
 }
 
 /**
@@ -220,7 +220,7 @@ function CartaoAgendamento({ ano, aoRodar }: { ano: number | null; aoRodar: () =
         <div style={{ marginTop: 10, fontSize: 12.5 }}>
           <b>Última execução:</b> {fmtDataHora(resultado.quando)} ({resultado.ano}) —{' '}
           {resultado.ok
-            ? <>{resultado.criados} criado(s), {resultado.atualizados} atualizado(s), {resultado.pendentes} pendência(s){resultado.importacao_id ? <> · <Link to={`/app/importacoes/${resultado.importacao_id}`}>ver relatório</Link></> : null}</>
+            ? <>{resultado.criados} criado(s), {resultado.atualizados} atualizado(s), {resultado.pendentes} pendência(s){resultado.erros ? <>, <span style={{ color: 'var(--erro)' }}>{resultado.erros} erro(s)</span></> : null}{resultado.importacao_id ? <> · <Link to={`/app/importacoes/${resultado.importacao_id}`}>ver relatório</Link></> : null}</>
             : <span style={{ color: 'var(--erro)' }}>falhou: {resultado.erro}</span>}
         </div>
       ) : null}
