@@ -3,7 +3,7 @@
 // com o CSS do PDF (RNF-04), à direita o painel que edita. Emitido, o
 // painel vira somente leitura e o documento passa a ser o snapshot.
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, baixarArquivo, ErroApi, mensagemErro } from '@/api/cliente';
 import { useRecurso } from '@/hooks/useRecurso';
 import { useSessao } from '@/hooks/useSessao';
@@ -34,6 +34,7 @@ interface Formulario {
 
 export function HistoricoDetalhe() {
   const { id = '' } = useParams();
+  const navegar = useNavigate();
   const toast = useToast();
   const { podeEditar } = useSessao();
   const { dados, carregando, erro, definir } = useRecurso<Detalhe>(`/api/historicos/${id}`);
@@ -120,6 +121,24 @@ export function HistoricoDetalhe() {
   }
 
   const salvar = () => executar(() => api.put<Detalhe>(`/api/historicos/${id}`, form), 'Rascunho salvo.');
+
+  /**
+   * A 2ª via é OUTRO documento, com id próprio. Injetá-la no lugar do
+   * atual deixava a tela mostrando a via nova enquanto a rota continuava
+   * na antiga — e as ações seguintes (baixar, cancelar, auditoria) usam o
+   * id da rota. Cancelar a via nova cancelava a que está na mão do aluno.
+   */
+  async function gerarSegundaVia() {
+    setSalvando(true);
+    try {
+      const nova = await api.post<Detalhe>(`/api/historicos/${id}/segunda-via`);
+      toast.ok('2ª via emitida.');
+      navegar(`/app/historicos/${nova.historico.id}`);
+    } catch (err) {
+      if (err instanceof ErroApi && err.campos.length) toast.erro(err.campos[0].mensagem);
+      else toast.erro(mensagemErro(err));
+    } finally { setSalvando(false); }
+  }
   const baixar = () => baixarArquivo(`/api/historicos/${id}/pdf`, `historico-${dados!.aluno.nome}.pdf`)
     .catch(err => toast.erro(mensagemErro(err, 'Não foi possível gerar o PDF.')));
 
@@ -339,7 +358,7 @@ export function HistoricoDetalhe() {
         descricao="A 2ª via reimprime exatamente o documento emitido, com o mesmo número de registro e a marca da via. Nada é recalculado."
         rotuloConfirmar="Gerar 2ª via" carregando={salvando}
         aoFechar={() => setAcao(null)}
-        aoConfirmar={() => { setAcao(null); executar(() => api.post<Detalhe>(`/api/historicos/${id}/segunda-via`), '2ª via emitida.'); }} />
+        aoConfirmar={() => { setAcao(null); gerarSegundaVia(); }} />
 
       <Modal aberto={cancelando !== null} titulo="Cancelar documento" tamanho="sm"
         descricao="O documento continua arquivado (guarda permanente), mas passa a constar como cancelado. O motivo fica na auditoria."

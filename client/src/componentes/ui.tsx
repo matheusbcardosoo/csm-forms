@@ -11,8 +11,13 @@ const CLASSE_VARIANTE: Record<Variante, string> = { padrao: '', primario: 'btn-1
 
 export function Botao({ variante = 'padrao', pequeno, icone, carregando, children, className = '', ...resto }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variante?: Variante; pequeno?: boolean; icone?: NomeIcone; carregando?: boolean }) {
+  // `{...resto}` vem ANTES do disabled: espalhado depois, ele reaplicava o
+  // `disabled` de quem chamou por cima do cálculo e anulava o bloqueio por
+  // `carregando` — o clique duplo durante a requisição passava.
   return (
-    <button type="button" className={`btn ${CLASSE_VARIANTE[variante]} ${pequeno ? 'btn-sm' : ''} ${className}`} disabled={carregando || resto.disabled} {...resto}>
+    <button type="button" {...resto}
+      className={`btn ${CLASSE_VARIANTE[variante]} ${pequeno ? 'btn-sm' : ''} ${className}`}
+      disabled={carregando || resto.disabled}>
       {carregando ? <span className="spinner" style={{ width: 14, height: 14 }} /> : icone ? <Icone nome={icone} /> : null}
       {children}
     </button>

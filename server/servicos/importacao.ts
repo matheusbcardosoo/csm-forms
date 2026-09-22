@@ -536,30 +536,39 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
     // Ficam confirmados e com observação dizendo que vieram da máquina:
     // a secretaria vê o que foi decidido por ela e o que foi deduzido, e
     // pode trocar qualquer um na tela de mapeamentos.
+    // Só a execução efetiva grava. A simulação continua LISTANDO o que
+    // casaria — é o que ela existe para mostrar —, mas não confirma
+    // mapeamento nenhum: "simular" com efeito colateral deixaria uma
+    // escolha da máquina gravada como confirmada sem ninguém ter
+    // confirmado nada (RF-INT-11).
     const OBS_AUTO = 'Casado automaticamente na importação: o nome na origem é idêntico ao do cadastro. Troque aqui se não for isso.';
     for (const a of automaticos.values()) {
-      const patch = {
-        descricao_origem: a.descricao_origem, versao_item_id: a.versao_item_id, destino_valor: a.destino_valor,
-        confirmado: true, observacao: OBS_AUTO, sugestao_item_id: null, registros_afetados: a.registros
-      };
-      const existente = maps.find(m => m.tipo === a.tipo && m.codigo_origem === a.codigo_origem && (m.versao_id || null) === (a.versao_id || null));
-      if (existente) {
-        const { error } = await db.from('mapeamento_activesoft').update(patch).eq('id', existente.id);
-        if (error) throw error;
-      } else {
-        const { error } = await db.from('mapeamento_activesoft').insert({ versao_id: a.versao_id, tipo: a.tipo, codigo_origem: a.codigo_origem, ...patch });
-        // corrida com outra importação: a linha já existe, então atualiza
-        if (error && (error as { code?: string }).code === '23505') {
-          const q = db.from('mapeamento_activesoft').update(patch).eq('tipo', a.tipo).eq('codigo_origem', a.codigo_origem);
-          const { error: e2 } = await (a.versao_id ? q.eq('versao_id', a.versao_id) : q.is('versao_id', null));
-          if (e2) throw e2;
-        } else if (error) throw error;
+      if (efetiva) {
+        const patch = {
+          descricao_origem: a.descricao_origem, versao_item_id: a.versao_item_id, destino_valor: a.destino_valor,
+          confirmado: true, observacao: OBS_AUTO, sugestao_item_id: null, registros_afetados: a.registros
+        };
+        const existente = maps.find(m => m.tipo === a.tipo && m.codigo_origem === a.codigo_origem && (m.versao_id || null) === (a.versao_id || null));
+        if (existente) {
+          const { error } = await db.from('mapeamento_activesoft').update(patch).eq('id', existente.id);
+          if (error) throw error;
+        } else {
+          const { error } = await db.from('mapeamento_activesoft').insert({ versao_id: a.versao_id, tipo: a.tipo, codigo_origem: a.codigo_origem, ...patch });
+          // corrida com outra importação: a linha já existe, então atualiza
+          if (error && (error as { code?: string }).code === '23505') {
+            const q = db.from('mapeamento_activesoft').update(patch).eq('tipo', a.tipo).eq('codigo_origem', a.codigo_origem);
+            const { error: e2 } = await (a.versao_id ? q.eq('versao_id', a.versao_id) : q.is('versao_id', null));
+            if (e2) throw e2;
+          } else if (error) throw error;
+        }
       }
       relatorio.mapeamentosAutomaticos = relatorio.mapeamentosAutomaticos || [];
       relatorio.mapeamentosAutomaticos.push({ tipo: a.tipo, codigo_origem: a.codigo_origem, descricao_origem: a.descricao_origem, destino: a.destino_rotulo, registros: a.registros });
     }
     if (automaticos.size) {
-      relatorio.avisos.push(`${automaticos.size} código(s) da origem foram casados automaticamente por nome idêntico ao do cadastro. Confira a lista no relatório — dá para trocar qualquer um em Mapeamentos.`);
+      relatorio.avisos.push(efetiva
+        ? `${automaticos.size} código(s) da origem foram casados automaticamente por nome idêntico ao do cadastro. Confira a lista no relatório — dá para trocar qualquer um em Mapeamentos.`
+        : `${automaticos.size} código(s) da origem seriam casados automaticamente por nome idêntico ao do cadastro. Nada foi gravado: isto é uma simulação — os mapeamentos só entram na importação efetiva.`);
     }
 
     /* ---------- pendências de mapeamento (gravadas nos dois modos) ---------- */
