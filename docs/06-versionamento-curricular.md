@@ -124,21 +124,26 @@ Quando o documento cruza versões, o sistema acrescenta automaticamente uma obse
 
 ## 5. Efeito no mapeamento do Activesoft
 
-O destino de um mapeamento deixa de ser uma disciplina solta e passa a ser um `versao_item`:
+O destino de um mapeamento de disciplina é o **componente** — a identidade que atravessa versão e curso — e, como exceção, um `versao_item`:
 
 ```sql
 mapeamento_activesoft
-  id · versao_id fk
+  id · versao_id fk null
   tipo enum(disciplina, serie, turma, situacao)
   codigo_origem text · descricao_origem text
-  versao_item_id fk null · destino_valor text null
+  componente_id fk null      -- destino global: todo curso, toda versão
+  versao_item_id fk null     -- exceção: só naquela versão
+  destino_valor text null
   confirmado bool
   unique (versao_id, tipo, codigo_origem)
+  unique (tipo, codigo_origem) where versao_id is null
 ```
 
-**Herança na duplicação.** Ao duplicar uma versão, cada mapeamento cujo item foi copiado é recriado apontando para o item novo. Sem isso, toda reforma obrigaria a secretaria a remapear dezenas de códigos à mão — e um erro nesse remapeamento sai impresso num documento permanente.
+**Por que o componente e não o item.** O item é (agrupamento, série, componente) dentro de uma versão, e versão pertence a um curso. Amarrar o mapeamento nele obriga a remapear a mesma lista de códigos em cada curso e em cada versão que não tenha sido duplicada da anterior. O componente não tem curso nem versão: mapeia-se uma vez, e a importação resolve a linha da grade pela versão e pela série da matrícula — o mesmo mecanismo que já atravessava as séries dentro de uma versão. Migration `010`.
 
-Códigos cujo item **não** foi copiado (componente extinto na reforma) entram como pendência na versão nova, com aviso explícito de que existiam na versão anterior.
+**Herança na duplicação.** Ao duplicar uma versão, cada exceção cujo item foi copiado é recriada apontando para o item novo. Os mapeamentos globais não precisam ser herdados: já valem na versão nova no instante em que ela existe.
+
+Códigos cuja exceção perdeu o item (componente extinto na reforma) entram como pendência na versão nova, com aviso explícito de que existiam na versão anterior. Mapeamento global cujo componente não está na grade nova também vira pendência ali, e só ali.
 
 ---
 

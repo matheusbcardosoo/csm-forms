@@ -19,7 +19,7 @@ interface Contadores { lidos: number; criados: number; atualizados: number; igno
 
 interface SerieLocal { id: string; curso_id: string; codigo: string; nome: string; ordem: number; ativo: boolean }
 interface ItemLocal { id: string; serie_id: string; componente_id: string | null; nome_impresso: string; versao_id: string }
-interface MapeamentoLocal { id: string; versao_id: string | null; tipo: string; codigo_origem: string; versao_item_id: string | null; destino_valor: string | null; confirmado: boolean }
+interface MapeamentoLocal { id: string; versao_id: string | null; tipo: string; codigo_origem: string; versao_item_id: string | null; componente_id: string | null; destino_valor: string | null; confirmado: boolean }
 interface AlunoLocal { id: string; editado: boolean; dados_importados: Record<string, unknown> | null; editado_por: string | null; editado_em: string | null; [k: string]: unknown }
 interface MatriculaLocal { id: string; aluno_id: string; serie_id: string; curso_id: string; versao_curricular_id: string | null; editado: boolean; dados_importados: Record<string, unknown> | null; [k: string]: unknown }
 type NotaLocal = { id: string; valor: number | null; conceito: string | null; faltas: number | null; situacao: string; carga_horaria: number | null; editado: boolean; editado_por: string | null; editado_em: string | null; valor_importado: Record<string, unknown> | null };
@@ -251,7 +251,7 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
   const pendencias = new Map<string, { versao_id: string | null; tipo: 'disciplina' | 'serie' | 'situacao'; codigo_origem: string; descricao_origem: string | null; sugestao_item_id: string | null; destino_sugerido: string | null; registros: number }>();
   // códigos que a importação casou sozinha por nome idêntico — gravados
   // como mapeamento confirmado e listados no relatório (RF-INT-07)
-  const automaticos = new Map<string, { versao_id: string | null; tipo: 'disciplina' | 'serie'; codigo_origem: string; descricao_origem: string | null; versao_item_id: string | null; destino_valor: string | null; destino_rotulo: string; registros: number }>();
+  const automaticos = new Map<string, { versao_id: string | null; tipo: 'disciplina' | 'serie'; codigo_origem: string; descricao_origem: string | null; versao_item_id: string | null; componente_id: string | null; destino_valor: string | null; destino_rotulo: string; registros: number }>();
   // (ano, série) sem versão curricular publicada — bloqueia as notas
   // daquela série inteira, antes mesmo de existir mapeamento (RF-VER-11)
   const semCurriculo = new Map<string, { ano: number; serie: string; serie_id: string; matriculas: number }>();
@@ -281,7 +281,7 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
 
     const [series, mapeamentos, sistemas] = await Promise.all([
       db.from('serie').select('id, curso_id, codigo, nome, ordem, ativo'),
-      db.from('mapeamento_activesoft').select('id, versao_id, tipo, codigo_origem, versao_item_id, destino_valor, confirmado'),
+      db.from('mapeamento_activesoft').select('id, versao_id, tipo, codigo_origem, versao_item_id, componente_id, destino_valor, confirmado'),
       db.from('sistema_avaliacao').select('curso_id, media_aprovacao')
     ]);
     for (const r of [series, mapeamentos, sistemas]) if (r.error) throw r.error;
@@ -296,8 +296,14 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
       if (m.tipo === 'serie' && m.destino_valor) mapaSerie.set(m.codigo_origem, m.destino_valor);
       if (m.tipo === 'situacao' && m.destino_valor) mapaSituacao.set(normalizar(m.codigo_origem), m.destino_valor);
     }
-    const mapaDisciplina = new Map<string, MapeamentoLocal>(); // `${versao_id}|${codigo}` → mapeamento
+    const mapaDisciplina = new Map<string, MapeamentoLocal>(); // `${versao_id}|${codigo}` → mapeamento (exceção de uma versão)
     for (const m of maps) if (m.tipo === 'disciplina' && m.versao_id) mapaDisciplina.set(`${m.versao_id}|${m.codigo_origem}`, m);
+    // Mapeamento global de disciplina: código da origem → componente. O
+    // componente é a identidade sem curso e sem versão, então um destes
+    // vale para toda a escola — é o que evita remapear os mesmos códigos
+    // a cada curso novo (migration 010).
+    const mapaComponente = new Map<string, string>();
+    for (const m of maps) if (m.tipo === 'disciplina' && !m.versao_id && m.confirmado && m.componente_id) mapaComponente.set(m.codigo_origem, m.componente_id);
 
     const registrarPendencia = (chave: string, dados: Omit<NonNullable<ReturnType<typeof pendencias.get>>, 'registros'>) => {
       const p0 = pendencias.get(chave);
@@ -309,7 +315,7 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
     const registrarAutomatico = (chave: string, dados: Omit<NonNullable<ReturnType<typeof automaticos.get>>, 'registros'>) => {
       if (!automaticos.has(chave)) automaticos.set(chave, { ...dados, registros: 0 });
     };
-    const contarAutomatico = (chave: string) => { const a = automaticos.get(chave); if (a) a.registros++; };
+    const contarAutomatico = (chave: string) => { const a = automaticos.get(chave); if (a) a.registros++; return !!a; };
     // conta matrícula distinta: a mesma cai aqui uma vez ao ser criada e
     // outra por cada nota que não pôde entrar por causa dela
     const matriculasSemCurriculo = new Map<string, Set<string>>();
@@ -458,7 +464,7 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
               mapaSerie.set(m.serieCodigoOrigem, auto.id);
               registrarAutomatico(`serie|${m.serieCodigoOrigem}`, {
                 versao_id: null, tipo: 'serie', codigo_origem: m.serieCodigoOrigem, descricao_origem: m.serieDescricao || null,
-                versao_item_id: null, destino_valor: auto.id, destino_rotulo: auto.nome
+                versao_item_id: null, componente_id: null, destino_valor: auto.id, destino_rotulo: auto.nome
               });
             }
           }
@@ -605,14 +611,22 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
           continue;
         }
         const itens = itensPorVersao.get(mat.versao_curricular_id) || [];
+        const candidatosSerie = itens.filter(i => i.serie_id === mat.serie_id);
         const map = mapaDisciplina.get(`${mat.versao_curricular_id}|${n.disciplinaCodigoOrigem}`);
         let item: ItemLocal | undefined;
+
+        // 1. exceção desta versão: o mapeamento aponta para uma linha da
+        //    grade, e resolve-se a linha de MESMA identidade na série da
+        //    matrícula (a grade repete o componente em cada série).
         if (map?.confirmado && map.versao_item_id) {
           const alvo = itemPorId.get(map.versao_item_id);
-          // o mapeamento aponta para uma linha da grade; resolve a linha da MESMA identidade na série da matrícula
           if (alvo) item = alvo.serie_id === mat.serie_id ? alvo : itens.find(i => i.serie_id === mat.serie_id && (alvo.componente_id ? i.componente_id === alvo.componente_id : normalizar(i.nome_impresso) === normalizar(alvo.nome_impresso)));
         }
-        const candidatosSerie = itens.filter(i => i.serie_id === mat.serie_id);
+        // 2. mapeamento global: o código vale para todo curso e toda
+        //    versão, e a linha sai do componente + série da matrícula.
+        const componenteGlobal = mapaComponente.get(n.disciplinaCodigoOrigem);
+        if (!item && componenteGlobal) item = candidatosSerie.find(i => i.componente_id === componenteGlobal);
+
         if (!item) {
           // "Língua Portuguesa" na origem e "Língua Portuguesa" no
           // currículo são a mesma coisa — perguntar isso 15 vezes antes
@@ -621,16 +635,29 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
           const auto = casamentoUnico(candidatosSerie.map(i => ({ alvo: i, score: similaridade(n.disciplinaDescricao || n.disciplinaCodigoOrigem, i.nome_impresso) })));
           if (auto) {
             item = auto;
-            // vale para as outras séries desta mesma versão: o caminho
-            // normal acima resolve a linha de mesma identidade
-            mapaDisciplina.set(`${mat.versao_curricular_id}|${n.disciplinaCodigoOrigem}`, {
-              id: 'auto', versao_id: mat.versao_curricular_id, tipo: 'disciplina',
-              codigo_origem: n.disciplinaCodigoOrigem, versao_item_id: auto.id, destino_valor: null, confirmado: true
-            });
-            registrarAutomatico(`disciplina|${mat.versao_curricular_id}|${n.disciplinaCodigoOrigem}`, {
-              versao_id: mat.versao_curricular_id, tipo: 'disciplina', codigo_origem: n.disciplinaCodigoOrigem,
-              descricao_origem: n.disciplinaDescricao || null, versao_item_id: auto.id, destino_valor: null, destino_rotulo: auto.nome_impresso
-            });
+            if (auto.componente_id) {
+              // Casou com uma linha que tem componente: grava GLOBAL. O
+              // mesmo código passa a valer nos outros cursos e nas versões
+              // seguintes sem ninguém remapear — é o ponto da 010.
+              mapaComponente.set(n.disciplinaCodigoOrigem, auto.componente_id);
+              registrarAutomatico(`disciplina|global|${n.disciplinaCodigoOrigem}`, {
+                versao_id: null, tipo: 'disciplina', codigo_origem: n.disciplinaCodigoOrigem,
+                descricao_origem: n.disciplinaDescricao || null, versao_item_id: null, componente_id: auto.componente_id,
+                destino_valor: null, destino_rotulo: `${auto.nome_impresso} — todos os cursos`
+              });
+            } else {
+              // linha sem componente ('componente novo, sem antecessor'):
+              // não há identidade estável para promover, fica na versão
+              mapaDisciplina.set(`${mat.versao_curricular_id}|${n.disciplinaCodigoOrigem}`, {
+                id: 'auto', versao_id: mat.versao_curricular_id, tipo: 'disciplina',
+                codigo_origem: n.disciplinaCodigoOrigem, versao_item_id: auto.id, componente_id: null, destino_valor: null, confirmado: true
+              });
+              registrarAutomatico(`disciplina|${mat.versao_curricular_id}|${n.disciplinaCodigoOrigem}`, {
+                versao_id: mat.versao_curricular_id, tipo: 'disciplina', codigo_origem: n.disciplinaCodigoOrigem,
+                descricao_origem: n.disciplinaDescricao || null, versao_item_id: auto.id, componente_id: null,
+                destino_valor: null, destino_rotulo: auto.nome_impresso
+              });
+            }
           }
         }
         if (!item) {
@@ -638,11 +665,15 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
           const candidatos = candidatosSerie;
           const melhor = candidatos.map(i => ({ i, score: similaridade(n.disciplinaDescricao || n.disciplinaCodigoOrigem, i.nome_impresso) })).sort((a, b) => b.score - a.score)[0];
           registrarPendencia(`disciplina|${mat.versao_curricular_id}|${n.disciplinaCodigoOrigem}`, { versao_id: mat.versao_curricular_id, tipo: 'disciplina', codigo_origem: n.disciplinaCodigoOrigem, descricao_origem: n.disciplinaDescricao || null, sugestao_item_id: melhor && melhor.score >= 0.5 ? melhor.i.id : null, destino_sugerido: null });
-          linha({ entidade: 'nota', acao: 'pendencia', chave: `${n.matriculaCodigoOrigem}/${n.disciplinaCodigoOrigem}`, descricao: `${nomeAluno} · "${n.disciplinaDescricao || n.disciplinaCodigoOrigem}" sem mapeamento`, detalhe: map && !map.confirmado ? 'Mapeamento existe mas não foi confirmado.' : (map && !item ? 'O item mapeado não existe nesta série.' : undefined) });
+          const porqueFaltou = componenteGlobal
+            ? 'O código tem mapeamento global, mas o componente dele não está nesta grade curricular. Inclua o componente na versão, ou defina aqui uma exceção para este currículo.'
+            : map && !map.confirmado ? 'Mapeamento existe mas não foi confirmado.'
+            : map ? 'O item mapeado não existe nesta série.' : undefined;
+          linha({ entidade: 'nota', acao: 'pendencia', chave: `${n.matriculaCodigoOrigem}/${n.disciplinaCodigoOrigem}`, descricao: `${nomeAluno} · "${n.disciplinaDescricao || n.disciplinaCodigoOrigem}" sem mapeamento`, detalhe: porqueFaltou });
           continue;
         }
 
-        contarAutomatico(`disciplina|${mat.versao_curricular_id}|${n.disciplinaCodigoOrigem}`);
+        if (!contarAutomatico(`disciplina|global|${n.disciplinaCodigoOrigem}`)) contarAutomatico(`disciplina|${mat.versao_curricular_id}|${n.disciplinaCodigoOrigem}`);
 
         const media = mediaPorCurso.get(mat.curso_id) ?? null;
         const origem: Record<string, unknown> = {
@@ -747,11 +778,12 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
     // escolha da máquina gravada como confirmada sem ninguém ter
     // confirmado nada (RF-INT-11).
     const OBS_AUTO = 'Casado automaticamente na importação: o nome na origem é idêntico ao do cadastro. Troque aqui se não for isso.';
+    const OBS_AUTO_GLOBAL = 'Casado automaticamente na importação, por componente: o nome na origem é idêntico ao do cadastro. Vale para todos os cursos e currículos — troque aqui, ou crie uma exceção num currículo específico.';
     for (const a of automaticos.values()) {
       if (efetiva) {
         const patch = {
-          descricao_origem: a.descricao_origem, versao_item_id: a.versao_item_id, destino_valor: a.destino_valor,
-          confirmado: true, observacao: OBS_AUTO, sugestao_item_id: null, registros_afetados: a.registros
+          descricao_origem: a.descricao_origem, versao_item_id: a.versao_item_id, componente_id: a.componente_id, destino_valor: a.destino_valor,
+          confirmado: true, observacao: a.componente_id ? OBS_AUTO_GLOBAL : OBS_AUTO, sugestao_item_id: null, registros_afetados: a.registros
         };
         const existente = maps.find(m => m.tipo === a.tipo && m.codigo_origem === a.codigo_origem && (m.versao_id || null) === (a.versao_id || null));
         // Os registros já entraram; perder o mapeamento vira aviso, não

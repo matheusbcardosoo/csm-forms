@@ -163,6 +163,13 @@ export interface Mapeamento {
   codigo_origem: string;
   descricao_origem: string | null;
   versao_item_id: string | null;
+  /**
+   * Destino global de disciplina: o componente, que não tem curso nem
+   * versão. Um mapeamento assim (`versao_id` nulo) vale para a escola
+   * inteira; com `versao_id` preenchido, `versao_item_id` é a exceção
+   * daquele currículo e ganha do global.
+   */
+  componente_id: string | null;
   destino_valor: string | null;
   confirmado: boolean;
   observacao: string | null;

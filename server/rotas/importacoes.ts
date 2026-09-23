@@ -38,8 +38,11 @@ importacoesRouter.get('/', exigirPapel('admin', 'secretaria'), seguro(async (_re
 /* ---------- mapeamentos (antes de /:id para não colidir) ---------- */
 importacoesRouter.get('/mapeamentos', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
   const { client } = ctx(res);
-  let q = client.from('mapeamento_activesoft').select('*, versao:versao_curricular(id, nome, curso_id), item:versao_item!mapeamento_activesoft_versao_item_id_fkey(id, nome_impresso, serie_id), sugestao:versao_item!mapeamento_activesoft_sugestao_item_id_fkey(id, nome_impresso, serie_id)').order('confirmado').order('tipo').order('codigo_origem');
-  if (req.query.versao) q = q.eq('versao_id', String(req.query.versao));
+  let q = client.from('mapeamento_activesoft').select('*, versao:versao_curricular(id, nome, curso_id), componente:componente(id, nome_canonico, sigla), item:versao_item!mapeamento_activesoft_versao_item_id_fkey(id, nome_impresso, serie_id), sugestao:versao_item!mapeamento_activesoft_sugestao_item_id_fkey(id, nome_impresso, serie_id)').order('confirmado').order('tipo').order('codigo_origem');
+  // filtrar por currículo não pode esconder os mapeamentos globais: eles
+  // valem ali também, e some-los faria a tela dizer "pendente" para um
+  // código que a importação resolve sem perguntar nada
+  if (req.query.versao) q = q.or(`versao_id.eq.${String(req.query.versao)},versao_id.is.null`);
   if (req.query.pendentes === '1') q = q.eq('confirmado', false);
   const { data, error } = await q;
   if (error) throw error;
@@ -54,39 +57,72 @@ importacoesRouter.get('/mapeamentos', exigirPapel('admin', 'secretaria'), seguro
  */
 importacoesRouter.post('/mapeamentos/aceitar-sugestoes', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
   const { client, perfil } = ctx(res);
-  let q = client.from('mapeamento_activesoft').select('id, tipo, codigo_origem, sugestao_item_id, destino_valor').eq('confirmado', false);
+  let q = client.from('mapeamento_activesoft').select('id, tipo, codigo_origem, versao_id, destino_valor, sugestao_item_id, sugestao:versao_item!mapeamento_activesoft_sugestao_item_id_fkey(componente_id)').eq('confirmado', false);
   if (req.query.versao) q = q.eq('versao_id', String(req.query.versao));
   const { data, error } = await q;
   if (error) throw error;
 
   const OBS = `Sugestão aceita em lote por ${perfil.email}. Troque aqui se não for isso.`;
+  const OBS_GLOBAL = `Sugestão aceita em lote por ${perfil.email}, por componente: vale para todos os cursos e currículos. Troque aqui, ou crie uma exceção num currículo específico.`;
   let aceitos = 0;
+  let globais = 0;
   for (const m of data || []) {
     // disciplina resolve pelo item sugerido; série/situação pelo destino
     // que a importação já tinha deixado preenchido como sugestão
-    const patch = m.tipo === 'disciplina'
-      ? (m.sugestao_item_id ? { versao_item_id: m.sugestao_item_id, confirmado: true, observacao: OBS } : null)
-      : (m.destino_valor ? { confirmado: true, observacao: OBS } : null);
-    if (!patch) continue;
-    const { error: e } = await client.from('mapeamento_activesoft').update(patch).eq('id', m.id);
+    if (m.tipo !== 'disciplina') {
+      if (!m.destino_valor) continue;
+      const { error: e } = await client.from('mapeamento_activesoft').update({ confirmado: true, observacao: OBS }).eq('id', m.id);
+      if (e) throw e;
+      aceitos++;
+      continue;
+    }
+    if (!m.sugestao_item_id) continue;
+    // O item sugerido tem componente? Então o mapeamento vira global e
+    // poupa remapear o mesmo código nos outros cursos. Se já existir um
+    // global para o código, o índice único recusa e fica só na versão.
+    // o PostgREST devolve o embed como objeto ou como array de um, conforme a cardinalidade que ele infere
+    const sug = m.sugestao as unknown as { componente_id: string | null } | { componente_id: string | null }[] | null;
+    const componenteId = (Array.isArray(sug) ? sug[0] : sug)?.componente_id || null;
+    if (componenteId) {
+      const { error: eG } = await client.from('mapeamento_activesoft')
+        .update({ versao_id: null, componente_id: componenteId, versao_item_id: null, confirmado: true, observacao: OBS_GLOBAL })
+        .eq('id', m.id);
+      if (!eG) { aceitos++; globais++; continue; }
+      if ((eG as { code?: string }).code !== '23505') throw eG;
+    }
+    const { error: e } = await client.from('mapeamento_activesoft').update({ versao_item_id: m.sugestao_item_id, confirmado: true, observacao: OBS }).eq('id', m.id);
     if (e) throw e;
     aceitos++;
   }
-  res.json({ aceitos, restantes: (data || []).length - aceitos });
+  res.json({ aceitos, globais, restantes: (data || []).length - aceitos });
 }));
 
 const mapSchema = z.object({
   versao_item_id: z.preprocess(v => (v === '' ? null : v), uuid.nullable().optional()),
+  componente_id: z.preprocess(v => (v === '' ? null : v), uuid.nullable().optional()),
   destino_valor: texto,
   confirmado: z.boolean().optional(),
   observacao: texto
 });
 
 importacoesRouter.put('/mapeamentos/:id', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
-  const body = validar(mapSchema, req, res);
+  const body = validar(mapSchema.extend({ versao_id: z.preprocess(v => (v === '' ? null : v), uuid.nullable().optional()) }), req, res);
   if (!body) return;
   const { client } = ctx(res);
-  const { data, error } = await client.from('mapeamento_activesoft').update(body).eq('id', req.params.id).select().single();
+  // Escolher um componente torna o mapeamento global; escolher um item da
+  // grade o prende àquele currículo. São destinos mutuamente exclusivos, e
+  // deixar os dois gravados faria a precedência depender de qual coluna a
+  // tela mandou por último.
+  const patch = body.componente_id
+    ? { ...body, versao_id: null, versao_item_id: null }
+    : body.versao_item_id ? { ...body, componente_id: null } : body;
+  const { data, error } = await client.from('mapeamento_activesoft').update(patch).eq('id', req.params.id).select().single();
+  // já existe um global para o mesmo código: dizer isso, e não "já existe
+  // um registro com esses dados" — a saída aqui é apagar esta linha ou
+  // trocar o destino do global, e a mensagem genérica não sugere nenhuma
+  if (error && (error as { code?: string }).code === '23505' && body.componente_id) {
+    return void res.status(409).json({ error: 'Este código já tem um destino global, definido em outra linha. Ajuste o destino lá, ou deixe esta linha como exceção apontando para um item da grade.' });
+  }
   if (error) throw error;
   res.json(data);
 }));

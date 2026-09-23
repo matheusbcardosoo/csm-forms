@@ -144,9 +144,22 @@ Correlação por `codigo_activesoft` em `aluno`, `(aluno, ano_letivo, serie)` em
 
 ## 5. Mapeamento de códigos
 
-O Activesoft usa códigos próprios para disciplina, série, turma e situação. A tabela `mapeamento_activesoft` guarda a correspondência, **por versão curricular** — o destino é um `versao_item`, não uma disciplina solta.
+O Activesoft usa códigos próprios para disciplina, série, turma e situação. A tabela `mapeamento_activesoft` guarda a correspondência.
 
-Ao duplicar uma versão, os mapeamentos cujo item foi copiado são recriados automaticamente apontando para o item novo. Sem isso, cada reforma obrigaria a remapear dezenas de códigos à mão, e um erro nesse remapeamento sai impresso num documento permanente. Códigos cujo item não sobreviveu à reforma entram como pendência, com aviso de que existiam na versão anterior. Ver `06-versionamento-curricular.md` §5.
+Para disciplina o destino tem dois níveis, e a importação tenta nesta ordem:
+
+| # | Destino | Alcance | Coluna |
+|---|---|---|---|
+| 1 | Linha da grade | só aquele currículo — é a exceção | `versao_id` + `versao_item_id` |
+| 2 | **Componente** | todo curso e todo currículo, inclusive os que ainda não existem | `componente_id`, com `versao_id` nulo |
+
+O caso normal é o 2. `componente` é a identidade sem curso e sem versão, então mapear o código uma vez basta: a importação resolve componente → linha da grade pela **versão e série da matrícula**. Isso é o que impede que a mesma lista de códigos precise ser remapeada a cada curso novo — um colégio com "Ensino Médio" e "Ensino Médio Bilíngue" mapeia `117 Language Practice - A1` uma vez, não duas. O nível 1 existe para quando um currículo específico precisa mandar o mesmo código para outro lugar.
+
+Códigos que o casamento automático resolve entram direto como mapeamento global, desde que a linha casada tenha componente. Linha sem componente (`componente_id` nulo, "componente novo, sem antecessor") não tem identidade estável para promover e fica presa ao currículo.
+
+Um mapeamento global cujo componente **não existe** na grade de destino vira pendência ali — resultado correto, e a mensagem diz exatamente isso: ou o componente entra naquela versão, ou aquele currículo ganha uma exceção.
+
+Ao duplicar uma versão, as exceções cujo item foi copiado são recriadas apontando para o item novo. Códigos cujo item não sobreviveu à reforma entram como pendência, com aviso de que existiam na versão anterior. Ver `06-versionamento-curricular.md` §5.
 
 ### Casamento automático, e onde ele para
 

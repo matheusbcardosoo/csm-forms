@@ -11,6 +11,9 @@ Scripts numerados e **imutáveis**, aplicados em ordem no SQL Editor do Supabase
 | `005_alunos_notas_importacao.sql` | F3+F4 | `aluno`, `matricula` (congela a versão curricular), `nota` (por linha da grade), `auditoria`, `importacao`, `importacao_divergencia`, `editar_nota()`, `resolver_divergencia()`, mapeamento global de série/situação |
 | `006_historico.sql` | F5 | `historico` (somente leitura depois de emitido), `historico_sequencia` (numeração por ano), `observacao_modelo` com textos-padrão semeados, `emitir_historico()`, `cancelar_historico()`, `criar_segunda_via()`, bucket `documentos` |
 | `007_endurecer_rpcs.sql` | — | Segurança: tira `anon` de todas as funções de `public` e fixa `search_path = public, pg_temp` nas 18. Não cria nem altera corpo de função. Responde aos advisors `*_security_definer_function_executable` e `function_search_path_mutable` |
+| `008_verificacao.sql` | F6 | Verificação pública de autenticidade do documento emitido |
+| `009_agendamento.sql` | F7 | `importacao_agendamento` — importação automática por horário e dias da semana |
+| `010_mapeamento_por_componente.sql` | F7 | `mapeamento_activesoft.componente_id`: destino global de disciplina, que vale para todo curso e toda versão. Promove a global os códigos cujos mapeamentos já apontavam todos para o mesmo componente |
 
 `supabase/schema.sql` (raiz) é o script antigo e continua válido só para bancos que nunca receberam a `001`. Novos objetos entram **sempre** como migration nova — nunca edite uma já aplicada.
 

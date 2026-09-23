@@ -8,10 +8,18 @@ import { useRecurso } from '@/hooks/useRecurso';
 import { useToast } from '@/hooks/useToast';
 import { Aviso, Botao, Cabecalho, CampoSelect, CampoTexto, Card, Carregando, EstadoVazio, Modal, Tag } from '@/componentes/ui';
 import { ROTULO_SITUACAO_MATRICULA, type SituacaoMatricula } from '@shared/types/aluno';
-import type { Curso, Serie, VersaoDetalhe, VersaoResumo } from '@shared/types/curriculo';
+import type { Componente, Curso, Serie, VersaoDetalhe, VersaoResumo } from '@shared/types/curriculo';
 import type { Mapeamento, TipoMapeamento } from '@shared/types/importacao';
 
-type Linha = Mapeamento & { versao: { id: string; nome: string; curso_id: string } | null; item: { id: string; nome_impresso: string; serie_id: string } | null; sugestao: { id: string; nome_impresso: string; serie_id: string } | null };
+type Linha = Mapeamento & { versao: { id: string; nome: string; curso_id: string } | null; componente: { id: string; nome_canonico: string; sigla: string | null } | null; item: { id: string; nome_impresso: string; serie_id: string } | null; sugestao: { id: string; nome_impresso: string; serie_id: string } | null };
+
+/**
+ * Valor do select de destino de disciplina. `c:` é o componente — vale
+ * para todo curso e todo currículo; `i:` é a linha de uma grade, e prende
+ * o código àquele currículo. São as duas colunas do banco, e a tela
+ * precisa distinguir qual das duas o destino escolhido é.
+ */
+const valorDestino = (m: Linha) => m.componente_id ? `c:${m.componente_id}` : m.versao_item_id ? `i:${m.versao_item_id}` : '';
 
 export function Mapeamentos() {
   const toast = useToast();
@@ -19,6 +27,7 @@ export function Mapeamentos() {
   const versaoFiltro = params.get('versao') || '';
   const soPendentes = params.get('pendentes') === '1';
   const cadastros = useRecurso<{ cursos: Curso[]; series: Serie[] }>('/api/cadastros/cursos');
+  const componentes = useRecurso<Componente[]>('/api/cadastros/componentes');
   const versoes = useRecurso<VersaoResumo[]>('/api/versoes');
   const url = `/api/importacoes/mapeamentos?${versaoFiltro ? `versao=${versaoFiltro}&` : ''}${soPendentes ? 'pendentes=1' : ''}`;
   const { dados, carregando, erro, recarregar } = useRecurso<Linha[]>(url);
@@ -48,9 +57,9 @@ export function Mapeamentos() {
   async function aceitarSugestoes() {
     setOcupado('lote');
     try {
-      const r = await api.post<{ aceitos: number; restantes: number }>(`/api/importacoes/mapeamentos/aceitar-sugestoes${versaoFiltro ? `?versao=${versaoFiltro}` : ''}`);
+      const r = await api.post<{ aceitos: number; globais: number; restantes: number }>(`/api/importacoes/mapeamentos/aceitar-sugestoes${versaoFiltro ? `?versao=${versaoFiltro}` : ''}`);
       toast.ok(r.aceitos
-        ? `${r.aceitos} sugestão(ões) aceita(s)${r.restantes ? ` · ${r.restantes} sem sugestão, escolha o destino à mão` : ''}. Reimporte para trazer os registros que ficaram de fora.`
+        ? `${r.aceitos} sugestão(ões) aceita(s)${r.globais ? `, ${r.globais} valendo para todos os cursos` : ''}${r.restantes ? ` · ${r.restantes} sem sugestão, escolha o destino à mão` : ''}. Reimporte para trazer os registros que ficaram de fora.`
         : 'Nenhuma sugestão para aceitar — escolha o destino de cada código.');
       recarregar();
     } catch (err) { toast.erro(mensagemErro(err)); }
@@ -73,10 +82,10 @@ export function Mapeamentos() {
 
   return (
     <div className="wrap">
-      <Cabecalho voltar={{ to: '/app/importacoes', rotulo: 'Importações' }} titulo="Mapeamento de códigos" descricao="Códigos do Activesoft (ou do arquivo) ↔ cadastro local. Disciplina é mapeada por versão curricular; série e situação valem para todas."
+      <Cabecalho voltar={{ to: '/app/importacoes', rotulo: 'Importações' }} titulo="Mapeamento de códigos" descricao="Códigos do Activesoft (ou do arquivo) ↔ cadastro local. Disciplina aponta para um componente e vale para todos os cursos; dá para prender a um currículo só quando ele for exceção. Série e situação valem para todos."
         acoes={<>
           {comSugestao.length ? <Botao variante="primario" icone="check" carregando={ocupado === 'lote'} onClick={aceitarSugestoes}>Aceitar {comSugestao.length} sugestão(ões)</Botao> : null}
-          <Botao icone="mais" onClick={() => setNovo({ tipo: 'disciplina', codigo_origem: '', descricao_origem: '', versao_id: (versoes.dados || []).find(v => v.status === 'vigente')?.id || '' })}>Cadastrar código</Botao>
+          <Botao icone="mais" onClick={() => setNovo({ tipo: 'disciplina', codigo_origem: '', descricao_origem: '', versao_id: '' })}>Cadastrar código</Botao>
         </>} />
       {erro ? <Aviso tipo="erro">{erro}</Aviso> : null}
 
@@ -96,7 +105,7 @@ export function Mapeamentos() {
         <span className="cel-sub">{dados?.length ?? 0} código(s)</span>
       </div>
 
-      <Card semCorpo rodape={<span>Ao duplicar uma versão curricular, os mapeamentos de disciplina são herdados apontando para os itens novos. Códigos cujo item foi extinto voltam como pendência.</span>}>
+      <Card semCorpo rodape={<span>Mapear para o <b>componente</b> vale para todo curso e todo currículo, inclusive os que ainda não existem — a importação resolve a linha da grade pela série da matrícula. A <b>exceção</b> só vale no currículo da linha e ganha do componente. Ao duplicar uma versão, as exceções são herdadas apontando para os itens novos; as que perderam o item voltam como pendência.</span>}>
         {carregando && !dados ? <Carregando /> : !dados?.length ? <EstadoVazio icone="grade" titulo="Nenhum código" descricao="Os códigos aparecem aqui na primeira importação (como pendências) ou podem ser cadastrados à mão." /> : (
           <div className="tab-box"><table className="responsiva">
             <thead><tr><th>Tipo</th><th>Código na origem</th><th>Currículo</th><th>Destino</th><th className="num">Afetados</th><th>Status</th></tr></thead>
@@ -104,13 +113,25 @@ export function Mapeamentos() {
               <tr key={m.id} className={m.confirmado ? '' : ''} style={!m.confirmado ? { background: 'var(--aviso-bg)' } : undefined}>
                 <td data-rotulo="Tipo">{m.tipo}</td>
                 <td data-rotulo="Código" className="cel-principal"><code>{m.codigo_origem}</code>{m.descricao_origem ? <span className="sub">{m.descricao_origem}</span> : null}{m.observacao ? <span className="sub" style={{ color: 'var(--aviso)' }}>{m.observacao}</span> : null}</td>
-                <td data-rotulo="Currículo" className="cel-sub">{m.versao?.nome || (m.tipo === 'disciplina' ? '—' : 'todos')}</td>
+                <td data-rotulo="Currículo" className="cel-sub">{m.versao?.nome || (m.tipo === 'disciplina' && !m.componente_id ? '—' : 'todos')}</td>
                 <td data-rotulo="Destino">
                   {m.tipo === 'disciplina' ? (
-                    <select value={m.versao_item_id || ''} disabled={ocupado === m.id || !m.versao_id} onChange={e => salvar(m, { versao_item_id: e.target.value || null, confirmado: !!e.target.value })} aria-label={`Destino de ${m.codigo_origem}`} style={{ maxWidth: 320, width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--linha-forte)', background: 'var(--superficie)', color: 'var(--texto)', fontSize: 12.5 }}>
-                      <option value="">— escolher item —</option>
-                      {m.sugestao && !m.versao_item_id ? <option value={m.sugestao.id}>★ Sugestão: {m.sugestao.nome_impresso} ({nomeSerie(m.sugestao.serie_id)})</option> : null}
-                      {(itensPorVersao[m.versao_id || ''] || (m.item ? [{ id: m.item.id, rotulo: m.item.nome_impresso, serie_id: m.item.serie_id }] : [])).map(i => <option key={i.id} value={i.id}>{i.rotulo}</option>)}
+                    <select value={valorDestino(m)} disabled={ocupado === m.id} onChange={e => {
+                      const [tipo, id] = e.target.value.split(':');
+                      salvar(m, id
+                        ? (tipo === 'c' ? { componente_id: id, versao_item_id: null, confirmado: true } : { versao_item_id: id, componente_id: null, confirmado: true })
+                        : { componente_id: null, versao_item_id: null, confirmado: false });
+                    }} aria-label={`Destino de ${m.codigo_origem}`} style={{ maxWidth: 320, width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--linha-forte)', background: 'var(--superficie)', color: 'var(--texto)', fontSize: 12.5 }}>
+                      <option value="">— escolher destino —</option>
+                      {m.sugestao && !m.componente_id && !m.versao_item_id ? <option value={`i:${m.sugestao.id}`}>★ Sugestão: {m.sugestao.nome_impresso} ({nomeSerie(m.sugestao.serie_id)})</option> : null}
+                      <optgroup label="Componente — vale para todos os cursos">
+                        {(componentes.dados || []).filter(c => c.ativo || c.id === m.componente_id).map(c => <option key={c.id} value={`c:${c.id}`}>{c.nome_canonico}{c.sigla ? ` (${c.sigla})` : ''}</option>)}
+                      </optgroup>
+                      {m.versao_id ? (
+                        <optgroup label={`Exceção — só em ${m.versao?.nome || 'este currículo'}`}>
+                          {(itensPorVersao[m.versao_id] || (m.item ? [{ id: m.item.id, rotulo: m.item.nome_impresso, serie_id: m.item.serie_id }] : [])).map(i => <option key={i.id} value={`i:${i.id}`}>{i.rotulo}</option>)}
+                        </optgroup>
+                      ) : null}
                     </select>
                   ) : m.tipo === 'serie' ? (
                     <select value={m.destino_valor || ''} disabled={ocupado === m.id} onChange={e => salvar(m, { destino_valor: e.target.value || null, confirmado: !!e.target.value })} aria-label={`Série para ${m.codigo_origem}`} style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--linha-forte)', background: 'var(--superficie)', color: 'var(--texto)', fontSize: 12.5 }}>
@@ -138,7 +159,7 @@ export function Mapeamentos() {
           <CampoSelect rotulo="Tipo" value={novo.tipo} onChange={e => setNovo(n => n && ({ ...n, tipo: e.target.value as TipoMapeamento }))}><option value="disciplina">Disciplina</option><option value="serie">Série</option><option value="situacao">Situação</option><option value="turma">Turma</option></CampoSelect>
           <CampoTexto rotulo="Código na origem" value={novo.codigo_origem} onChange={e => setNovo(n => n && ({ ...n, codigo_origem: e.target.value }))} obrigatorio />
           <CampoTexto className="col-2" rotulo="Descrição na origem" value={novo.descricao_origem} onChange={e => setNovo(n => n && ({ ...n, descricao_origem: e.target.value }))} />
-          {novo.tipo === 'disciplina' ? <CampoSelect className="col-2" rotulo="Versão curricular" value={novo.versao_id} onChange={e => setNovo(n => n && ({ ...n, versao_id: e.target.value }))} obrigatorio><option value="">Selecione</option>{(versoes.dados || []).map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}</CampoSelect> : null}
+          {novo.tipo === 'disciplina' ? <CampoSelect className="col-2" rotulo={<>Alcance <small>— onde este código vale</small></>} value={novo.versao_id} onChange={e => setNovo(n => n && ({ ...n, versao_id: e.target.value }))}><option value="">Todos os cursos — destino é um componente</option>{(versoes.dados || []).map(v => <option key={v.id} value={v.id}>Só em {v.nome}</option>)}</CampoSelect> : null}
         </div> : null}
       </Modal>
     </div>
