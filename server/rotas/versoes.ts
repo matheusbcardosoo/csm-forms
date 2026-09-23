@@ -45,7 +45,7 @@ async function carregarDetalhe(client: ReturnType<typeof ctx>['client'], id: str
     client.from('serie').select('*').eq('curso_id', versao.curso_id).order('ordem').order('codigo'),
     client.from('versao_bloco').select('*').eq('versao_id', id).order('ordem'),
     client.from('versao_agrupamento').select('*, versao_bloco!inner(versao_id)').eq('versao_bloco.versao_id', id).order('ordem'),
-    client.from('versao_item').select('*, versao_agrupamento!inner(versao_bloco!inner(versao_id))').eq('versao_agrupamento.versao_bloco.versao_id', id).order('ordem'),
+    client.from('versao_item').select('*, disciplinas:versao_item_disciplina(id, versao_item_id, codigo_origem, descricao_origem, habilitado, ordem), versao_agrupamento!inner(versao_bloco!inner(versao_id))').eq('versao_agrupamento.versao_bloco.versao_id', id).order('ordem'),
     client.from('versao_total').select('*').eq('versao_id', id),
     versao.duplicada_de_id
       ? client.from('versao_curricular').select('id, nome').eq('id', versao.duplicada_de_id).maybeSingle()
@@ -110,12 +110,63 @@ versoesRouter.delete('/:id', exigirPapel('admin'), seguro(async (req, res) => {
   res.json({ success: true });
 }));
 
+/* ---------- composição da linha: disciplinas da origem ---------- */
+const disciplinasSchema = z.array(z.object({
+  codigo_origem: z.string().trim().min(1).max(60),
+  descricao_origem: texto,
+  habilitado: z.boolean().optional(),
+  ordem: z.coerce.number().int().min(0).optional()
+})).max(200);
+
+/**
+ * Substitui a composição de UMA linha da grade.
+ *
+ * Não exige rascunho de propósito: o trigger que trava versão em uso
+ * protege o que o documento imprime, e a composição não imprime nada —
+ * ela diz como a origem alimenta a linha. Travá-la obrigaria a duplicar
+ * um currículo inteiro para corrigir um código de disciplina.
+ */
+versoesRouter.put('/itens/:id/disciplinas', exigirPapel('admin'), seguro(async (req, res) => {
+  const body = validar(disciplinasSchema, req, res);
+  if (!body) return;
+  const { client } = ctx(res);
+
+  const { data: item, error: eI } = await client.from('versao_item').select('id').eq('id', req.params.id).maybeSingle();
+  if (eI) throw eI;
+  if (!item) return void res.status(404).json({ error: 'Linha da grade não encontrada.' });
+
+  const codigos = body.map(d => d.codigo_origem);
+  if (new Set(codigos).size !== codigos.length) return void res.status(422).json({ error: 'O mesmo código aparece duas vezes na composição.' });
+
+  // fora os que sumiram, depois grava os que ficaram
+  const remover = client.from('versao_item_disciplina').delete().eq('versao_item_id', req.params.id);
+  const { error: eD } = await (codigos.length ? remover.not('codigo_origem', 'in', `(${codigos.map(c => `"${c.replace(/"/g, '')}"`).join(',')})`) : remover);
+  if (eD) throw eD;
+
+  if (codigos.length) {
+    const { error } = await client.from('versao_item_disciplina').upsert(
+      body.map((d, i) => ({ versao_item_id: req.params.id, codigo_origem: d.codigo_origem, descricao_origem: d.descricao_origem ?? null, habilitado: d.habilitado ?? true, ordem: d.ordem ?? i })),
+      { onConflict: 'versao_item_id,codigo_origem' });
+    if (error) throw error;
+  }
+
+  const { data, error } = await client.from('versao_item_disciplina').select('*').eq('versao_item_id', req.params.id).order('ordem');
+  if (error) throw error;
+  res.json(data);
+}));
+
 /* ---------- duplicar / publicar (funções SQL, atômicas) ---------- */
 versoesRouter.post('/:id/duplicar', exigirPapel('admin'), seguro(async (req, res) => {
   const body = validar(z.object({ nome: textoObrigatorio }), req, res);
   if (!body) return;
   const { client, perfil } = ctx(res);
   const { data, error } = await client.rpc('duplicar_versao', { p_origem_id: req.params.id, p_nome: body.nome, p_usuario: perfil.email });
+  // composição das linhas: sem isto, a versão nova perderia calada a
+  // configuração de eletivas e multisseriadas
+  if (!error && data) {
+    const { error: eC } = await client.rpc('duplicar_composicao', { p_origem_id: req.params.id, p_destino_id: data });
+    if (eC) throw eC;
+  }
   if (error) throw error;
   res.status(201).json({ id: data });
 }));

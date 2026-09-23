@@ -8,6 +8,7 @@ import { getServiceClient } from '../../lib/supabase';
 import { adaptadorPadrao, criarAdaptador, COLUNAS_MODELO, type NomeAdaptador } from '../adapters/activesoft';
 import { rodar } from '../servicos/agendador';
 import { executarImportacao } from '../servicos/importacao';
+import { montarGradeDaOrigem } from '../servicos/grade-da-origem';
 
 export const importacoesRouter = Router();
 
@@ -116,13 +117,34 @@ importacoesRouter.put('/mapeamentos/:id', exigirPapel('admin', 'secretaria'), se
   const patch = body.componente_id
     ? { ...body, versao_id: null, versao_item_id: null }
     : body.versao_item_id ? { ...body, componente_id: null } : body;
-  const { data, error } = await client.from('mapeamento_activesoft').update(patch).eq('id', req.params.id).select().single();
-  // já existe um global para o mesmo código: dizer isso, e não "já existe
-  // um registro com esses dados" — a saída aqui é apagar esta linha ou
-  // trocar o destino do global, e a mensagem genérica não sugere nenhuma
-  if (error && (error as { code?: string }).code === '23505' && body.componente_id) {
-    return void res.status(409).json({ error: 'Este código já tem um destino global, definido em outra linha. Ajuste o destino lá, ou deixe esta linha como exceção apontando para um item da grade.' });
+
+  // Promover a global um código que JÁ tem global é o caso comum de uma
+  // linha fantasma: sobrou presa a um currículo, pendente, enquanto o
+  // global já resolvia tudo. Se o destino escolhido é o mesmo do global,
+  // esta linha não tem função nenhuma — some, em vez de dar erro.
+  if (body.componente_id) {
+    const { data: atual, error: eA } = await client.from('mapeamento_activesoft').select('codigo_origem').eq('id', req.params.id).single();
+    if (eA) throw eA;
+    const { data: global, error: eG } = await client.from('mapeamento_activesoft')
+      .select('id, componente_id, componente:componente(nome_canonico)')
+      .eq('tipo', 'disciplina').is('versao_id', null).eq('codigo_origem', atual.codigo_origem)
+      .neq('id', req.params.id).maybeSingle();
+    if (eG) throw eG;
+    if (global) {
+      if (global.componente_id === body.componente_id) {
+        const { error: eD } = await client.from('mapeamento_activesoft').delete().eq('id', req.params.id);
+        if (eD) throw eD;
+        return void res.json({ absorvido: true, id: global.id });
+      }
+      const comp = global.componente as unknown as { nome_canonico: string } | { nome_canonico: string }[] | null;
+      const nome = (Array.isArray(comp) ? comp[0] : comp)?.nome_canonico || 'outro componente';
+      return void res.status(409).json({
+        error: `Este código já vale para todos os cursos apontando para "${nome}". Para mandá-lo a outro lugar só neste currículo, escolha um item em "Exceção" — o global continua valendo nos demais.`
+      });
+    }
   }
+
+  const { data, error } = await client.from('mapeamento_activesoft').update(patch).eq('id', req.params.id).select().single();
   if (error) throw error;
   res.json(data);
 }));
@@ -139,6 +161,38 @@ importacoesRouter.post('/mapeamentos', exigirPapel('admin', 'secretaria'), segur
   const { data, error } = await client.from('mapeamento_activesoft').insert({ ...body, confirmado: body.confirmado ?? true }).select().single();
   if (error) throw error;
   res.status(201).json(data);
+}));
+
+/* ---------- montar a grade a partir da origem ---------- */
+const gradeSchema = z.object({
+  adaptador: z.enum(['activesoft', 'arquivo', 'mock']).optional(),
+  anoLetivo: z.coerce.number().int().min(1900).max(2200),
+  cursoId: uuid,
+  versaoId: z.preprocess(v => (v === '' ? undefined : v), uuid.optional()),
+  nomeVersao: texto,
+  modo: z.enum(['simulacao', 'efetiva'])
+});
+
+/**
+ * Lê o que a origem manda de um ano e monta com isso a grade de um
+ * rascunho: as disciplinas de cada série, a carga horária, o componente
+ * de cada uma e o mapeamento do código. Só admin — está criando a
+ * estrutura que o histórico imprime.
+ */
+importacoesRouter.post('/grade', exigirPapel('admin'), seguro(async (req, res) => {
+  const body = validar(gradeSchema, req, res);
+  if (!body) return;
+  const { perfil } = ctx(res);
+  const ad = criarAdaptador(body.adaptador || adaptadorPadrao());
+  try {
+    const r = await montarGradeDaOrigem(getServiceClient(), ad, {
+      anoLetivo: body.anoLetivo, cursoId: body.cursoId, versaoId: body.versaoId,
+      nomeVersao: body.nomeVersao || undefined, modo: body.modo, usuario: perfil.email
+    });
+    res.json(r);
+  } catch (err) {
+    res.status(422).json({ error: (err as Error).message });
+  }
 }));
 
 /* ---------- executar ---------- */

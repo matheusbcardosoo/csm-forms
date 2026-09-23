@@ -129,6 +129,84 @@ cadastrosRouter.put('/componentes/:id', exigirPapel('admin'), seguro(async (req,
   res.json(data);
 }));
 
+/**
+ * Onde este componente está em uso. É o que a confirmação de exclusão
+ * mostra: apagar identidade de componente sem ver o estrago é como
+ * apagar uma coluna do histórico às cegas.
+ */
+async function usoDoComponente(client: ReturnType<typeof ctx>['client'], id: string) {
+  const [linhas, maps] = await Promise.all([
+    client.from('versao_item')
+      .select('nome_impresso, serie:serie(nome), versao_agrupamento!inner(versao_bloco!inner(versao_curricular!inner(id, nome, status, curso:curso(nome))))')
+      .eq('componente_id', id),
+    client.from('mapeamento_activesoft').select('codigo_origem, descricao_origem').eq('componente_id', id)
+  ]);
+  for (const r of [linhas, maps]) if (r.error) throw r.error;
+
+  const um = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? v[0] ?? null : v);
+  const detalhadas = (linhas.data || []).map(l => {
+    const versao = um(um((um(l.versao_agrupamento as never) as { versao_bloco: unknown } | null)?.versao_bloco as never) as never) as
+      { id: string; nome: string; status: string; curso: { nome: string } | { nome: string }[] } | null;
+    return {
+      versao_id: versao?.id || '',
+      versao: versao?.nome || '—',
+      status: versao?.status || '—',
+      curso: um(versao?.curso as never as { nome: string } | { nome: string }[])?.nome || '—',
+      serie: um(l.serie as never as { nome: string } | { nome: string }[])?.nome || '—',
+      nome_impresso: l.nome_impresso as string
+    };
+  });
+
+  // Nota não aponta para o componente, aponta para a linha da grade; o
+  // que interessa é quantas notas existem nas linhas que sumiriam.
+  let notas = 0;
+  const ids = (linhas.data || []).length
+    ? (await client.from('versao_item').select('id').eq('componente_id', id)).data?.map(x => x.id) || []
+    : [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const { count, error } = await client.from('nota').select('id', { count: 'exact', head: true }).in('versao_item_id', ids.slice(i, i + 100));
+    if (error) throw error;
+    notas += count || 0;
+  }
+
+  const emUso = detalhadas.filter(l => l.status !== 'rascunho');
+  const motivo = emUso.length
+    ? `Está em ${emUso.length} linha(s) de currículo já publicado — é a identidade de uma coluna de histórico emitido, e apagá-la reescreveria documento antigo. Remova a linha do currículo (duplicando a versão) antes.`
+    : notas
+      ? `Há ${notas} nota(s) gravada(s) nas linhas que seriam removidas. Apague ou remaneje essas notas antes.`
+      : null;
+
+  return { linhas: detalhadas, mapeamentos: maps.data || [], notas, podeExcluir: !motivo, motivo };
+}
+
+cadastrosRouter.get('/componentes/:id/uso', exigirPapel('admin'), seguro(async (req, res) => {
+  const { client } = ctx(res);
+  res.json(await usoDoComponente(client, req.params.id));
+}));
+
+/**
+ * Exclui o componente. Leva junto as linhas de grade em RASCUNHO que o
+ * usavam e solta os mapeamentos que apontavam para ele — que é o que a
+ * confirmação na tela prometeu. Currículo publicado bloqueia.
+ */
+cadastrosRouter.delete('/componentes/:id', exigirPapel('admin'), seguro(async (req, res) => {
+  const { client } = ctx(res);
+  const uso = await usoDoComponente(client, req.params.id);
+  if (!uso.podeExcluir) return void res.status(409).json({ error: uso.motivo });
+
+  const { error: eM } = await client.from('mapeamento_activesoft')
+    .update({ componente_id: null, confirmado: false, observacao: 'O componente que era o destino deste código foi excluído. Escolha outro.' })
+    .eq('componente_id', req.params.id);
+  if (eM) throw eM;
+
+  const { error: eI } = await client.from('versao_item').delete().eq('componente_id', req.params.id);
+  if (eI) throw eI;
+
+  const { error } = await client.from('componente').delete().eq('id', req.params.id);
+  if (error) throw error;
+  res.json({ removido: true, linhas: uso.linhas.length, mapeamentos: uso.mapeamentos.length });
+}));
+
 /* ================= ESTABELECIMENTOS EXTERNOS ================= */
 const estabSchema = z.object({
   nome: textoObrigatorio,

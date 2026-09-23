@@ -82,6 +82,55 @@ function explicarFalha(entidade: 'aluno' | 'matricula' | 'nota', err: unknown): 
 
 const codigoErro = (err: unknown) => ((err || {}) as FalhaBanco).code || '';
 
+interface Parcela { codigo: string; descricao: string; valores: Record<string, unknown>; chaveOrigem: string }
+
+/**
+ * Vários códigos da origem para a MESMA linha da grade.
+ *
+ * Literatura, Gramática, Redação e Interpretação Textual chegam como
+ * quatro disciplinas e o currículo imprime uma linha só de Língua
+ * Portuguesa. Só cabe uma nota por linha, então antes disto três das
+ * quatro notas eram descartadas e qual sobrevivia era a ordem em que a
+ * origem devolveu — o que é pior do que errado, é imprevisível.
+ *
+ * A nota final é a **média simples** das parcelas. Faltas e carga
+ * horária somam, porque são do aluno naquele conjunto de aulas.
+ * Conceito só sobrevive se todas as parcelas disserem o mesmo; situação
+ * idem, e quando divergem ela é recalculada da média contra a média de
+ * aprovação do curso.
+ *
+ * As parcelas ficam guardadas em `valor_importado.partes`: quem abrir a
+ * nota vê de onde os 7,75 vieram, e a divergência continua comparando
+ * origem contra origem (RF-INT-06), não contra o valor editado à mão.
+ */
+function consolidar(parcelas: Parcela[], media: number | null): { origem: Record<string, unknown>; partes: Record<string, unknown>[] | null } {
+  if (parcelas.length === 1) return { origem: parcelas[0].valores, partes: null };
+  const numeros = (campo: string) => parcelas.map(x => x.valores[campo] as number | null).filter((v): v is number => v != null);
+  const vals = numeros('valor');
+  const faltas = numeros('faltas');
+  const cargas = numeros('carga_horaria');
+  const conceitos = [...new Set(parcelas.map(x => x.valores.conceito as string | null).filter(Boolean))];
+  const situacoes = [...new Set(parcelas.map(x => x.valores.situacao as string))];
+  const soma = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+  // numeric(5,2) na coluna: arredonda aqui para o valor gravado ser o
+  // mesmo que a comparação da próxima importação vai enxergar
+  const valor = vals.length ? Math.round((soma(vals) / vals.length) * 100) / 100 : null;
+  return {
+    origem: {
+      valor,
+      conceito: conceitos.length === 1 ? conceitos[0] : null,
+      faltas: faltas.length ? soma(faltas) : null,
+      carga_horaria: cargas.length ? soma(cargas) : null,
+      situacao: situacoes.length === 1 ? situacoes[0] : traduzirSituacaoNota(undefined, valor ?? undefined, media)
+    },
+    partes: parcelas.map(x => ({
+      codigo: x.codigo, descricao: x.descricao,
+      valor: x.valores.valor ?? null, conceito: x.valores.conceito ?? null,
+      faltas: x.valores.faltas ?? null, carga_horaria: x.valores.carga_horaria ?? null
+    }))
+  };
+}
+
 /** "8.5", "A" ou "aprovado" — o que identifica a nota numa linha do relatório. */
 const resumoNota = (v: Record<string, unknown>) => v.valor != null ? String(v.valor) : (v.conceito as string) || String(v.situacao || '—');
 
@@ -111,7 +160,7 @@ async function lerTudo<T>(fazer: (de: number, ate: number) => PromiseLike<{ data
   return tudo;
 }
 
-function normalizar(s: string | null | undefined): string {
+export function normalizar(s: string | null | undefined): string {
   return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
@@ -140,7 +189,7 @@ function normalizar(s: string | null | undefined): string {
 const LIMIAR_AUTOMATICO = 0.8;
 const MARGEM_ISOLAMENTO = 0.3;
 
-function casamentoUnico<T>(candidatos: { alvo: T; score: number }[]): T | null {
+export function casamentoUnico<T>(candidatos: { alvo: T; score: number }[]): T | null {
   const ordenados = [...candidatos].sort((a, b) => b.score - a.score);
   const melhor = ordenados[0];
   if (!melhor) return null;
@@ -152,7 +201,7 @@ function casamentoUnico<T>(candidatos: { alvo: T; score: number }[]): T | null {
 }
 
 /** Similaridade simples por tokens (0..1) para sugerir destino de mapeamento. */
-function similaridade(a: string, b: string): number {
+export function similaridade(a: string, b: string): number {
   const ta = new Set(normalizar(a).split(' ').filter(Boolean));
   const tb = new Set(normalizar(b).split(' ').filter(Boolean));
   if (!ta.size || !tb.size) return 0;
@@ -255,6 +304,11 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
   // (ano, série) sem versão curricular publicada — bloqueia as notas
   // daquela série inteira, antes mesmo de existir mapeamento (RF-VER-11)
   const semCurriculo = new Map<string, { ano: number; serie: string; serie_id: string; matriculas: number }>();
+  // linhas da grade que não têm componente e foram alcançadas pelo nome
+  // canônico do destino global — funcionou, mas depende do nome bater
+  const casadasPeloNome = new Map<string, { curriculo: string; linha: string; componente: string }>();
+  // notas cuja nota final saiu da média de várias disciplinas da origem
+  let consolidadas = 0;
   const agora = new Date().toISOString();
   // falhas depois de os registros já terem entrado (mapeamentos,
   // divergências): viram aviso no relatório, nunca parada
@@ -279,15 +333,17 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
     if (eAno) throw eAno;
     if (!anoLetivo) throw new Error(`Ano letivo de ${p.filtro.anoLetivo} não cadastrado. Cadastre-o em Configuração › Anos letivos antes de importar.`);
 
-    const [series, mapeamentos, sistemas] = await Promise.all([
+    const [series, mapeamentos, sistemas, comps] = await Promise.all([
       db.from('serie').select('id, curso_id, codigo, nome, ordem, ativo'),
       db.from('mapeamento_activesoft').select('id, versao_id, tipo, codigo_origem, versao_item_id, componente_id, destino_valor, confirmado'),
-      db.from('sistema_avaliacao').select('curso_id, media_aprovacao')
+      db.from('sistema_avaliacao').select('curso_id, media_aprovacao'),
+      db.from('componente').select('id, nome_canonico, sigla')
     ]);
-    for (const r of [series, mapeamentos, sistemas]) if (r.error) throw r.error;
+    for (const r of [series, mapeamentos, sistemas, comps]) if (r.error) throw r.error;
     const seriesLocais = (series.data || []) as SerieLocal[];
     const maps = (mapeamentos.data || []) as MapeamentoLocal[];
     const mediaPorCurso = new Map<string, number | null>((sistemas.data || []).map(s => [s.curso_id, s.media_aprovacao]));
+    const componentesPorId = new Map<string, { nome: string; sigla: string | null }>((comps.data || []).map(c => [c.id, { nome: c.nome_canonico, sigla: c.sigla }]));
 
     const mapaSerie = new Map<string, string>();       // codigo_origem → serie_id
     const mapaSituacao = new Map<string, string>();    // normalizado → enum
@@ -555,6 +611,30 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
       const itemPorId = new Map<string, ItemLocal>();
       for (const lista of itensPorVersao.values()) for (const i of lista) itemPorId.set(i.id, i);
 
+      // Composição das linhas: qual disciplina da origem alimenta qual
+      // linha, em qual série. É o que resolve eletiva e turma
+      // multisseriada — "Language Practice B1" existe no 7º, 8º e 9º, e
+      // "Projeto de Vida - Robótica" só no 9º.
+      //
+      // Configurar é opcional: linha sem composição continua resolvendo
+      // pelo mapeamento de sempre. Quem configura ganha a checagem.
+      const composicao = new Map<string, Map<string, { porSerie: Map<string, { itemId: string; habilitado: boolean }>; nome: string }>>();
+      const idsItens = [...itemPorId.keys()];
+      for (let i = 0; i < idsItens.length; i += 100) {
+        const fatia = idsItens.slice(i, i + 100);
+        const comp = await lerTudo<{ versao_item_id: string; codigo_origem: string; habilitado: boolean }>((de, ate) =>
+          db.from('versao_item_disciplina').select('versao_item_id, codigo_origem, habilitado').in('versao_item_id', fatia).order('id').range(de, ate));
+        for (const c of comp) {
+          const item = itemPorId.get(c.versao_item_id);
+          if (!item) continue;
+          const porVersao = composicao.get(item.versao_id) || new Map();
+          composicao.set(item.versao_id, porVersao);
+          const porCodigo = porVersao.get(c.codigo_origem) || { porSerie: new Map(), nome: item.nome_impresso };
+          porCodigo.porSerie.set(item.serie_id, { itemId: c.versao_item_id, habilitado: c.habilitado });
+          porVersao.set(c.codigo_origem, porCodigo);
+        }
+      }
+
       // notas locais das matrículas envolvidas
       const notasLocais = new Map<string, NotaLocal>();
       const idsMat = [...matriculasPorCodigo.values()].map(m => m.id).filter(id => !id.startsWith('sim:'));
@@ -589,10 +669,11 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
       const alunoPorId = new Map<string, string>();
       for (const a of alunosPorCodigo.values()) alunoPorId.set(a.id, (a.nome as string) || '');
 
-      // (matrícula, linha da grade) já atendida nesta execução. O banco só
-      // aceita uma nota por par; sem isto, a segunda linha da origem para o
-      // mesmo par ia direto para o insert e derrubava a importação inteira.
-      const vistasNestaExecucao = new Map<string, { codigo: string; valores: Record<string, unknown> }>();
+      // (matrícula, linha da grade) → tudo que a origem mandou para ela.
+      // A gravação só acontece na segunda passada, depois de saber quantas
+      // parcelas cada linha tem: o banco aceita uma nota por par, e qual
+      // valor ela leva depende do conjunto.
+      const porLinha = new Map<string, { mat: MatriculaLocal; item: ItemLocal; nomeAluno: string; media: number | null; parcelas: Parcela[] }>();
 
       for (const n of notas) {
         const mat = matriculasPorCodigo.get(n.matriculaCodigoOrigem);
@@ -615,6 +696,31 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
         const map = mapaDisciplina.get(`${mat.versao_curricular_id}|${n.disciplinaCodigoOrigem}`);
         let item: ItemLocal | undefined;
 
+        // 0. Composição da linha, quando o currículo a define: é a mais
+        //    específica de todas, porque diz série a série. Se o código
+        //    está configurado nesta versão e NÃO vale nesta série, isso é
+        //    uma resposta — não se cai nos outros caminhos para achar um
+        //    encaixe que a secretaria já recusou.
+        const configurado = composicao.get(mat.versao_curricular_id)?.get(n.disciplinaCodigoOrigem);
+        if (configurado) {
+          const naSerie = configurado.porSerie.get(mat.serie_id);
+          if (naSerie?.habilitado) item = itemPorId.get(naSerie.itemId);
+          else {
+            const chaveErro = `${n.matriculaCodigoOrigem}/${n.disciplinaCodigoOrigem}`;
+            const outras = [...configurado.porSerie.keys()]
+              .map(sid => seriesLocais.find(x => x.id === sid)?.nome)
+              .filter(Boolean).join(', ');
+            const nomeSerie = seriesLocais.find(x => x.id === mat.serie_id)?.nome || 'série do aluno';
+            erroRegistro(
+              { entidade: 'nota', chave: chaveErro, descricao: `${nomeAluno} · "${n.disciplinaDescricao || n.disciplinaCodigoOrigem}" não vale na ${nomeSerie}` },
+              'Disciplina fora das séries configuradas',
+              naSerie
+                ? `O código "${n.disciplinaCodigoOrigem}" compõe "${configurado.nome}" mas está desabilitado na ${nomeSerie}, no currículo deste curso. Se ele vale aqui, habilite a série em Configuração › Currículos; se não vale, a nota está vindo para a turma errada na origem.`
+                : `O código "${n.disciplinaCodigoOrigem}" compõe "${configurado.nome}"${outras ? ` em ${outras}` : ''}, mas não na ${nomeSerie}. Habilite a série no currículo se ele também valer aqui.`);
+            continue;
+          }
+        }
+
         // 1. exceção desta versão: o mapeamento aponta para uma linha da
         //    grade, e resolve-se a linha de MESMA identidade na série da
         //    matrícula (a grade repete o componente em cada série).
@@ -625,7 +731,29 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
         // 2. mapeamento global: o código vale para todo curso e toda
         //    versão, e a linha sai do componente + série da matrícula.
         const componenteGlobal = mapaComponente.get(n.disciplinaCodigoOrigem);
-        if (!item && componenteGlobal) item = candidatosSerie.find(i => i.componente_id === componenteGlobal);
+        if (!item && componenteGlobal) {
+          item = candidatosSerie.find(i => i.componente_id === componenteGlobal);
+          // 2b. A grade tem a disciplina, mas a linha foi criada sem
+          //     componente — dá para montar um currículo inteiro digitando
+          //     nomes, sem escolher o componente de cada linha, e aí o
+          //     destino global não alcança nada.
+          //
+          //     Perguntar aqui seria perguntar o que já foi respondido: o
+          //     humano JÁ disse que este código é este componente. Casar
+          //     pelo nome canônico dele é inclusive mais confiável do que
+          //     o casamento automático comum, que compara com a descrição
+          //     crua da origem. Exige nome idêntico e alvo único.
+          if (!item) {
+            const c = componentesPorId.get(componenteGlobal);
+            const alvos = c ? candidatosSerie.filter(i => !i.componente_id && (normalizar(i.nome_impresso) === normalizar(c.nome) || (!!c.sigla && normalizar(i.nome_impresso) === normalizar(c.sigla)))) : [];
+            if (alvos.length === 1) {
+              item = alvos[0];
+              casadasPeloNome.set(`${mat.versao_curricular_id}|${item.id}`, {
+                curriculo: mat.versao_curricular_id, linha: item.nome_impresso, componente: c!.nome
+              });
+            }
+          }
+        }
 
         if (!item) {
           // "Língua Portuguesa" na origem e "Língua Portuguesa" no
@@ -681,26 +809,49 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
           situacao: traduzirSituacaoNota(n.situacao, n.valor, media), carga_horaria: n.cargaHoraria ?? null
         };
         const chave = `${mat.id}|${item.id}`;
-        const chaveOrigem = `${n.matriculaCodigoOrigem}/${n.disciplinaCodigoOrigem}`;
-        const descricao = `${nomeAluno} · ${item.nome_impresso}`;
+        const parcela: Parcela = {
+          codigo: n.disciplinaCodigoOrigem,
+          descricao: n.disciplinaDescricao || n.disciplinaCodigoOrigem,
+          valores: origem,
+          chaveOrigem: `${n.matriculaCodigoOrigem}/${n.disciplinaCodigoOrigem}`
+        };
+        const grupo = porLinha.get(chave);
+        if (grupo) grupo.parcelas.push(parcela);
+        else porLinha.set(chave, { mat, item, nomeAluno, media, parcelas: [parcela] });
+      }
 
-        // Segunda linha da origem para o mesmo par (matrícula, linha da
-        // grade). Se o conteúdo é igual, é linha repetida e não custa nada;
-        // se é diferente, alguém tem de escolher — a importação não inventa
-        // qual das duas notas vale.
-        const jaVista = vistasNestaExecucao.get(chave);
-        if (jaVista) {
-          if (JSON.stringify(jaVista.valores) === JSON.stringify(origem)) { cont.ignorados++; continue; }
-          const mesmoCodigo = jaVista.codigo === n.disciplinaCodigoOrigem;
+      /* ---------- 3b. consolidar e gravar ---------- */
+      for (const [chave, g] of porLinha) {
+        const { mat, item } = g;
+        const descricao = `${g.nomeAluno} · ${item.nome_impresso}`;
+        const chaveOrigem = g.parcelas[0].chaveOrigem;
+
+        // O mesmo código duas vezes na mesma linha não é consolidação, é
+        // lançamento repetido: com valores iguais some calado, com valores
+        // diferentes vira erro — costuma ser nota por bimestre no lugar da
+        // final, e mediar bimestres daria um número que ninguém pediu.
+        const unicas: Parcela[] = [];
+        for (const x of g.parcelas) {
+          const anterior = unicas.find(u => u.codigo === x.codigo);
+          if (!anterior) { unicas.push(x); continue; }
+          if (JSON.stringify(anterior.valores) === JSON.stringify(x.valores)) continue;
           erroRegistro(
-            { entidade: 'nota', chave: chaveOrigem, descricao: `${descricao} — a origem mandou duas notas diferentes (${resumoNota(jaVista.valores)} e ${resumoNota(origem)}) para a mesma linha da grade; ficou valendo a primeira` },
-            mesmoCodigo ? 'Disciplina repetida na origem com notas diferentes' : 'Dois códigos da origem na mesma linha da grade',
-            mesmoCodigo
-              ? `O código "${n.disciplinaCodigoOrigem}" veio mais de uma vez para a mesma matrícula, com notas diferentes. Quase sempre é nota por etapa/bimestre no lugar da nota final: ajuste o relatório do Activesoft para mandar só a final, ou corrija o lançamento duplicado lá.`
-              : `Os códigos "${jaVista.codigo}" e "${n.disciplinaCodigoOrigem}" estão ligados à mesma linha da grade ("${item.nome_impresso}"), e só cabe uma nota por linha. Em Mapeamentos, deixe só um dos dois apontando para essa disciplina.`);
-          continue;
+            { entidade: 'nota', chave: x.chaveOrigem, descricao: `${descricao} — o código "${x.codigo}" veio duas vezes com notas diferentes (${resumoNota(anterior.valores)} e ${resumoNota(x.valores)}); ficou valendo a primeira` },
+            'Disciplina repetida na origem com notas diferentes',
+            `O código "${x.codigo}" veio mais de uma vez para a mesma matrícula, com notas diferentes. Quase sempre é nota por etapa/bimestre no lugar da nota final: ajuste o relatório do Activesoft para mandar só a final, ou corrija o lançamento duplicado lá.`);
         }
-        vistasNestaExecucao.set(chave, { codigo: n.disciplinaCodigoOrigem, valores: origem });
+
+        const { origem, partes } = consolidar(unicas, g.media);
+        if (partes) {
+          consolidadas++;
+          if ((relatorio.consolidacoes || []).length < LIMITE_LINHAS) {
+            relatorio.consolidacoes = relatorio.consolidacoes || [];
+            relatorio.consolidacoes.push({
+              descricao, linha: item.nome_impresso, valor: (origem.valor as number | null) ?? null,
+              partes: partes.map(x => ({ codigo: x.codigo as string, descricao: x.descricao as string, valor: (x.valor as number | null) ?? null, conceito: (x.conceito as string | null) ?? null }))
+            });
+          }
+        }
 
         let local = notasLocais.get(chave);
 
@@ -710,7 +861,7 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
             linha({ entidade: 'nota', acao: 'criar', chave: chaveOrigem, descricao, detalhe: resumoNota(origem) });
             continue;
           }
-          const ins = await db.from('nota').insert({ matricula_id: mat.id, versao_item_id: item.id, ...origem, origem: adaptador.origem === 'arquivo_csv' ? 'importacao_arquivo' : 'activesoft', valor_importado: origem, sincronizado_em: agora }).select('*').single();
+          const ins = await db.from('nota').insert({ matricula_id: mat.id, versao_item_id: item.id, ...origem, origem: adaptador.origem === 'arquivo_csv' ? 'importacao_arquivo' : 'activesoft', valor_importado: { ...origem, ...(partes ? { partes } : {}) }, sincronizado_em: agora }).select('*').single();
           if (!ins.error) {
             cont.criados++;
             linha({ entidade: 'nota', acao: 'criar', chave: chaveOrigem, descricao, detalhe: resumoNota(origem) });
@@ -736,7 +887,7 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
           if (efetiva) {
             const idLocal = local.id;
             const r = await gravar({ entidade: 'nota', chave: chaveOrigem, descricao }, () =>
-              db.from('nota').update({ ...Object.fromEntries(mudancas), valor_importado: { ...importadoAntes, ...origem }, sincronizado_em: agora }).eq('id', idLocal));
+              db.from('nota').update({ ...Object.fromEntries(mudancas), valor_importado: { ...importadoAntes, ...origem, ...(partes ? { partes } : {}) }, sincronizado_em: agora }).eq('id', idLocal));
             if (!r.ok) continue;
           }
           cont.atualizados++;
@@ -758,9 +909,17 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
         if (efetiva) {
           const idLocal = local.id;
           await gravar({ entidade: 'nota', chave: chaveOrigem, descricao }, () =>
-            db.from('nota').update({ ...aplicar, valor_importado: { ...importadoAntes, ...aplicar }, sincronizado_em: agora }).eq('id', idLocal));
+            db.from('nota').update({ ...aplicar, valor_importado: { ...importadoAntes, ...aplicar, ...(partes ? { partes } : {}) }, sincronizado_em: agora }).eq('id', idLocal));
         }
       }
+    }
+
+    if (consolidadas) {
+      relatorio.avisos.push(`${consolidadas} nota(s) saíram da média simples de mais de uma disciplina da origem, porque o currículo imprime uma linha só para elas. A aba Consolidações mostra cada parcela; a nota guarda as parcelas junto, para conferência.`);
+    }
+    if (casadasPeloNome.size) {
+      const exemplos = [...new Set([...casadasPeloNome.values()].map(c => `"${c.linha}" → ${c.componente}`))].slice(0, 4).join(', ');
+      relatorio.avisos.push(`${casadasPeloNome.size} linha(s) da grade não têm componente definido e só foram alcançadas porque o nome bate com o do componente mapeado (${exemplos}). Funcionou, mas depende do nome continuar igual: abra o currículo e defina o componente dessas linhas para que o vínculo passe a ser por identidade.`);
     }
 
     /* ---------- séries sem currículo publicado (RF-VER-11) ---------- */

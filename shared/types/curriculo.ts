@@ -38,6 +38,30 @@ export interface Serie {
   ativo: boolean;
 }
 
+/**
+ * Uma disciplina da origem que compõe esta linha da grade. "Língua
+ * Portuguesa" no papel costuma ser Literatura + Gramática + Redação na
+ * origem; e a lista muda por série — eletiva que só existe no 9º ano,
+ * nível de inglês que atende três séries de uma vez.
+ */
+export interface ItemDisciplina {
+  id: string;
+  versao_item_id: string;
+  codigo_origem: string;
+  descricao_origem: string | null;
+  habilitado: boolean;
+  ordem: number;
+}
+
+/** Onde um componente está em uso — o que a exclusão precisa mostrar. */
+export interface UsoComponente {
+  linhas: { versao_id: string; versao: string; status: string; curso: string; serie: string; nome_impresso: string }[];
+  mapeamentos: { codigo_origem: string; descricao_origem: string | null }[];
+  notas: number;
+  podeExcluir: boolean;
+  motivo: string | null;
+}
+
 export interface Componente {
   id: string;
   nome_canonico: string;
@@ -76,6 +100,8 @@ export interface VersaoItem {
   nome_impresso: string;
   ordem: number;
   carga_horaria: number | null;
+  /** Disciplinas da origem que alimentam esta linha nesta série. */
+  disciplinas?: ItemDisciplina[];
 }
 
 export interface VersaoAgrupamento {

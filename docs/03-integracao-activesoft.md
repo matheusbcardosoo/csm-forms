@@ -161,6 +161,28 @@ Um mapeamento global cujo componente **não existe** na grade de destino vira pe
 
 Ao duplicar uma versão, as exceções cujo item foi copiado são recriadas apontando para o item novo. Códigos cujo item não sobreviveu à reforma entram como pendência, com aviso de que existiam na versão anterior. Ver `06-versionamento-curricular.md` §5.
 
+### Montar a grade a partir da origem
+
+Antes da primeira importação existe um ovo-e-galinha: sem grade não há `versao_item`, sem `versao_item` não há onde encaixar nota, e a importação devolve uma pendência por disciplina **por série** — dezenas de escolhas manuais para dizer ao sistema o que a origem já tinha dito.
+
+`Configuração › Currículos › Montar a partir do Activesoft` quebra isso. Lê as notas de um ano na origem e monta com elas, num **rascunho**: as disciplinas de cada série, a carga horária quando a origem devolve, o componente de cada uma (reusando o cadastro, ou criando com o nome que a origem usa) e o mapeamento global do código. Roda em dois passos — confere e depois grava —, e é idempotente: rodar de novo não duplica linha.
+
+O que ela **não** faz, e por quê:
+
+- **Não escreve em versão publicada.** O trigger `bloquear_edicao_versao_em_uso` recusa, e é a regra certa: dois alunos do mesmo ano não podem receber históricos com grades diferentes porque uma sincronização acrescentou uma linha no meio do caminho. Para uma versão em uso, duplique e monte na cópia.
+- **Não inventa blocos nem agrupamentos.** A origem manda disciplinas soltas; "Formação Geral Básica" e "Linguagens e suas Tecnologias" são decisão da escola e saem impressos no documento. As linhas novas caem num agrupamento chamado `A classificar`, de propósito: nome provisório deixa visível o que falta organizar antes de publicar.
+- **Não preenche os totais anuais** de aulas e horas. O relatório avisa quais séries estão sem.
+
+### Quando vários códigos caem na mesma linha
+
+O Activesoft manda Literatura, Gramática, Redação e Interpretação Textual como quatro disciplinas; o currículo imprime uma linha só de Língua Portuguesa. Só cabe **uma** nota por `(matrícula, versao_item)`, e antes disso três das quatro eram descartadas — qual sobrevivia era a ordem em que a origem devolveu, o que é pior que errado: é imprevisível.
+
+Agora a importação consolida. A nota final é a **média simples** das parcelas; faltas e carga horária somam; conceito só sobrevive se todas as parcelas disserem o mesmo; situação idem, e quando divergem é recalculada da média contra a média de aprovação do curso.
+
+As parcelas ficam em `nota.valor_importado.partes`, então quem abre a nota vê de onde os 7,75 vieram, e a comparação de divergência continua sendo origem contra origem (RF-INT-06). A aba **Consolidações** do relatório lista todas, e a simulação as mostra antes de gravar qualquer coisa.
+
+O mesmo **código** repetido na mesma linha não é consolidação, é lançamento repetido: com valores iguais some calado, com valores diferentes vira erro. Mediar bimestres daria um número que ninguém pediu.
+
 ### Casamento automático, e onde ele para
 
 Na primeira importação todo código é novo. Exigir confirmação humana para **todos** eles trava a importação inteira antes de a primeira nota entrar — e a maioria não tem dúvida nenhuma: a origem manda "Língua Portuguesa" e o currículo tem "Língua Portuguesa". Então o pipeline resolve sozinho dois casos, e só esses:

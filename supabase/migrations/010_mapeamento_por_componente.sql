@@ -87,3 +87,30 @@ where m.tipo = 'disciplina'
   and g.versao_id is null
   and g.codigo_origem = m.codigo_origem
   and g.componente_id = vi.componente_id;
+
+-- Fantasma: linha presa a um currículo, ainda PENDENTE, para um código
+-- que já tem destino global — e cujo componente existe naquela grade.
+-- A importação resolve pelo global e nunca olha para ela, mas a tela de
+-- Mapeamentos a mostra como pendência, e escolher um destino ali esbarra
+-- no índice único do global. Não há decisão guardada nessas linhas: o
+-- que elas tinham era contagem, que a próxima importação refaz.
+--
+-- A condição do componente estar na grade é o que separa o fantasma da
+-- pendência legítima: código global cujo componente NÃO está naquele
+-- currículo é pendência de verdade, e ali a saída é uma exceção.
+delete from mapeamento_activesoft m
+where m.tipo = 'disciplina'
+  and m.versao_id is not null
+  and not m.confirmado
+  and exists (
+    select 1
+    from mapeamento_activesoft g
+    join versao_item vi on vi.componente_id = g.componente_id
+    join versao_agrupamento ag on ag.id = vi.versao_agrupamento_id
+    join versao_bloco vb on vb.id = ag.versao_bloco_id
+    where g.tipo = 'disciplina'
+      and g.versao_id is null
+      and g.confirmado
+      and g.codigo_origem = m.codigo_origem
+      and vb.versao_id = m.versao_id
+  );

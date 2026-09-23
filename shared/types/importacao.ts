@@ -122,6 +122,18 @@ export interface RelatorioImportacao {
   errosResumo?: ResumoErro[];
   /** Erros que passaram do teto de linhas do relatório e não foram listados um a um. */
   errosOmitidos?: number;
+  /**
+   * Notas cuja nota final é a média simples de várias disciplinas da
+   * origem, porque o currículo imprime uma linha só para elas.
+   */
+  consolidacoes?: Consolidacao[];
+}
+
+export interface Consolidacao {
+  descricao: string;
+  linha: string;
+  valor: number | null;
+  partes: { codigo: string; descricao: string; valor: number | null; conceito: string | null }[];
 }
 
 export interface ResumoErro { causa: string; sugestao: string; quantidade: number }

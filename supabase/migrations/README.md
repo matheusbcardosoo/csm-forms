@@ -13,6 +13,7 @@ Scripts numerados e **imutáveis**, aplicados em ordem no SQL Editor do Supabase
 | `007_endurecer_rpcs.sql` | — | Segurança: tira `anon` de todas as funções de `public` e fixa `search_path = public, pg_temp` nas 18. Não cria nem altera corpo de função. Responde aos advisors `*_security_definer_function_executable` e `function_search_path_mutable` |
 | `008_verificacao.sql` | F6 | Verificação pública de autenticidade do documento emitido |
 | `009_agendamento.sql` | F7 | `importacao_agendamento` — importação automática por horário e dias da semana |
+| `011_composicao_do_item.sql` | F7 | `versao_item_disciplina`: quais disciplinas da origem compõem cada linha da grade e em quais séries (eletivas, turmas multisseriadas). `duplicar_composicao()` leva isso junto ao duplicar a versão |
 | `010_mapeamento_por_componente.sql` | F7 | `mapeamento_activesoft.componente_id`: destino global de disciplina, que vale para todo curso e toda versão. Promove a global os códigos cujos mapeamentos já apontavam todos para o mesmo componente |
 
 `supabase/schema.sql` (raiz) é o script antigo e continua válido só para bancos que nunca receberam a `001`. Novos objetos entram **sempre** como migration nova — nunca edite uma já aplicada.

@@ -2,7 +2,7 @@
 // (RF-INT-08). Disciplina aponta para um item da versão curricular;
 // série para uma série; situação para o valor interno.
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, mensagemErro } from '@/api/cliente';
 import { useRecurso } from '@/hooks/useRecurso';
 import { useToast } from '@/hooks/useToast';
@@ -49,7 +49,13 @@ export function Mapeamentos() {
 
   async function salvar(m: Linha, patch: Partial<Mapeamento>) {
     setOcupado(m.id);
-    try { await api.put(`/api/importacoes/mapeamentos/${m.id}`, patch); toast.ok('Mapeamento salvo.'); recarregar(); }
+    try {
+      const r = await api.put<{ absorvido?: boolean }>(`/api/importacoes/mapeamentos/${m.id}`, patch);
+      toast.ok(r?.absorvido
+        ? `"${m.codigo_origem}" já valia para todos os cursos com esse destino — esta linha era repetida e saiu da lista.`
+        : 'Mapeamento salvo.');
+      recarregar();
+    }
     catch (err) { toast.erro(mensagemErro(err)); }
     finally { setOcupado(null); }
   }
@@ -77,6 +83,11 @@ export function Mapeamentos() {
   const series = (cadastros.dados?.series || []).sort((a, b) => a.ordem - b.ordem);
   const nomeSerie = (id: string | null) => series.find(s => s.id === id)?.nome || '';
   const definir = (k: string, v: string) => { const p = new URLSearchParams(params); if (v) p.set(k, v); else p.delete(k); setParams(p); };
+  // código → componente já definido como destino global. Uma linha presa
+  // a currículo que aparece aqui não está esperando mapeamento: o destino
+  // existe, o que falta é o componente estar na grade daquele currículo.
+  const globalPorCodigo = new Map((dados || []).filter(m => m.tipo === 'disciplina' && !m.versao_id && m.confirmado && m.componente).map(m => [m.codigo_origem, m.componente!]));
+  const bloqueadoPelaGrade = (m: Linha) => m.tipo === 'disciplina' && !!m.versao_id && !m.confirmado && globalPorCodigo.has(m.codigo_origem);
   const pendentes = (dados || []).filter(m => !m.confirmado);
   const comSugestao = pendentes.filter(m => (m.tipo === 'disciplina' ? m.sugestao_item_id : m.destino_valor));
 
@@ -95,6 +106,12 @@ export function Mapeamentos() {
             <b>{pendentes.length} código(s) pendente(s) — os registros ligados a eles ficaram de fora da importação.</b>
             {comSugestao.length ? <> O sistema tem sugestão para {comSugestao.length}: confira a coluna Destino e aceite em lote, ou escolha um a um.</> : <> Escolha o destino de cada um na coluna Destino.</>}
             <> Depois de confirmar, <b>rode a importação de novo</b> — é ela que traz os registros que faltaram.</>
+            {pendentes.filter(bloqueadoPelaGrade).length ? (
+              <div style={{ marginTop: 8 }}>
+                <b>{pendentes.filter(bloqueadoPelaGrade).length} deles não se resolvem aqui:</b> o código já tem destino, e o que falta é
+                o componente estar na grade daquele currículo. Mapear de novo não muda nada — quem resolve é <b>Configuração › Currículos</b>.
+              </div>
+            ) : null}
           </Aviso>
         </div>
       ) : null}
@@ -115,7 +132,20 @@ export function Mapeamentos() {
                 <td data-rotulo="Código" className="cel-principal"><code>{m.codigo_origem}</code>{m.descricao_origem ? <span className="sub">{m.descricao_origem}</span> : null}{m.observacao ? <span className="sub" style={{ color: 'var(--aviso)' }}>{m.observacao}</span> : null}</td>
                 <td data-rotulo="Currículo" className="cel-sub">{m.versao?.nome || (m.tipo === 'disciplina' && !m.componente_id ? '—' : 'todos')}</td>
                 <td data-rotulo="Destino">
-                  {m.tipo === 'disciplina' ? (
+                  {bloqueadoPelaGrade(m) ? (
+                    <div style={{ fontSize: 12.5 }}>
+                      <div>Já vale para todos os cursos: <b>{globalPorCodigo.get(m.codigo_origem)!.nome_canonico}</b>.</div>
+                      <div className="cel-sub" style={{ marginTop: 2 }}>
+                        Este currículo não tem esse componente na grade — por isso os registros ficaram de fora. Inclua o componente
+                        no currículo, ou escolha abaixo uma linha da grade como exceção só aqui.
+                      </div>
+                      <select value="" disabled={ocupado === m.id} onChange={e => { if (e.target.value) salvar(m, { versao_item_id: e.target.value.slice(2), componente_id: null, confirmado: true }); }} aria-label={`Exceção para ${m.codigo_origem}`} style={{ marginTop: 6, maxWidth: 320, width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--linha-forte)', background: 'var(--superficie)', color: 'var(--texto)', fontSize: 12.5 }}>
+                        <option value="">— exceção: mandar para outra linha só neste currículo —</option>
+                        {(itensPorVersao[m.versao_id || ''] || []).map(i => <option key={i.id} value={`i:${i.id}`}>{i.rotulo}</option>)}
+                      </select>
+                      <div style={{ marginTop: 6 }}><Link to="/app/config/curriculos">Abrir Currículos</Link></div>
+                    </div>
+                  ) : m.tipo === 'disciplina' ? (
                     <select value={valorDestino(m)} disabled={ocupado === m.id} onChange={e => {
                       const [tipo, id] = e.target.value.split(':');
                       salvar(m, id

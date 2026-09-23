@@ -8,7 +8,7 @@ import { useSessao } from '@/hooks/useSessao';
 import { useToast } from '@/hooks/useToast';
 import { Aviso, Botao, Cabecalho, CampoSelect, CampoTexto, Card, Carregando, Confirmar, EstadoVazio, Modal, Tag } from '@/componentes/ui';
 import { Icone } from '@/componentes/Icones';
-import { ROTULO_STATUS_VERSAO, type Componente, type Serie, type VersaoAgrupamento, type VersaoBloco, type VersaoDetalhe as TVersao, type VersaoItem } from '@shared/types/curriculo';
+import { ROTULO_STATUS_VERSAO, type Componente, type ItemDisciplina, type Serie, type VersaoAgrupamento, type VersaoBloco, type VersaoDetalhe as TVersao, type VersaoItem } from '@shared/types/curriculo';
 
 export function VersaoDetalhe() {
   const { id = '' } = useParams();
@@ -37,6 +37,8 @@ export function VersaoDetalhe() {
   const [publicar, setPublicar] = useState<{ ano: number } | null>(null);
   const [excluirVersao, setExcluirVersao] = useState(false);
   const [cab, setCab] = useState<{ nome: string; base_legal: string } | null>(null);
+  const [aberto, setAberto] = useState<string | null>(null);
+  const [nova, setNova] = useState<{ codigo: string; descricao: string }>({ codigo: '', descricao: '' });
 
   const totalItens = (v?.blocos || []).reduce((n, b) => n + b.agrupamentos.reduce((m, a) => m + a.itens.length, 0), 0);
 
@@ -76,6 +78,52 @@ export function VersaoDetalhe() {
     await executar(() => existente
       ? api.del(`/api/versoes/itens/${existente.id}`)
       : api.post(`/api/versoes/agrupamentos/${ag.id}/itens`, [{ serie_id: serie.id, componente_id: grupo.componente_id, nome_impresso: grupo.nome_impresso, ordem: grupo.ordem }]));
+  }
+
+  /**
+   * Grava a composição de UMA linha. A composição não é travada por
+   * versão publicada: ela não muda o que o documento imprime, só como a
+   * origem alimenta a linha. Ver migration 011.
+   */
+  const gravarComposicao = (itemId: string, lista: { codigo_origem: string; descricao_origem: string | null; habilitado: boolean }[]) =>
+    api.put(`/api/versoes/itens/${itemId}/disciplinas`, lista.map((d, i) => ({ ...d, ordem: i })));
+
+  /** Liga/desliga uma disciplina numa série. Desligada fica registrada, não some. */
+  async function alternarDisciplina(g: GrupoItem, serie: Serie, codigo: string) {
+    const item = g.porSerie[serie.id];
+    if (!item) return;
+    const atual = (item.disciplinas || []).map(d => ({ codigo_origem: d.codigo_origem, descricao_origem: d.descricao_origem, habilitado: d.habilitado }));
+    const existente = atual.find(d => d.codigo_origem === codigo);
+    const lista = existente
+      ? atual.map(d => d.codigo_origem === codigo ? { ...d, habilitado: !d.habilitado } : d)
+      : [...atual, { codigo_origem: codigo, descricao_origem: descricaoDe(g, codigo), habilitado: true }];
+    await executar(() => gravarComposicao(item.id, lista));
+  }
+
+  /** Acrescenta a disciplina em todas as séries em que o componente existe. */
+  async function adicionarDisciplina(g: GrupoItem) {
+    const codigo = nova.codigo.trim();
+    if (!codigo) return;
+    const ok = await executar(async () => {
+      for (const item of g.itens) {
+        const atual = (item.disciplinas || []).map(d => ({ codigo_origem: d.codigo_origem, descricao_origem: d.descricao_origem, habilitado: d.habilitado }));
+        if (atual.some(d => d.codigo_origem === codigo)) continue;
+        await gravarComposicao(item.id, [...atual, { codigo_origem: codigo, descricao_origem: nova.descricao.trim() || null, habilitado: true }]);
+      }
+    }, 'Disciplina acrescentada em todas as séries do componente.');
+    if (ok) setNova({ codigo: '', descricao: '' });
+  }
+
+  /** Tira a disciplina do componente inteiro, em todas as séries. */
+  async function removerDisciplina(g: GrupoItem, codigo: string) {
+    await executar(async () => {
+      for (const item of g.itens) {
+        const atual = (item.disciplinas || []).filter(d => d.codigo_origem !== codigo)
+          .map(d => ({ codigo_origem: d.codigo_origem, descricao_origem: d.descricao_origem, habilitado: d.habilitado }));
+        if ((item.disciplinas || []).length === atual.length) continue;
+        await gravarComposicao(item.id, atual);
+      }
+    }, 'Disciplina removida do componente.');
   }
 
   async function moverGrupo(ag: VersaoAgrupamento, grupos: GrupoItem[], i: number, dir: -1 | 1) {
@@ -214,7 +262,69 @@ export function VersaoDetalhe() {
                             <Botao pequeno variante="perigo" className="btn-ico" aria-label="Remover componente" onClick={() => setRemover({ tipo: 'item', id: g.itens.map(i => i.id).join(','), nome: g.nome_impresso })}><Icone nome="lixeira" /></Botao>
                           </td> : null}
                         </tr>
-                      ))}
+                      )).flatMap((tr, gi) => {
+                        const g = grupos[gi];
+                        const codigos = disciplinasDoGrupo(g);
+                        const linhas = [tr,
+                          <tr key={`${g.chave}-disc-cab`} className="linha-composicao">
+                            <td colSpan={2 + series.length + (editavel ? 1 : 0)} style={{ padding: '0 0 0 12px' }}>
+                              <button type="button" className="btn btn-sm btn-fantasma" aria-expanded={aberto === g.chave}
+                                onClick={() => { setAberto(aberto === g.chave ? null : g.chave); setNova({ codigo: '', descricao: '' }); }}>
+                                <Icone nome={aberto === g.chave ? 'setaBaixo' : 'seta'} />
+                                {codigos.length ? `${codigos.length} disciplina(s) da origem` : 'Sem disciplinas da origem — a linha aceita qualquer código mapeado'}
+                              </button>
+                            </td>
+                          </tr>];
+                        if (aberto !== g.chave) return linhas;
+                        linhas.push(
+                          <tr key={`${g.chave}-disc`}>
+                            <td colSpan={2 + series.length + (editavel ? 1 : 0)} style={{ padding: '4px 12px 14px 34px', background: 'var(--superficie-2)' }}>
+                              <div className="cel-sub" style={{ marginBottom: 8 }}>
+                                Quais disciplinas do Activesoft alimentam <b>{g.nome_impresso}</b>, e em quais séries. Serve para
+                                eletiva que só existe numa série e para turma multisseriada. Deixar vazio mantém o comportamento
+                                de sempre; configurar faz a importação <b>recusar</b> o código nas séries desmarcadas.
+                              </div>
+                              {codigos.length ? (
+                                <table className="grade-itens" style={{ marginBottom: 8 }}>
+                                  <thead><tr><th>Disciplina na origem</th>{series.filter(s => g.porSerie[s.id]).map(s => <th key={s.id} className="serie-col">{s.codigo}</th>)}{editavel ? <th className="cel-acoes"><span className="sr-only">Ações</span></th> : null}</tr></thead>
+                                  <tbody>
+                                    {codigos.map(cod => (
+                                      <tr key={cod.codigo}>
+                                        <td className="nome-cel"><code>{cod.codigo}</code>{cod.descricao ? <span className="sub">{cod.descricao}</span> : null}</td>
+                                        {series.filter(s => g.porSerie[s.id]).map(s => {
+                                          const d = (g.porSerie[s.id]?.disciplinas || []).find(x => x.codigo_origem === cod.codigo);
+                                          const on = !!d?.habilitado;
+                                          return (
+                                            <td key={s.id} className="serie-col">
+                                              {ehAdmin ? (
+                                                <button type="button" className={`marca-serie ${on ? 'sim' : 'nao'}`} disabled={ocupado}
+                                                  aria-pressed={on} aria-label={`${cod.codigo} na ${s.nome}`}
+                                                  title={on ? `Desabilitar na ${s.nome}` : `Habilitar na ${s.nome}`}
+                                                  onClick={() => alternarDisciplina(g, s, cod.codigo)}>{on ? '✓' : '–'}</button>
+                                              ) : <span className={`marca-serie ${on ? 'sim' : 'nao'}`}>{on ? '✓' : '–'}</span>}
+                                            </td>
+                                          );
+                                        })}
+                                        {editavel || ehAdmin ? <td className="cel-acoes">
+                                          <Botao pequeno variante="perigo" className="btn-ico" aria-label={`Remover ${cod.codigo}`} disabled={ocupado} onClick={() => removerDisciplina(g, cod.codigo)}><Icone nome="lixeira" /></Botao>
+                                        </td> : null}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              ) : null}
+                              {ehAdmin ? (
+                                <div className="acoes" style={{ gap: 6 }}>
+                                  <input className="f-campo" style={{ maxWidth: 140 }} placeholder="código na origem" value={aberto === g.chave ? nova.codigo : ''} onChange={e => setNova(n => ({ ...n, codigo: e.target.value }))} aria-label="Código da disciplina na origem" />
+                                  <input className="f-campo" style={{ maxWidth: 260 }} placeholder="descrição (opcional)" value={aberto === g.chave ? nova.descricao : ''} onChange={e => setNova(n => ({ ...n, descricao: e.target.value }))} aria-label="Descrição da disciplina" />
+                                  <Botao pequeno icone="mais" disabled={!nova.codigo.trim() || ocupado} onClick={() => adicionarDisciplina(g)}>Acrescentar</Botao>
+                                </div>
+                              ) : null}
+                            </td>
+                          </tr>
+                        );
+                        return linhas;
+                      })}
                     </tbody>
                   </table></div>
                 ) : <p className="cel-sub" style={{ padding: '4px 30px 12px' }}>Sem componentes.</p>}
@@ -311,6 +421,19 @@ export function VersaoDetalhe() {
 /* ---------- agrupa itens de um agrupamento por (componente|nome) para
    mostrar UMA linha por componente com ✓ por série ---------- */
 interface GrupoItem { chave: string; nome_impresso: string; componente_id: string | null; ordem: number; itens: VersaoItem[]; porSerie: Record<string, VersaoItem> }
+
+/** União dos códigos configurados no grupo, em qualquer série. */
+function disciplinasDoGrupo(g: GrupoItem): { codigo: string; descricao: string | null }[] {
+  const mapa = new Map<string, string | null>();
+  for (const it of g.itens) for (const d of (it.disciplinas || []) as ItemDisciplina[]) {
+    if (!mapa.has(d.codigo_origem) || (!mapa.get(d.codigo_origem) && d.descricao_origem)) mapa.set(d.codigo_origem, d.descricao_origem);
+  }
+  return [...mapa.entries()].map(([codigo, descricao]) => ({ codigo, descricao })).sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true }));
+}
+
+function descricaoDe(g: GrupoItem, codigo: string): string | null {
+  return disciplinasDoGrupo(g).find(d => d.codigo === codigo)?.descricao ?? null;
+}
 
 function normalizar(s: string) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
 

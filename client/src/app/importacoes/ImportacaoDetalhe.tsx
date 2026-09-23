@@ -10,7 +10,7 @@ import { Aviso, Botao, BotaoLink, Cabecalho, Card, Carregando, EstadoVazio, Kpi,
 import { ROTULO_TIPO_IMPORTACAO, type Divergencia, type Importacao, type LinhaRelatorio, type Mapeamento, type ResolucaoDivergencia } from '@shared/types/importacao';
 
 interface Resposta { importacao: Importacao; divergencias: Divergencia[]; pendencias: (Mapeamento & { versao: { id: string; nome: string } | null; sugestao: { id: string; nome_impresso: string } | null })[] }
-type Aba = 'divergencias' | 'pendencias' | 'registros' | 'erros';
+type Aba = 'divergencias' | 'pendencias' | 'registros' | 'erros' | 'consolidacoes';
 
 const ROTULO_ACAO: Record<LinhaRelatorio['acao'], string> = { criar: 'Criado', atualizar: 'Atualizado', ignorar: 'Ignorado', divergencia: 'Divergência', pendencia: 'Sem mapeamento', erro: 'Erro' };
 
@@ -158,7 +158,8 @@ export function ImportacaoDetalhe() {
       {rel?.avisos.length ? <div className="pilha" style={{ marginBottom: 14 }}>{[...new Set(rel.avisos)].map((a, i) => <Aviso key={i} tipo="aviso">{a}</Aviso>)}</div> : null}
 
       <nav className="abas" role="tablist">
-        {([['divergencias', `Divergências (${simulacao ? rel?.divergenciasPrevistas?.length || 0 : divergencias.length})`], ['pendencias', `Pendências de mapeamento (${pendencias.length})`], ['registros', `Registros (${rel?.linhas.length || 0})`], ['erros', `Erros (${erros.length})`]] as [Aba, string][]).map(([k, r]) => (
+        {([['divergencias', `Divergências (${simulacao ? rel?.divergenciasPrevistas?.length || 0 : divergencias.length})`], ['pendencias', `Pendências de mapeamento (${pendencias.length})`], ['registros', `Registros (${rel?.linhas.length || 0})`], ['erros', `Erros (${erros.length})`],
+          ...(rel?.consolidacoes?.length ? [['consolidacoes', `Consolidações (${rel.consolidacoes.length})`] as [Aba, string]] : [])] as [Aba, string][]).map(([k, r]) => (
           <button key={k} type="button" role="tab" className="aba" aria-selected={abaAtual === k} onClick={() => setAba(k)}>{r}</button>
         ))}
       </nav>
@@ -214,6 +215,24 @@ export function ImportacaoDetalhe() {
                   <td data-rotulo="Registros" className="num">{p.registros_afetados}</td>
                   <td data-rotulo="Sugestão">{p.sugestao ? <Tag tipo="info">{p.sugestao.nome_impresso}</Tag> : p.destino_valor ? <Tag tipo="info">sugerido</Tag> : <Tag>nenhuma</Tag>}</td>
                   <td className="cel-acoes"><Link className="btn btn-sm btn-1" to={`/app/importacoes/mapeamentos?pendentes=1${p.versao ? `&versao=${p.versao.id}` : ''}`}>Mapear</Link></td>
+                </tr>
+              ))}</tbody>
+            </table></div>
+          )}
+        </Card>
+      ) : null}
+
+      {abaAtual === 'consolidacoes' ? (
+        <Card titulo="Notas consolidadas" descricao="A origem manda várias disciplinas; o currículo imprime uma linha só. A nota é a média simples das parcelas — faltas e carga horária somam." semCorpo>
+          {!rel?.consolidacoes?.length ? <EstadoVazio icone="info" titulo="Nenhuma nota consolidada" /> : (
+            <div className="tab-box"><table className="responsiva">
+              <thead><tr><th>Registro</th><th>Linha da grade</th><th>Parcelas na origem</th><th className="num">Nota final</th></tr></thead>
+              <tbody>{rel.consolidacoes.map((c, i) => (
+                <tr key={i}>
+                  <td data-rotulo="Registro" className="nome-cel">{c.descricao}</td>
+                  <td data-rotulo="Linha" className="cel-sub">{c.linha}</td>
+                  <td data-rotulo="Parcelas" className="cel-sub">{c.partes.map(x => `${x.descricao}: ${x.valor ?? x.conceito ?? '—'}`).join(' · ')}</td>
+                  <td data-rotulo="Nota final" className="num"><b>{c.valor ?? '—'}</b></td>
                 </tr>
               ))}</tbody>
             </table></div>

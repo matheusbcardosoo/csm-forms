@@ -147,6 +147,29 @@ Códigos cuja exceção perdeu o item (componente extinto na reforma) entram com
 
 ---
 
+## 5.1 Composição da linha: eletivas e turmas multisseriadas
+
+Uma linha do histórico costuma ser **várias** disciplinas na origem. "Língua Portuguesa" é Literatura + Gramática + Redação + Interpretação Textual; "Língua Estrangeira Moderna - Inglês" é uma fila de *Language Practice* A1…C1. E a correspondência muda por série: eletiva que só existe no 9º ano, nível de inglês que atende 7º, 8º e 9º ao mesmo tempo.
+
+`versao_item_disciplina` guarda isso, por linha da grade — e `versao_item` já é (versão, série, componente), então a configuração é naturalmente por série:
+
+```sql
+versao_item_disciplina
+  versao_item_id fk        -- a linha: versão + série + componente
+  codigo_origem text       -- a disciplina no Activesoft
+  descricao_origem text
+  habilitado bool          -- desligada nesta série, mas documentada
+  unique (versao_item_id, codigo_origem)
+```
+
+Configurar é **opcional**: linha sem composição resolve pelo mapeamento de sempre. Quem configura ganha a checagem — nota que chega com um código não habilitado naquela série vira erro no relatório em vez de entrar na média do aluno errado. Quando a linha tem mais de uma disciplina habilitada, a nota é a média simples delas (ver `03-integracao-activesoft.md` §5).
+
+**Não entra no bloqueio de somente-leitura.** O trigger protege o que o documento imprime — nome, ordem, carga horária. A composição não imprime nada: ela diz como a origem alimenta a linha, e mudá-la não altera histórico já emitido, porque aquelas notas já estão gravadas. Travá-la obrigaria a duplicar um currículo inteiro para corrigir um código de disciplina.
+
+**Duplicar leva junto.** `duplicar_composicao()` casa os itens pela identidade (série + componente, ou nome impresso quando não há componente). Sem isso, a versão nova perderia calada a configuração de eletivas e a primeira importação mandaria tudo para o lugar errado.
+
+---
+
 ## 6. Alcance retroativo
 
 O colégio emite histórico de quem estudou lá nos últimos **49 anos**, mas o Activesoft só cobre os ~20 mais recentes. O acervo anterior é **feature diferida** — o dossiê completo, com decisões já tomadas e as perguntas a fazer antes de implementar, está em **[07-acervo-antigo-diferido.md](07-acervo-antigo-diferido.md)**.

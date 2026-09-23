@@ -6,9 +6,9 @@ import { api, ErroApi, mensagemErro, type CampoInvalido } from '@/api/cliente';
 import { useRecurso } from '@/hooks/useRecurso';
 import { useSessao } from '@/hooks/useSessao';
 import { useToast } from '@/hooks/useToast';
-import { Aviso, Botao, Cabecalho, CampoCheck, CampoTexto, Card, Carregando, EstadoVazio, Modal, Tabela, Tag } from '@/componentes/ui';
+import { Aviso, Botao, Cabecalho, CampoCheck, CampoTexto, Card, Carregando, Confirmar, EstadoVazio, Modal, Tabela, Tag } from '@/componentes/ui';
 import { Icone } from '@/componentes/Icones';
-import type { Componente } from '@shared/types/curriculo';
+import type { Componente, UsoComponente } from '@shared/types/curriculo';
 
 export function Componentes() {
   const { ehAdmin } = useSessao();
@@ -18,6 +18,7 @@ export function Componentes() {
   const [campos, setCampos] = useState<CampoInvalido[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [filtro, setFiltro] = useState('');
+  const [excluir, setExcluir] = useState<{ c: Componente; uso: UsoComponente | null } | null>(null);
 
   const lista = useMemo(() => {
     const f = filtro.trim().toLowerCase();
@@ -32,6 +33,24 @@ export function Componentes() {
       else await api.post('/api/cadastros/componentes', editando);
       toast.ok('Componente salvo.'); setEditando(null); recarregar();
     } catch (err) { if (err instanceof ErroApi && err.campos.length) setCampos(err.campos); toast.erro(mensagemErro(err)); }
+    finally { setSalvando(false); }
+  }
+
+  /** Abre a confirmação já com o mapa de uso: ninguém apaga identidade de componente às cegas. */
+  async function pedirExclusao(c: Componente) {
+    setExcluir({ c, uso: null });
+    try { setExcluir({ c, uso: await api.get<UsoComponente>(`/api/cadastros/componentes/${c.id}/uso`) }); }
+    catch (err) { toast.erro(mensagemErro(err)); setExcluir(null); }
+  }
+
+  async function confirmarExclusao() {
+    if (!excluir?.uso?.podeExcluir) return;
+    setSalvando(true);
+    try {
+      const r = await api.del<{ linhas: number }>(`/api/cadastros/componentes/${excluir.c.id}`);
+      toast.ok(`"${excluir.c.nome_canonico}" excluído${r.linhas ? ` · ${r.linhas} linha(s) de rascunho removida(s)` : ''}.`);
+      setExcluir(null); recarregar();
+    } catch (err) { toast.erro(mensagemErro(err)); }
     finally { setSalvando(false); }
   }
 
@@ -60,7 +79,10 @@ export function Componentes() {
               { chave: 'nome', rotulo: 'Nome canônico', principal: true, render: c => <span className="nome-cel">{c.nome_canonico}</span> },
               { chave: 'sigla', rotulo: 'Sigla', render: c => c.sigla || '—' },
               { chave: 'status', rotulo: 'Status', render: c => c.ativo ? <Tag tipo="ok" ponto>Ativo</Tag> : <Tag ponto>Inativo</Tag> },
-              { chave: 'acoes', rotulo: 'Ações', acoes: true, render: c => ehAdmin ? <Botao pequeno onClick={() => { setEditando({ ...c }); setCampos([]); }}>Editar</Botao> : null }
+              { chave: 'acoes', rotulo: 'Ações', acoes: true, render: c => ehAdmin ? <>
+                <Botao pequeno onClick={() => { setEditando({ ...c }); setCampos([]); }}>Editar</Botao>
+                <Botao pequeno variante="perigo" className="btn-ico" aria-label={`Excluir ${c.nome_canonico}`} onClick={() => pedirExclusao(c)}><Icone nome="lixeira" /></Botao>
+              </> : null }
             ]}
           />
         )}
@@ -69,6 +91,36 @@ export function Componentes() {
       <div style={{ marginTop: 14 }}>
         <Aviso><b>Para que serve.</b> Quando um histórico cruza duas versões do currículo, é a identidade do componente que faz "Ciências" e "Ciências da Natureza" ocuparem <b>uma linha só</b>, com as notas de todos os anos.</Aviso>
       </div>
+
+      <Confirmar aberto={!!excluir} titulo={`Excluir "${excluir?.c.nome_canonico || ''}"?`} rotuloConfirmar="Excluir" perigo
+        carregando={salvando} aoFechar={() => setExcluir(null)} aoConfirmar={confirmarExclusao}
+        descricao={!excluir ? '' : !excluir.uso ? 'Conferindo onde ele está em uso…' : (
+          <span>
+            {!excluir.uso.linhas.length && !excluir.uso.mapeamentos.length
+              ? <>Não está em uso em nenhum currículo nem mapeamento. A exclusão é limpa.</>
+              : <>
+                  {excluir.uso.linhas.length ? <>
+                    <b>Está em {excluir.uso.linhas.length} linha(s) de currículo:</b>
+                    <span style={{ display: 'block', margin: '6px 0', maxHeight: 150, overflow: 'auto', fontSize: 12.5 }}>
+                      {excluir.uso.linhas.map((l, i) => (
+                        <span key={i} style={{ display: 'block' }}>
+                          {l.curso} · {l.versao} <Tag tipo={l.status === 'rascunho' ? 'aviso' : 'ok'}>{l.status}</Tag> · {l.serie} · {l.nome_impresso}
+                        </span>
+                      ))}
+                    </span>
+                  </> : null}
+                  {excluir.uso.mapeamentos.length ? <>
+                    <b>{excluir.uso.mapeamentos.length} código(s) da origem apontam para ele:</b>{' '}
+                    {excluir.uso.mapeamentos.map(m => m.codigo_origem).join(', ')}. Eles voltam a ficar sem destino.
+                  </> : null}
+                </>}
+            {excluir.uso.motivo
+              ? <span style={{ display: 'block', marginTop: 10, color: 'var(--erro)' }}><b>Não dá para excluir.</b> {excluir.uso.motivo}</span>
+              : excluir.uso.linhas.length
+                ? <span style={{ display: 'block', marginTop: 10 }}>As {excluir.uso.linhas.length} linha(s) acima são de rascunho e <b>serão removidas junto</b>. Isto não se desfaz.</span>
+                : null}
+          </span>
+        )} />
 
       <Modal aberto={!!editando} titulo={editando?.id ? 'Editar componente' : 'Novo componente'} aoFechar={() => setEditando(null)} tamanho="sm"
         rodape={<><Botao onClick={() => setEditando(null)}>Cancelar</Botao><Botao variante="primario" carregando={salvando} onClick={salvar} icone="check">Salvar</Botao></>}>
