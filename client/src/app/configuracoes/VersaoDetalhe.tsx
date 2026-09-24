@@ -36,6 +36,7 @@ export function VersaoDetalhe() {
   const [remover, setRemover] = useState<{ tipo: 'bloco' | 'agrupamento' | 'item'; id: string; nome: string } | null>(null);
   const [publicar, setPublicar] = useState<{ ano: number } | null>(null);
   const [excluirVersao, setExcluirVersao] = useState(false);
+  const [despublicar, setDespublicar] = useState(false);
   const [cab, setCab] = useState<{ nome: string; base_legal: string } | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
   const [nova, setNova] = useState<{ codigo: string; descricao: string }>({ codigo: '', descricao: '' });
@@ -172,6 +173,20 @@ export function VersaoDetalhe() {
 
   const confirmarPublicar = () => publicar && executar(() => api.post(`/api/versoes/${id}/publicar`, { ano_inicio: publicar.ano }), 'Versão publicada — agora é a vigente e fica somente leitura.').then(ok => ok && setPublicar(null));
 
+  /**
+   * Volta ao rascunho para corrigir o que a primeira importação revelou.
+   * A trava é do banco: só passa a versão que nunca serviu histórico
+   * emitido. A vigência não muda, então as matrículas seguem ligadas a
+   * esta versão — é por isso que este caminho existe em vez de duplicar.
+   */
+  async function confirmarDespublicar() {
+    const ok = await executar(async () => {
+      const r = await api.post<{ nome: string; matriculas: number; historicos_em_andamento: number }>(`/api/versoes/${id}/despublicar`, {});
+      toast.ok(`"${r.nome}" voltou para rascunho. ${r.matriculas} matrícula(s) seguem ligadas a ela${r.historicos_em_andamento ? ` · ${r.historicos_em_andamento} histórico(s) em andamento vão usar a grade corrigida ao serem emitidos` : ''}.`);
+    });
+    if (ok) setDespublicar(false);
+  }
+
   const salvarCab = () => cab && executar(() => api.put(`/api/versoes/${id}`, cab), 'Versão atualizada.').then(ok => ok && setCab(null));
 
   const confirmarExcluirVersao = () => executar(() => api.del(`/api/versoes/${id}`), 'Rascunho excluído.').then(ok => { if (ok) navegar(`/app/config/curriculos?curso=${v?.curso_id || ''}`); });
@@ -191,11 +206,12 @@ export function VersaoDetalhe() {
           {editavel ? <Botao icone="editar" onClick={() => setCab({ nome: v.nome, base_legal: v.base_legal || '' })}>Renomear</Botao> : null}
           {editavel ? <Botao variante="perigo" icone="lixeira" onClick={() => setExcluirVersao(true)}>Excluir rascunho</Botao> : null}
           {editavel ? <Botao variante="primario" icone="publicar" disabled={totalItens === 0} onClick={() => setPublicar({ ano: new Date().getFullYear() })}>Publicar</Botao> : null}
+          {!editavel && v.status !== 'rascunho' ? <Botao icone="editar" onClick={() => setDespublicar(true)}>Voltar para rascunho</Botao> : null}
         </> : undefined} />
 
       {!editavel ? (
         <div style={{ marginBottom: 14 }}>
-          <Aviso><span className="alerta-linha"><Icone nome="cadeado" /><span><b>Somente leitura.</b> {v.status === 'rascunho' ? 'Só administradores editam versões.' : 'Versão em uso: os históricos deste período dependem dela. Para alterar, duplique-a na tela de versões.'}</span></span></Aviso>
+          <Aviso><span className="alerta-linha"><Icone nome="cadeado" /><span><b>Somente leitura.</b> {v.status === 'rascunho' ? 'Só administradores editam versões.' : <>Versão em uso: os históricos deste período dependem dela. Enquanto ela não tiver servido nenhum histórico emitido, <b>Voltar para rascunho</b> a reabre sem mexer nas matrículas. Depois do primeiro documento impresso, o caminho passa a ser duplicar.</>}</span></span></Aviso>
         </div>
       ) : (
         <div style={{ marginBottom: 14 }}>
@@ -411,6 +427,20 @@ export function VersaoDetalhe() {
       <Confirmar aberto={!!remover} titulo={`Remover ${remover?.tipo === 'bloco' ? 'bloco' : remover?.tipo === 'agrupamento' ? 'agrupamento' : 'componente'}?`}
         descricao={remover ? `"${remover.nome}"${remover.tipo !== 'item' ? ' e tudo que está dentro dele' : ' em todas as séries'} sai desta versão. Outras versões não mudam.` : ''}
         rotuloConfirmar="Remover" perigo carregando={ocupado} aoFechar={() => setRemover(null)} aoConfirmar={confirmarRemocao} />
+
+      <Confirmar aberto={despublicar} titulo={`Voltar "${v.nome}" para rascunho?`} rotuloConfirmar="Voltar para rascunho"
+        carregando={ocupado} aoFechar={() => setDespublicar(false)} aoConfirmar={confirmarDespublicar}
+        descricao={<>
+          A versão volta a ser editável para você corrigir o que faltou — uma disciplina que não existia numa série, por exemplo.
+          <span style={{ display: 'block', marginTop: 8 }}>
+            <b>A vigência não muda.</b> As matrículas já importadas continuam ligadas a esta versão, que é justamente o motivo de
+            fazer assim em vez de duplicar: numa cópia, elas continuariam apontando para a antiga.
+          </span>
+          <span style={{ display: 'block', marginTop: 8 }}>
+            Se algum histórico já foi <b>emitido</b> com esta grade, o banco recusa — documento impresso não se reescreve, e aí o
+            caminho é duplicar. Publique de novo quando terminar.
+          </span>
+        </>} />
 
       <Confirmar aberto={excluirVersao} titulo="Excluir este rascunho?" descricao="A estrutura montada aqui é perdida. Versões publicadas nunca são excluídas — só rascunhos."
         rotuloConfirmar="Excluir" perigo carregando={ocupado} aoFechar={() => setExcluirVersao(false)} aoConfirmar={confirmarExcluirVersao} />

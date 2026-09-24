@@ -155,6 +155,20 @@ versoesRouter.put('/itens/:id/disciplinas', exigirPapel('admin'), seguro(async (
   res.json(data);
 }));
 
+/* ---------- duplicar / publicar / despublicar (funções SQL, atômicas) ---------- */
+
+/**
+ * Devolve a versão ao rascunho para corrigir o que a primeira importação
+ * revelou. A trava vive na função: só passa quem nunca serviu histórico
+ * emitido. A vigência fica como está — as matrículas já congelaram esta
+ * versão, e tirá-la do ar deixaria as novas sem grade.
+ */
+versoesRouter.post('/:id/despublicar', exigirPapel('admin'), seguro(async (req, res) => {
+  const { client } = ctx(res);
+  const { data, error } = await client.rpc('despublicar_versao', { p_versao_id: req.params.id });
+  if (error) throw error;
+  res.json(data);
+}));
 /* ---------- duplicar / publicar (funções SQL, atômicas) ---------- */
 versoesRouter.post('/:id/duplicar', exigirPapel('admin'), seguro(async (req, res) => {
   const body = validar(z.object({ nome: textoObrigatorio }), req, res);
