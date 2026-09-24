@@ -185,26 +185,23 @@ cadastrosRouter.get('/componentes/:id/uso', exigirPapel('admin'), seguro(async (
 }));
 
 /**
- * Exclui o componente. Leva junto as linhas de grade em RASCUNHO que o
- * usavam e solta os mapeamentos que apontavam para ele — que é o que a
- * confirmação na tela prometeu. Currículo publicado bloqueia.
+ * Exclui o componente: solta os mapeamentos, leva as linhas de grade em
+ * RASCUNHO que o usavam e some com ele — tudo o que a confirmação na
+ * tela prometeu, e nada além. Currículo publicado ou nota gravada
+ * bloqueiam.
+ *
+ * Numa função `security definer`, não em três escritas daqui: a primeira
+ * versão fazia os três passos em sequência e, quando o último falhava, o
+ * componente ficava vivo, sem linhas e sem códigos apontando para ele —
+ * nem excluiu, nem manteve. A função é uma transação só (migration 012),
+ * e as checagens vivem lá dentro, onde ninguém as contorna chamando o
+ * PostgREST direto.
  */
 cadastrosRouter.delete('/componentes/:id', exigirPapel('admin'), seguro(async (req, res) => {
   const { client } = ctx(res);
-  const uso = await usoDoComponente(client, req.params.id);
-  if (!uso.podeExcluir) return void res.status(409).json({ error: uso.motivo });
-
-  const { error: eM } = await client.from('mapeamento_activesoft')
-    .update({ componente_id: null, confirmado: false, observacao: 'O componente que era o destino deste código foi excluído. Escolha outro.' })
-    .eq('componente_id', req.params.id);
-  if (eM) throw eM;
-
-  const { error: eI } = await client.from('versao_item').delete().eq('componente_id', req.params.id);
-  if (eI) throw eI;
-
-  const { error } = await client.from('componente').delete().eq('id', req.params.id);
+  const { data, error } = await client.rpc('excluir_componente', { p_id: req.params.id });
   if (error) throw error;
-  res.json({ removido: true, linhas: uso.linhas.length, mapeamentos: uso.mapeamentos.length });
+  res.json(data);
 }));
 
 /* ================= ESTABELECIMENTOS EXTERNOS ================= */

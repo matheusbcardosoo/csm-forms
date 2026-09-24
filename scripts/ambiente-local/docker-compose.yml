@@ -20,6 +20,7 @@ services:
       - ../../supabase/migrations/009_agendamento.sql:/docker-entrypoint-initdb.d/09.sql:ro
       - ../../supabase/migrations/010_mapeamento_por_componente.sql:/docker-entrypoint-initdb.d/10.sql:ro
       - ../../supabase/migrations/011_composicao_do_item.sql:/docker-entrypoint-initdb.d/11.sql:ro
+      - ../../supabase/migrations/012_excluir_componente.sql:/docker-entrypoint-initdb.d/12.sql:ro
       - ./seed.sql:/docker-entrypoint-initdb.d/99-seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
