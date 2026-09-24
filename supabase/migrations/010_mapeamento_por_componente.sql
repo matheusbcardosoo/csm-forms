@@ -95,22 +95,43 @@ where m.tipo = 'disciplina'
 -- no índice único do global. Não há decisão guardada nessas linhas: o
 -- que elas tinham era contagem, que a próxima importação refaz.
 --
--- A condição do componente estar na grade é o que separa o fantasma da
--- pendência legítima: código global cujo componente NÃO está naquele
--- currículo é pendência de verdade, e ali a saída é uma exceção.
+-- O que separa o fantasma da pendência legítima é a SÉRIE, não a versão.
+-- A importação resolve pela linha da grade da série do aluno: um
+-- componente que existe na 1ª e na 2ª série mas não na 3ª deixa os
+-- alunos da 3ª sem destino, e a pendência deles é verdadeira. Olhar só
+-- "o componente está nesta versão?" apagaria essa pendência, e a próxima
+-- importação a recriaria — que foi exatamente o que aconteceu aqui.
+--
+-- Então: só é fantasma o código cujo componente tem linha em TODAS as
+-- séries que aquela versão cobre. Conservador de propósito; na dúvida a
+-- pendência fica, e a tela agora sabe explicá-la.
 delete from mapeamento_activesoft m
 where m.tipo = 'disciplina'
   and m.versao_id is not null
   and not m.confirmado
   and exists (
-    select 1
-    from mapeamento_activesoft g
-    join versao_item vi on vi.componente_id = g.componente_id
-    join versao_agrupamento ag on ag.id = vi.versao_agrupamento_id
-    join versao_bloco vb on vb.id = ag.versao_bloco_id
-    where g.tipo = 'disciplina'
-      and g.versao_id is null
-      and g.confirmado
+    select 1 from mapeamento_activesoft g
+    where g.tipo = 'disciplina' and g.versao_id is null and g.confirmado
       and g.codigo_origem = m.codigo_origem
-      and vb.versao_id = m.versao_id
+      and g.componente_id is not null
+      and not exists (
+        -- alguma série da grade desta versão sem linha desse componente?
+        select 1
+        from (
+          select distinct vi.serie_id
+          from versao_item vi
+          join versao_agrupamento ag on ag.id = vi.versao_agrupamento_id
+          join versao_bloco vb on vb.id = ag.versao_bloco_id
+          where vb.versao_id = m.versao_id
+        ) series_da_versao
+        where not exists (
+          select 1
+          from versao_item vi2
+          join versao_agrupamento ag2 on ag2.id = vi2.versao_agrupamento_id
+          join versao_bloco vb2 on vb2.id = ag2.versao_bloco_id
+          where vb2.versao_id = m.versao_id
+            and vi2.serie_id = series_da_versao.serie_id
+            and vi2.componente_id = g.componente_id
+        )
+      )
   );

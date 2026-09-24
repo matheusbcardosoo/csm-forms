@@ -9,6 +9,10 @@
 --   B. GRADE INCOMPLETA    — o código já tem destino, mas o componente
 --                            não está na grade daquele currículo. Mapear
 --                            não adianta: falta a disciplina no currículo.
+--   B2. FALTA NUMA SÉRIE   — o componente está no currículo, mas não na
+--                            série daqueles alunos. A importação resolve
+--                            pela linha da SÉRIE, então eles ficam de
+--                            fora e a pendência volta a cada execução.
 --   C. LINHA SEM IDENTIDADE— a grade tem a disciplina pelo nome, mas a
 --                            linha foi criada sem componente, então o
 --                            destino global não alcança.
@@ -32,7 +36,7 @@ global as (
   where g.tipo = 'disciplina' and g.versao_id is null and g.confirmado
 ),
 grade as (   -- linhas da grade de cada versão
-  select vb.versao_id, vi.componente_id, vi.nome_impresso
+  select vb.versao_id, vi.serie_id, vi.componente_id, vi.nome_impresso
   from versao_item vi
   join versao_agrupamento ag on ag.id = vi.versao_agrupamento_id
   join versao_bloco vb on vb.id = ag.versao_bloco_id
@@ -42,12 +46,21 @@ select p.curso, p.curriculo, p.codigo_origem, coalesce(p.descricao_origem, '—'
        coalesce(g.nome_canonico, '(sem destino)') as destino_global,
        case
          when g.codigo_origem is null then 'A · sem destino — resolve em Mapeamentos'
-         when exists (select 1 from grade x where x.versao_id = p.versao_id and x.componente_id = g.componente_id)
-              then '? · destino existe na grade — não deveria estar pendente'
+         when not exists (select 1 from grade x where x.versao_id = p.versao_id and x.componente_id = g.componente_id)
+              then 'B · a grade deste currículo não tem esse componente em série nenhuma'
+         when exists (
+           -- série coberta pela versão que NÃO tem linha desse componente:
+           -- os alunos dela ficam sem destino, e a pendência é verdadeira
+           select 1 from (select distinct versao_id, serie_id from grade) sv
+           where sv.versao_id = p.versao_id
+             and not exists (select 1 from grade x
+                             where x.versao_id = sv.versao_id and x.serie_id = sv.serie_id
+                               and x.componente_id = g.componente_id)
+         ) then 'B2 · falta em alguma série — os alunos dessa série ficam de fora'
          when exists (select 1 from grade x where x.versao_id = p.versao_id and x.componente_id is null
                         and lower(x.nome_impresso) = lower(g.nome_canonico))
               then 'C · a grade tem a disciplina, mas a linha está sem componente'
-         else 'B · a grade deste currículo não tem esse componente'
+         else '? · destino em todas as séries — não deveria estar pendente'
        end as causa
 from pend p
 left join global g on g.codigo_origem = p.codigo_origem
