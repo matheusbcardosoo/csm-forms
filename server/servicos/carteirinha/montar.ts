@@ -111,7 +111,9 @@ export function detalharInscritos(alunos: AlunoInscrito[]): InscritoDetalhe[] {
 
 /* ---------------- Imagens ---------------- */
 
-const LOGO_PADRAO = path.resolve(__dirname, '..', '..', '..', 'public', 'images', 'logo-brasao.png');
+// a logo principal do colégio (a mesma dos formulários e dos PDFs de
+// visita); o brasão é a marca da São Marcos School, não do colégio
+const LOGO_PADRAO = path.resolve(__dirname, '..', '..', '..', 'public', 'images', 'logo.jpg');
 
 /**
  * Resolve os endereços das imagens conforme o modo. No PDF tudo vira data
@@ -157,21 +159,22 @@ class Imagens {
 
 /**
  * Logo do colégio: a do cadastro da instituição (bucket 'institucional'),
- * o brasão se não houver logo, e o brasão do site como último recurso —
- * o cartão nunca sai sem a marca do colégio.
+ * se houver, e a logo principal do site (public/images/logo.jpg) senão —
+ * o cartão e a ficha nunca saem sem a marca do colégio.
  */
 export async function logoDoColegio(db: SupabaseClient): Promise<{ bytes: Buffer; tipo: string } | null> {
-  const { data: inst } = await db.from('instituicao').select('logo_path, brasao_path').maybeSingle();
-  for (const caminho of [inst?.logo_path, inst?.brasao_path]) {
-    if (!caminho) continue;
-    const { data, error } = await db.storage.from('institucional').download(caminho);
-    if (error || !data) continue;
-    const bytes = Buffer.from(await data.arrayBuffer());
-    const tipo = tipoDaImagem(bytes);
-    if (tipo) return { bytes, tipo };
+  const { data: inst } = await db.from('instituicao').select('logo_path').maybeSingle();
+  if (inst?.logo_path) {
+    const { data, error } = await db.storage.from('institucional').download(inst.logo_path);
+    if (!error && data) {
+      const bytes = Buffer.from(await data.arrayBuffer());
+      const tipo = tipoDaImagem(bytes);
+      if (tipo) return { bytes, tipo };
+    }
   }
-  if (fs.existsSync(LOGO_PADRAO)) return { bytes: fs.readFileSync(LOGO_PADRAO), tipo: 'image/png' };
-  return null;
+  if (!fs.existsSync(LOGO_PADRAO)) return null;
+  const bytes = fs.readFileSync(LOGO_PADRAO);
+  return { bytes, tipo: tipoDaImagem(bytes) || 'image/jpeg' };
 }
 
 /* ---------------- Documentos ---------------- */
@@ -262,6 +265,7 @@ export async function montarFichaInscricao(db: SupabaseClient, pasta: Carteirinh
   }
   return {
     evento: { nome: pasta.nome, logo: await img.logoEvento(pasta), validade: pasta.validade ? fmtDataBr(pasta.validade) : null },
+    colegio: { logo: await img.logoColegio() },
     subpasta: { nome: subpasta.nome, professor: subpasta.professor_responsavel },
     diretor,
     folhas

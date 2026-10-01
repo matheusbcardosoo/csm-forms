@@ -520,7 +520,7 @@ Nenhuma bloqueia o início. Todas têm proposta padrão.
 | CPF inválido | Cartão: "—". Ficha: o valor cru | No cartão, mostrar o cru vazaria dígitos sem censura. Na ficha, a direção precisa ver que está errado |
 | Tamanho do nome | Fonte escolhida pelo comprimento no servidor (9/8/7 pt) e não por medição | O mesmo número vai para a tela e para o PDF, sem depender da fonte instalada. O texto quebra linha e nunca é cortado |
 | Fonte do documento | Arial / Liberation Sans, como o histórico | O Chromium do Docker só tem `fonts-liberation`, de métrica igual à Arial: tela e PDF quebram linha no mesmo lugar |
-| Logo do colégio | `instituicao.logo_path`, senão `brasao_path`, senão `public/images/logo-brasao.png` | A tela de Instituição ainda não tem upload de logo; o cartão nunca sai sem a marca |
+| Logo do colégio | `instituicao.logo_path`, senão `public/images/logo.jpg` — a logo principal, a mesma dos formulários e dos PDFs de visita. O brasão (`logo-brasao.png`) é a marca da São Marcos School e não entra. Sai no cabeçalho do cartão e no canto esquerdo da ficha de inscrição (a do evento fica à direita) | A tela de Instituição ainda não tem upload de logo; nenhum dos dois documentos sai sem a marca |
 | Rotas internas do PDF | Arquivo próprio, `server/rotas/carteirinhas-pdf-interno.ts` | `pdf-interno.ts` é do histórico (RNF-CART-04) |
 | Avulsa | O PDF registra escopo `avulsa`; o aluno não precisa estar inscrito na subpasta escolhida | O evento e a turma vêm da subpasta, como pede o RF-CART-11 |
 | Ambiente local | `fake-supabase.mjs` ganhou um Storage mínimo em disco | Sem ele não dava para testar foto e logo de ponta a ponta. Não aplica RLS de bucket |

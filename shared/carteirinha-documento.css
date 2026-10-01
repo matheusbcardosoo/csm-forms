@@ -60,9 +60,10 @@
 }
 
 /* frente */
-.cc-cab { height: 11mm; display: grid; grid-template-columns: 12mm minmax(0, 1fr) 12mm; gap: 1.5mm; align-items: center; }
+.cc-cab { height: 11mm; display: grid; grid-template-columns: 15mm minmax(0, 1fr) 12mm; gap: 1.5mm; align-items: center; }
+/* 15mm: a logo do colégio (logo.jpg) é 4:3 e ocupa a altura toda do cabeçalho */
 .cc-logo { height: 11mm; display: flex; align-items: center; justify-content: center; }
-.cc-logo img { max-width: 12mm; max-height: 11mm; object-fit: contain; }
+.cc-logo img { max-width: 100%; max-height: 11mm; object-fit: contain; }
 .cc-evento {
   text-align: center; font-weight: 700; text-transform: uppercase; color: var(--cc-azul);
   letter-spacing: .02em; line-height: 1.1; overflow-wrap: anywhere;
@@ -112,9 +113,14 @@
 .fi-cab h1 { margin: 0; font-size: 17pt; font-weight: 700; color: var(--fi-azul); letter-spacing: .01em; }
 .fi-cab h2 { margin: 1mm 0 0; font-size: 11pt; font-weight: 700; color: var(--fi-azul); text-transform: uppercase; }
 .fi-cab p { margin: 1.2mm 0 0; font-size: 9pt; color: #4b5b6b; }
-.fi-logo { position: absolute; right: 0; top: 0; width: 20mm; height: 20mm; display: flex; align-items: center; justify-content: center; }
-.fi-logo img { max-width: 20mm; max-height: 20mm; object-fit: contain; }
-.fi-folha { position: absolute; left: 0; top: 0; font-size: 7.5pt; color: #5d6b78; }
+.fi-logo { position: absolute; top: 0; height: 20mm; display: flex; align-items: center; }
+.fi-logo img { max-height: 20mm; object-fit: contain; }
+/* colégio à esquerda (logo 4:3), evento à direita — como os PDFs de visita */
+.fi-logo.colegio { left: 0; width: 30mm; justify-content: flex-start; }
+.fi-logo.colegio img { max-width: 30mm; }
+.fi-logo.evento { right: 0; width: 20mm; justify-content: flex-end; }
+.fi-logo.evento img { max-width: 20mm; }
+.fi-folha { font-weight: 600; color: var(--fi-azul); }
 
 .fi-grade {
   flex: 1; margin-top: 4mm;

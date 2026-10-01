@@ -27,11 +27,11 @@
 <% docs.forEach(function (doc) { doc.folhas.forEach(function (folha, f) { %>
   <section class="folha-ficha">
     <div class="fi-cab">
-      <% if (doc.folhas.length > 1) { %><div class="fi-folha">Folha <%= f + 1 %> de <%= doc.folhas.length %></div><% } %>
+      <% if (doc.colegio.logo) { %><div class="fi-logo colegio"><img src="<%= doc.colegio.logo %>" alt=""></div><% } %>
       <h1>FICHA DE INSCRIÇÃO ESCOLAR</h1>
       <h2><%= doc.evento.nome %> — <%= doc.subpasta.nome %></h2>
-      <p>Registro Oficial de Inscritos e Homologação da Direção</p>
-      <% if (doc.evento.logo) { %><div class="fi-logo"><img src="<%= doc.evento.logo %>" alt=""></div><% } %>
+      <p>Registro Oficial de Inscritos e Homologação da Direção<% if (doc.folhas.length > 1) { %> · <span class="fi-folha">Folha <%= f + 1 %> de <%= doc.folhas.length %></span><% } %></p>
+      <% if (doc.evento.logo) { %><div class="fi-logo evento"><img src="<%= doc.evento.logo %>" alt=""></div><% } %>
     </div>
 
     <div class="fi-grade">

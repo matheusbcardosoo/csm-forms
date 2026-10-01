@@ -146,6 +146,8 @@ export interface FolhaFicha {
 
 export interface DocFichaInscricao {
   evento: EventoDoc;
+  /** Logo do colégio, no canto esquerdo do cabeçalho (a do evento fica à direita). */
+  colegio: { logo: string | null };
   subpasta: { nome: string; professor: string | null };
   diretor: string | null;
   folhas: FolhaFicha[];

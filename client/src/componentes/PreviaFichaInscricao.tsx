@@ -16,11 +16,11 @@ export function PreviaFichaInscricao({ doc, escala = 0.5 }: { doc: DocFichaInscr
             <div style={{ transform: `scale(${escala})`, transformOrigin: 'top left' }}>
               <section className="folha-ficha">
                 <div className="fi-cab">
-                  {doc.folhas.length > 1 ? <div className="fi-folha">Folha {f + 1} de {doc.folhas.length}</div> : null}
+                  {doc.colegio.logo ? <div className="fi-logo colegio"><img src={doc.colegio.logo} alt="" /></div> : null}
                   <h1>FICHA DE INSCRIÇÃO ESCOLAR</h1>
                   <h2>{doc.evento.nome} — {doc.subpasta.nome}</h2>
-                  <p>Registro Oficial de Inscritos e Homologação da Direção</p>
-                  {doc.evento.logo ? <div className="fi-logo"><img src={doc.evento.logo} alt="" /></div> : null}
+                  <p>Registro Oficial de Inscritos e Homologação da Direção{doc.folhas.length > 1 ? <> · <span className="fi-folha">Folha {f + 1} de {doc.folhas.length}</span></> : null}</p>
+                  {doc.evento.logo ? <div className="fi-logo evento"><img src={doc.evento.logo} alt="" /></div> : null}
                 </div>
 
                 <div className="fi-grade">
