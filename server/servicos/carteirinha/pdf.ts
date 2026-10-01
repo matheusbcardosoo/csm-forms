@@ -6,8 +6,15 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { renderCarteirinhasPdf, renderFichaInscricaoPdf } from '../../../lib/pdf';
 import type { DocumentoCarteirinha, EscopoEmissao } from '../../../shared/types/carteirinha';
 
+/**
+ * O Chromium imprime uma página servida por ESTE processo, então o
+ * endereço é sempre o de loopback — nunca APP_BASE_URL. Aquele é o
+ * endereço público (o do QR do histórico): no desenvolvimento ele aponta
+ * para a produção, que pode não ter a rota (404), e em qualquer caso
+ * faria o token interno sair pela rede pública.
+ */
 function baseUrl(): string {
-  return process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+  return `http://127.0.0.1:${process.env.PORT || 3000}`;
 }
 
 export async function gerarPdfCarteirinhas(subpastaId: string, alunoIds?: string[]): Promise<Buffer> {
