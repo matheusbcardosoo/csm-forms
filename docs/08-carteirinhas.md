@@ -1,7 +1,7 @@
 # Carteirinhas Estudantis
 
 > Levantamento de requisitos e plano de implementação.
-> v0.1 em 01/10/2026 · v0.2 em 01/10/2026: incorpora as decisões do Matheus (cartão dobrável frente/verso, 4 por folha, logo do evento, validade, CPF censurado, permissões) e a **ficha de inscrição** por subpasta · **v0.3 em 01/10/2026**: fecha as quatro perguntas restantes (nome social, porta-crachá, CPF completo na ficha, vagas em branco).
+> v0.1 em 01/10/2026 · v0.2 em 01/10/2026: incorpora as decisões do Matheus (cartão dobrável frente/verso, 4 por folha, logo do evento, validade, CPF censurado, permissões) e a **ficha de inscrição** por subpasta · **v0.3 em 01/10/2026**: fecha as quatro perguntas restantes (nome social, porta-crachá, CPF completo na ficha, vagas em branco) · **v0.4 em 01/10/2026**: o cartão troca o CPF censurado pelo **R.A. sem censura**; a ficha passa a trazer R.A. e CPF.
 > **Status (01/10/2026): Fases 1 a 7 implementadas** na branch `feat/carteirinhas` (Fase 6: lote pela lista, ordem manual, duplicar pasta e escolher o diretor; o QR do RF-CART-20 ficou de fora). **Pendente:** Fase 0 com o token real (formato e peso de `url_foto`), teste físico de impressão (Fase 3, item 5) e aplicar as migrations 014 e 015 em produção. Decisões tomadas na implementação em §9.3.
 > Módulo paralelo ao histórico: não depende de a F5 estar 100% e não mexe em nenhuma regra do histórico.
 
@@ -119,8 +119,8 @@ Folha com 4 cartões: 4 cortes horizontais e 2 verticais, mais 4 dobras.
 ├────────────┬──────────────────────────────────────┤
 │            │ Nome                                 │
 │   FOTO     │ ANA BEATRIZ SOUZA LIMA               │
-│   3×4      │ CPF                                  │
-│ 25 × 33 mm │ 123.xxx.xxx-09                       │
+│   3×4      │ R.A.                                 │
+│ 25 × 33 mm │ 000.123.456-7                        │
 │            │ Data de nascimento                   │
 │            │ 09/04/2014                           │
 ├────────────┴──────────────────────────────────────┤
@@ -134,7 +134,7 @@ Alturas aproximadas, dentro dos 55 mm úteis: cabeçalho 11 mm, faixa da subpast
 
 **Regras do conteúdo:**
 
-- **CPF censurado** no formato `123.xxx.xxx-32`: os 3 primeiros e os 2 últimos dígitos visíveis. A função `mascararCPF()` vai para `shared/formatos.ts`. CPF ausente ou que não tem 11 dígitos sai como "—", nunca com dígitos parciais.
+- **R.A. sem censura** (v0.4, no lugar do CPF censurado): sai como está no cadastro, sem máscara (a composição do R.A. varia, ver `shared/formatos.ts`). R.A. ausente sai como "—". O cartão **não leva CPF nenhum**: o objeto `Cartao` nem tem o campo.
 - **Nome longo:** até duas linhas, com a fonte reduzindo até o mínimo legível (7 pt). Nunca corta letra.
 - **Nome do evento longo:** até duas linhas no cabeçalho, com o mesmo ajuste.
 - **Sem foto:** quadro tracejado "sem foto". A conferência avisa antes.
@@ -170,7 +170,7 @@ A ficha é um **documento de controle impresso e assinado à mão**. Assim como 
 | RNF-CART-03 | **Desempenho:** 40 alunos geram as carteirinhas em menos de 10 s e a ficha em menos de 6 s. A foto entra no HTML já redimensionada (§6.3) |
 | RNF-CART-04 | **Independência do histórico:** nenhuma tabela, função ou template do histórico é alterado (§8) |
 | RNF-CART-05 | **Disponibilidade:** com o Activesoft fora do ar, a emissão funciona com as fotos já copiadas (RNF-05) |
-| RNF-CART-06 | **CPF por documento:** o **cartão** sai sempre censurado (`123.xxx.xxx-32`), inclusive na prévia, porque é ele que circula no evento e pode ser perdido. A **ficha de inscrição** sai com o CPF completo, porque é documento interno de controle, assinado pela direção e guardado pela secretaria. A tela de emissão da ficha lembra isso. O montador do cartão recebe só o CPF já censurado, nunca o completo, para que um erro de template não vaze o número |
+| RNF-CART-06 | **Documento por documento** (v0.4): o **cartão** traz o **R.A.** e nenhum CPF, porque é ele que circula no evento e pode ser perdido — o objeto do cartão nem tem campo de CPF, para que um erro de template não o vaze. A **ficha de inscrição** traz **R.A. e CPF completo**, porque é documento interno de controle, assinado pela direção e guardado pela secretaria. A tela de emissão da ficha lembra isso |
 
 ---
 
@@ -487,7 +487,7 @@ Nada em `server/servicos/historico/`, `views/pdf-historico.ejs`, `shared/histori
 | Verso | Logo do evento |
 | Tamanho e impressão | 4 por A4. Cartão dobrável: frente à esquerda, verso à direita, impressão de um lado só. Face de 95 × 60 mm |
 | Validade | Personalizável **por pasta**, obrigatória para emitir |
-| CPF | Censurado, `123.xxx.xxx-32`, nos dois documentos |
+| CPF | ~~Censurado, `123.xxx.xxx-32`, nos dois documentos~~ → v0.4: cartão com R.A. sem censura e sem CPF; ficha com R.A. e CPF completo |
 | Quem emite | Só admin e secretaria. O módulo fica invisível para os demais papéis |
 | Ficha de inscrição | Por subpasta, no modelo anexado (`docs/modelos/FICHA_INSCRICAO_MODELO.pdf`) |
 
@@ -517,7 +517,8 @@ Nenhuma bloqueia o início. Todas têm proposta padrão.
 | `sharp` | **Não entrou.** Upload manual (foto e logo) é reduzido no navegador, via canvas: foto 3×4 a 600 × 800 JPEG q=0,82, logo até 1200 px PNG, SVG rasterizado | A foto do Activesoft entra como vem (até 5 MB). Com fotos de exemplo, 40 alunos geram as carteirinhas em 2,6 s e a ficha em 1,9 s. Reavaliar na Fase 0 com o peso real |
 | Ficha sem validade/logo | Não bloqueia | O bloqueio do RF-CART-15 é das carteirinhas, que sairiam incompletas; a ficha não imprime validade e funciona sem logo |
 | Subpasta vazia | A ficha sai com uma folha de 15 vagas em branco | Serve para inscrição à mão |
-| CPF inválido | Cartão: "—". Ficha: o valor cru | No cartão, mostrar o cru vazaria dígitos sem censura. Na ficha, a direção precisa ver que está errado |
+| R.A. no cartão (v0.4) | O CPF censurado saiu do cartão; entrou o R.A. sem censura. Na ficha, R.A. e CPF em linhas próprias (Nome · R.A. + Nasc. · CPF). A conferência cobra "sem R.A." (cartão e ficha) e "sem CPF" (só ficha), sem bloquear | Pedido do Matheus em 01/10/2026 |
+| CPF inválido na ficha | Sai o valor cru | A direção precisa ver que está errado |
 | Tamanho do nome | Fonte escolhida pelo comprimento no servidor (9/8/7 pt) e não por medição | O mesmo número vai para a tela e para o PDF, sem depender da fonte instalada. O texto quebra linha e nunca é cortado |
 | Fonte do documento | Arial / Liberation Sans, como o histórico | O Chromium do Docker só tem `fonts-liberation`, de métrica igual à Arial: tela e PDF quebram linha no mesmo lugar |
 | Logo do colégio | `instituicao.logo_path`, senão `public/images/logo.jpg` — a logo principal, a mesma dos formulários e dos PDFs de visita. O brasão (`logo-brasao.png`) é a marca da São Marcos School e não entra. Sai no cabeçalho do cartão e no canto esquerdo da ficha de inscrição (a do evento fica à direita) | A tela de Instituição ainda não tem upload de logo; nenhum dos dois documentos sai sem a marca |
@@ -610,6 +611,6 @@ Sete fases pequenas, cada uma entregável e testável sozinha.
 | Fotos grandes travam o Chromium | Alto | Redimensionar na entrada (§6.3). Teste de 40 alunos como critério de pronto |
 | Impressora reescala o PDF e a dobra sai fora do meio | Médio | Aviso de 100%. Marcas de dobra na margem. Teste físico na Fase 3 |
 | Cartão de 95 × 60 não cabe no porta-crachá | Médio | Medir na Fase 0. O tamanho é uma variável CSS |
-| Foto e dados de menor em documento perdido | Médio (LGPD) | CPF censurado. Módulo restrito a admin e secretaria. Buckets privados |
+| Foto e dados de menor em documento perdido | Médio (LGPD) | O cartão não traz CPF (só R.A.). Módulo restrito a admin e secretaria. Buckets privados |
 | Conflito de merge com o histórico | Baixo | Lógica em arquivos próprios, com uma linha de ligação nos compartilhados (§8) |
 | Muitos alunos sem foto no Activesoft | Médio | Contador "sem foto" e atalho para o upload a partir da conferência |

@@ -141,7 +141,7 @@
 .fi-foto img { width: 100%; height: 100%; object-fit: cover; }
 .fi-numero { font-weight: 700; font-size: 7.5pt; margin-top: .6mm; }
 .fi-foto.com-foto .fi-numero { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; background: rgba(255, 255, 255, .88); color: var(--fi-azul); }
-.fi-campos { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2.4mm; font-size: 8.5pt; }
+.fi-campos { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1.5mm; font-size: 8.5pt; }
 .fi-linha { display: flex; align-items: baseline; gap: 1.6mm; min-width: 0; }
 .fi-linha b { color: #16222e; flex: 0 0 auto; }
 .fi-valor { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.15; }

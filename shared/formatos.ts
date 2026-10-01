@@ -128,22 +128,6 @@ export function tamanhoMaximo(formato: Formato): number {
 }
 
 /**
- * CPF censurado para documento que circula fora da escola — a
- * carteirinha (08-carteirinhas §3.4, RNF-CART-06): "123.xxx.xxx-32", os 3
- * primeiros e os 2 últimos dígitos visíveis.
- *
- * Aqui a regra geral do arquivo se inverte: o que não tem 11 dígitos
- * NÃO volta como veio, volta "—". Devolver o valor cru de um CPF com 10
- * dígitos imprimiria o número quase inteiro sem censura, que é
- * exatamente o que esta função existe para impedir.
- */
-export function mascararCPF(valor: string | null | undefined): string {
-  const d = apenasDigitos(valor);
-  if (d.length !== 11) return '—';
-  return `${d.slice(0, 3)}.xxx.xxx-${d.slice(9)}`;
-}
-
-/**
  * Nome que sai nos documentos de convívio (carteirinha, ficha de
  * inscrição): o social quando houver, senão o do cadastro. Não vale para
  * o histórico, que é documento oficial e tem regra própria.

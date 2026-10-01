@@ -24,7 +24,7 @@ export function TiraCartao({ doc, c }: { doc: DocCarteirinhas; c: Cartao }) {
           {c.foto ? <div className="cc-foto"><img src={c.foto} alt="" /></div> : <div className="cc-foto vazia">sem foto</div>}
           <dl className="cc-dados">
             <dt>Nome</dt><dd className={`cc-nome cc-t${c.tamanho_nome}`}>{c.nome}</dd>
-            <dt>CPF</dt><dd>{c.cpf_censurado}</dd>
+            <dt>R.A.</dt><dd>{c.ra}</dd>
             <dt>Data de nascimento</dt><dd>{c.data_nascimento}</dd>
           </dl>
         </div>

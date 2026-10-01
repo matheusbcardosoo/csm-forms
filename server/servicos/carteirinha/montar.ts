@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { formatarCPF, mascararCPF, nomeDeExibicao } from '../../../shared/formatos';
+import { formatarCPF, apenasDigitos, nomeDeExibicao } from '../../../shared/formatos';
 import { dataUrl, lerFoto, tipoDaImagem } from '../fotos';
 import {
   INSCRITOS_POR_FOLHA_FICHA,
@@ -80,16 +80,17 @@ export async function carregarAluno(db: SupabaseClient, id: string): Promise<Alu
 
 /* ---------------- Conferência (RF-CART-15) ---------------- */
 
-export function pendencias(a: Pick<AlunoInscrito, 'foto_path' | 'cpf' | 'data_nascimento'>): PendenciaInscrito[] {
+export function pendencias(a: Pick<AlunoInscrito, 'foto_path' | 'ra' | 'cpf' | 'data_nascimento'>): PendenciaInscrito[] {
   const p: PendenciaInscrito[] = [];
   if (!a.foto_path) p.push('sem_foto');
-  if (mascararCPF(a.cpf) === '—') p.push('sem_cpf');
+  if (!(a.ra || '').trim()) p.push('sem_ra');                 // cartão e ficha
+  if (apenasDigitos(a.cpf).length !== 11) p.push('sem_cpf'); // só a ficha
   if (!a.data_nascimento) p.push('sem_nascimento');
   return p;
 }
 
 export function contar(alunos: AlunoInscrito[]): Contadores {
-  const c: Contadores = { inscritos: alunos.length, sem_foto: 0, sem_cpf: 0, sem_nascimento: 0 };
+  const c: Contadores = { inscritos: alunos.length, sem_foto: 0, sem_ra: 0, sem_cpf: 0, sem_nascimento: 0 };
   for (const a of alunos) for (const p of pendencias(a)) c[p]++;
   return c;
 }
@@ -203,8 +204,8 @@ async function montarCartao(img: Imagens, a: AlunoInscrito, turma: string): Prom
     turma,
     nome,
     tamanho_nome: tamanhoPorComprimento(nome, [38, 48]),
-    // só o censurado entra no objeto do cartão (RNF-CART-06)
-    cpf_censurado: mascararCPF(a.cpf),
+    // o cartão leva o R.A., e o CPF nem entra no objeto (RNF-CART-06)
+    ra: (a.ra || '').trim() || '—',
     data_nascimento: fmtDataBr(a.data_nascimento),
     foto: await img.foto(a)
   };
@@ -247,6 +248,7 @@ export async function montarFichaInscricao(db: SupabaseClient, pasta: Carteirinh
       numero: i + j + 1,
       aluno_id: a.id,
       nome: nomeDeExibicao(a),
+      ra: (a.ra || '').trim() || '—',
       // completo: documento interno, assinado pela direção (RNF-CART-06)
       cpf: a.cpf ? formatarCPF(a.cpf) : '—',
       data_nascimento: fmtDataBr(a.data_nascimento),

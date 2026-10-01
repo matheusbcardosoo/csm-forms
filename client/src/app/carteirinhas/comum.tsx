@@ -39,6 +39,7 @@ export function useEscalaParaCaber(ref: RefObject<HTMLElement | null>, larguraMm
 export function TagsPendencias({ c, vazioOk = true }: { c: Contadores; vazioOk?: boolean }) {
   const itens = [
     c.sem_foto ? <Tag key="f" tipo="aviso" ponto>{c.sem_foto} sem foto</Tag> : null,
+    c.sem_ra ? <Tag key="r" tipo="aviso" ponto>{c.sem_ra} sem R.A.</Tag> : null,
     c.sem_cpf ? <Tag key="c" tipo="aviso" ponto>{c.sem_cpf} sem CPF</Tag> : null,
     c.sem_nascimento ? <Tag key="n" tipo="aviso" ponto>{c.sem_nascimento} sem nascimento</Tag> : null
   ].filter(Boolean);
@@ -91,7 +92,7 @@ function docExemplo(form: FormPasta, logo: string | null): DocCarteirinhas {
   return {
     evento: { nome, logo, validade: fmtValidade(form.validade), tamanho_nome: nome.length <= 30 ? 9 : nome.length <= 40 ? 8 : 7 },
     colegio: { nome: 'Colégio São Marcos', logo: '/api/carteirinhas/logo-colegio' },
-    cartoes: [{ aluno_id: 'exemplo', turma: 'Sub 12 Vôlei', nome: 'Ana Beatriz Souza Lima', tamanho_nome: 9, cpf_censurado: '123.xxx.xxx-09', data_nascimento: '09/04/2014', foto: null }]
+    cartoes: [{ aluno_id: 'exemplo', turma: 'Sub 12 Vôlei', nome: 'Ana Beatriz Souza Lima', tamanho_nome: 9, ra: '000.123.456-7', data_nascimento: '09/04/2014', foto: null }]
   };
 }
 

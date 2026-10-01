@@ -23,14 +23,14 @@ const LOGO_MAX = 5 * 1024 * 1024;
 
 /* ---------------- leituras auxiliares ---------------- */
 
-type AlunoMin = Pick<AlunoInscrito, 'id' | 'foto_path' | 'cpf' | 'data_nascimento'>;
+type AlunoMin = Pick<AlunoInscrito, 'id' | 'foto_path' | 'ra' | 'cpf' | 'data_nascimento'>;
 
 /** Inscritos (só o que a conferência usa) por subpasta, paginando além das 1000 linhas do PostgREST. */
 async function inscritosPorSubpasta(db: Db, subpastaIds: string[]): Promise<Map<string, AlunoMin[]>> {
   const mapa = new Map<string, AlunoMin[]>(subpastaIds.map(id => [id, []]));
   if (!subpastaIds.length) return mapa;
   for (let de = 0; ; de += 1000) {
-    const { data, error } = await db.from('carteirinha_inscrito').select('subpasta_id, aluno(id, foto_path, cpf, data_nascimento)')
+    const { data, error } = await db.from('carteirinha_inscrito').select('subpasta_id, aluno(id, foto_path, ra, cpf, data_nascimento)')
       .in('subpasta_id', subpastaIds).order('subpasta_id').order('aluno_id').range(de, de + 999);
     if (error) throw error;
     for (const l of (data || []) as unknown as { subpasta_id: string; aluno: AlunoMin | null }[]) if (l.aluno) mapa.get(l.subpasta_id)?.push(l.aluno);
