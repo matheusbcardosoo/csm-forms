@@ -11,6 +11,7 @@ import { Aviso, Botao, BotaoLink, Cabecalho, CampoSelect, CampoTexto, Card, Carr
 import { Icone } from '@/componentes/Icones';
 import { ROTULO_SITUACAO_ALUNO, ROTULO_SITUACAO_MATRICULA, type AlunoLista, type SituacaoAluno } from '@shared/types/aluno';
 import type { Curso, Serie } from '@shared/types/curriculo';
+import { ModalInscreverEmSubpasta } from '@/app/carteirinhas/ModalInscreverEmSubpasta';
 
 interface Resposta {
   alunos: AlunoLista[]; total: number; pagina: number; tamanho: number;
@@ -55,6 +56,9 @@ export function Alunos() {
   const [novo, setNovo] = useState<{ nome: string; data_nascimento: string; municipio_nascimento: string; uf_nascimento: string; cpf: string; ra: string } | null>(null);
   const [campos, setCampos] = useState<CampoInvalido[]>([]);
   const [salvando, setSalvando] = useState(false);
+  // seleção para inscrever em subpasta de evento (08-carteirinhas §7.6)
+  const [marcados, setMarcados] = useState<Set<string>>(new Set());
+  const [inscrever, setInscrever] = useState(false);
 
   async function criar() {
     if (!novo) return;
@@ -99,10 +103,18 @@ export function Alunos() {
           <Botao pequeno disabled={pagina >= totalPaginas} onClick={() => { const p = new URLSearchParams(params); p.set('pagina', String(pagina + 1)); setParams(p); }}>Próxima</Botao>
         </span>
       </> : undefined}>
+        {podeEditar && marcados.size ? (
+          <div className="barra-selecao">
+            <span><b>{marcados.size}</b> selecionado(s)</span>
+            <Botao pequeno icone="cartao" onClick={() => setInscrever(true)}>Inscrever em subpasta…</Botao>
+            <Botao pequeno variante="fantasma" onClick={() => setMarcados(new Set())}>Limpar</Botao>
+          </div>
+        ) : null}
         {carregando && !dados ? <Carregando /> : (
           <Tabela<AlunoLista>
             linhas={dados?.alunos || []}
             chave={a => a.id}
+            selecao={podeEditar ? { marcados, aoMudar: setMarcados, rotulo: a => `Selecionar ${a.nome}` } : undefined}
             vazio={<ListaVazia contexto={dados?.contexto} ano={ano} todosAnos={todosAnos} podeEditar={podeEditar}
               temFiltro={!!(q || serie || turma || situacao)} verTodos={() => definir('todos', '1')} irParaAno={setAno} />}
             colunas={[
@@ -116,6 +128,8 @@ export function Alunos() {
           />
         )}
       </Card>
+
+      {podeEditar ? <ModalInscreverEmSubpasta aberto={inscrever} alunoIds={[...marcados]} aoFechar={() => setInscrever(false)} aoInscrever={() => { setInscrever(false); setMarcados(new Set()); }} /> : null}
 
       <Modal aberto={!!novo} titulo="Novo aluno (cadastro manual)" descricao="Para quem não está no Activesoft. Os demais dados entram na ficha." aoFechar={() => setNovo(null)}
         rodape={<><Botao onClick={() => setNovo(null)}>Cancelar</Botao><Botao variante="primario" carregando={salvando} onClick={criar} icone="check">Cadastrar</Botao></>}>

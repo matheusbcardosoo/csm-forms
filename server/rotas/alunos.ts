@@ -4,6 +4,8 @@ import { Router } from 'express';
 import { exigirPapel, ctx, seguro } from '../lib/autorizacao';
 import { validar, z, texto, textoObrigatorio, dataIso, inteiro, numero, uuid } from '../lib/validacao';
 import { getServiceClient } from '../../lib/supabase';
+import { carteirinhaAvulsa, inscricoesDoAluno } from './carteirinhas';
+import { BUCKET_FOTOS, FOTO_MAX_BYTES, caminhoFoto, gravarArquivoFoto, lerFoto, tipoDaImagem } from '../servicos/fotos';
 import { CAMPOS_OBRIGATORIOS_HISTORICO, type Aluno, type ItemValidacao, type MatriculaDetalhe } from '../../shared/types/aluno';
 
 export const alunosRouter = Router();
@@ -267,4 +269,88 @@ alunosRouter.put('/matriculas/:id/notas/:itemId', exigirPapel('admin', 'secretar
   });
   if (error) throw error;
   res.json(data);
+}));
+
+/* ---------- foto (08-carteirinhas §3.1) ---------- */
+// Leitura para todo papel ativo, como o resto da ficha; a RLS do bucket
+// repete a regra. Escrita só admin e secretaria, com auditoria.
+alunosRouter.get('/:id/foto', exigirPapel(), seguro(async (req, res) => {
+  const { client } = ctx(res);
+  const { data: aluno, error } = await client.from('aluno').select('foto_path').eq('id', req.params.id).maybeSingle();
+  if (error) throw error;
+  const foto = await lerFoto(client, aluno?.foto_path ?? null);
+  if (!foto) return res.status(404).json({ error: 'Aluno sem foto.' });
+  res.setHeader('Content-Type', foto.tipo);
+  res.setHeader('Cache-Control', 'private, max-age=300');
+  res.send(foto.bytes);
+}));
+
+async function auditarFoto(alunoId: string, email: string, acao: 'editar' | 'excluir', anterior: unknown, novo: unknown, motivo: string | null) {
+  await getServiceClient().from('auditoria').insert({ entidade: 'aluno', entidade_id: alunoId, aluno_id: alunoId, acao, campo: 'foto', valor_anterior: { foto: anterior }, valor_novo: { foto: novo }, motivo, usuario_email: email });
+}
+
+alunosRouter.post('/:id/foto', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
+  const body = validar(z.object({ base64: z.string().min(1), motivo: texto }), req, res);
+  if (!body) return;
+  const bytes = Buffer.from(body.base64, 'base64');
+  if (bytes.length > FOTO_MAX_BYTES) return res.status(422).json({ error: 'A foto deve ter no máximo 5 MB.' });
+  const tipo = tipoDaImagem(bytes);
+  if (!tipo) return res.status(422).json({ error: 'Envie a foto em JPG, PNG ou WebP.' });
+
+  const { client, perfil } = ctx(res);
+  const { data: atual, error: e0 } = await client.from('aluno').select('id, foto_origem').eq('id', req.params.id).maybeSingle();
+  if (e0) throw e0;
+  if (!atual) return res.status(404).json({ error: 'Aluno não encontrado.' });
+  const caminho = caminhoFoto(atual.id, 'manual');
+  await gravarArquivoFoto(client, caminho, bytes, tipo);
+  const { data, error } = await client.from('aluno').update({ foto_path: caminho, foto_origem: 'manual', foto_atualizada_em: new Date().toISOString() }).eq('id', atual.id).select().single();
+  if (error) throw error;
+  await auditarFoto(atual.id, perfil.email, 'editar', atual.foto_origem, 'manual', body.motivo ?? null);
+  res.json(data);
+}));
+
+/** RF-FOTO-06: volta para a cópia da origem, guardada mesmo enquanto a manual mandava. */
+alunosRouter.post('/:id/foto/origem', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
+  const { client, perfil } = ctx(res);
+  const { data: atual, error: e0 } = await client.from('aluno').select('id, foto_origem, foto_alterada_origem').eq('id', req.params.id).maybeSingle();
+  if (e0) throw e0;
+  if (!atual) return res.status(404).json({ error: 'Aluno não encontrado.' });
+  if (!atual.foto_alterada_origem) return res.status(409).json({ error: 'Não há foto do Activesoft guardada para este aluno. Ela entra na próxima importação, se a origem tiver uma.' });
+  const { data, error } = await client.from('aluno').update({ foto_path: caminhoFoto(atual.id, 'activesoft'), foto_origem: 'activesoft', foto_atualizada_em: new Date().toISOString() }).eq('id', atual.id).select().single();
+  if (error) throw error;
+  await client.storage.from(BUCKET_FOTOS).remove([caminhoFoto(atual.id, 'manual')]);
+  await auditarFoto(atual.id, perfil.email, 'editar', atual.foto_origem, 'activesoft', (req.body?.motivo as string) || null);
+  res.json(data);
+}));
+
+/**
+ * Remove a foto. Fica registrado como decisão manual (foto_origem
+ * 'manual' sem arquivo) para a reimportação não recolocá-la — a cópia da
+ * origem continua guardada e "Voltar à foto do Activesoft" a restaura.
+ */
+alunosRouter.delete('/:id/foto', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
+  const { client, perfil } = ctx(res);
+  const { data: atual, error: e0 } = await client.from('aluno').select('id, foto_path, foto_origem').eq('id', req.params.id).maybeSingle();
+  if (e0) throw e0;
+  if (!atual) return res.status(404).json({ error: 'Aluno não encontrado.' });
+  const { data, error } = await client.from('aluno').update({ foto_path: null, foto_origem: 'manual', foto_atualizada_em: new Date().toISOString() }).eq('id', atual.id).select().single();
+  if (error) throw error;
+  await client.storage.from(BUCKET_FOTOS).remove([caminhoFoto(atual.id, 'manual')]);
+  await auditarFoto(atual.id, perfil.email, 'excluir', atual.foto_origem, null, (req.query.motivo as string) || null);
+  res.json(data);
+}));
+
+/* ---------- carteirinha pela ficha do aluno (08-carteirinhas §7.5) ---------- */
+alunosRouter.get('/:id/carteirinhas', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
+  res.json(await inscricoesDoAluno(ctx(res).client, req.params.id));
+}));
+
+alunosRouter.get('/:id/carteirinha.pdf', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
+  const subpasta = String(req.query.subpasta || '');
+  if (!uuid.safeParse(subpasta).success) return res.status(422).json({ error: 'Escolha a pasta e a subpasta: o cartão sempre pertence a um evento.' });
+  const { client, perfil } = ctx(res);
+  const r = await carteirinhaAvulsa(client, req.params.id, subpasta, perfil.email);
+  if ('erro' in r) return res.status(r.status).json({ error: r.erro });
+  res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${r.nome}"`, 'Content-Length': String(r.pdf.length) });
+  res.send(r.pdf);
 }));

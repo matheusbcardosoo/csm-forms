@@ -1,0 +1,161 @@
+/* ==========================================================
+   Carteirinhas e ficha de inscrição — ARQUIVO COMPARTILHADO.
+
+   Importado pela pré-visualização React (client, via @shared) e embutido
+   nos templates EJS de PDF (server, via fs.readFileSync). Um CSS só para
+   os dois é o que faz a tela mostrar o que a impressora imprime
+   (RNF-04, 08-carteirinhas §6.4). Mexeu aqui, confira os dois.
+
+   Papel não segue tema: cores literais. Medidas em mm porque a folha é
+   A4 de verdade e o cartão tem de bater na régua (RNF-CART-02).
+   As medidas do cartão estão nas variáveis abaixo — se o porta-crachá
+   pedir outro tamanho, é aqui que se ajusta (§9.2, pergunta 2).
+   ========================================================== */
+
+.folha-cartoes, .folha-ficha {
+  --cc-face-l: 95mm;
+  --cc-face-a: 60mm;
+  --cc-seguranca: 2.5mm;
+  --cc-azul: #0F385A;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  color: #16222e;
+  font-family: Arial, "Liberation Sans", Helvetica, sans-serif;
+  line-height: 1.2;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.folha-cartoes *, .folha-ficha * { box-sizing: border-box; }
+.folha-cartoes img, .folha-ficha img { display: block; }
+
+/* ---------------- Folha de cartões: A4 retrato, 4 tiras ---------------- */
+.folha-cartoes {
+  width: 210mm;
+  /* 1mm a menos que o A4: folga contra arredondamento de subpixel, que
+     senão empurra uma folha em branco depois de cada uma no PDF */
+  height: 296mm;
+}
+
+.cc-instrucao {
+  position: absolute; left: 10mm; right: 10mm; top: 8mm;
+  text-align: center; font-size: 7pt; color: #8b98a4;
+}
+
+/* traço de corte (contínuo) e de dobra (tracejado), sempre nas margens */
+.cc-marca { position: absolute; background: #5d6b78; }
+.cc-marca.h { height: 0.2mm; }
+.cc-marca.v { width: 0.2mm; }
+.cc-marca.dobra { background: none; border-left: 0.25mm dashed #5d6b78; width: 0; }
+.cc-dobra-rotulo { position: absolute; font-size: 5.5pt; color: #8b98a4; transform: translateX(-50%); white-space: nowrap; }
+
+.cc-tiras { position: absolute; left: 10mm; top: 28.5mm; }
+.cc-tira { display: flex; width: calc(var(--cc-face-l) * 2); height: var(--cc-face-a); }
+.cc-face {
+  width: var(--cc-face-l); height: var(--cc-face-a);
+  padding: var(--cc-seguranca);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* frente */
+.cc-cab { height: 11mm; display: grid; grid-template-columns: 12mm minmax(0, 1fr) 12mm; gap: 1.5mm; align-items: center; }
+.cc-logo { height: 11mm; display: flex; align-items: center; justify-content: center; }
+.cc-logo img { max-width: 12mm; max-height: 11mm; object-fit: contain; }
+.cc-evento {
+  text-align: center; font-weight: 700; text-transform: uppercase; color: var(--cc-azul);
+  letter-spacing: .02em; line-height: 1.1; overflow-wrap: anywhere;
+}
+.cc-faixa {
+  height: 5mm; margin: 1mm 0;
+  background: var(--cc-azul); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  white-space: nowrap; overflow: hidden; padding: 0 2mm;
+}
+.cc-corpo { height: 33mm; display: flex; gap: 3mm; }
+.cc-foto {
+  width: 25mm; height: 33mm; flex: 0 0 auto;
+  border: 0.25mm solid #c6d0da; background: #f7f9fb;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.cc-foto img { width: 100%; height: 100%; object-fit: cover; }
+.cc-foto.vazia { border: 0.3mm dashed #8b98a4; color: #8b98a4; font-size: 7pt; text-transform: uppercase; letter-spacing: .04em; }
+.cc-dados { flex: 1; min-width: 0; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 0.6mm; }
+.cc-dados dt { font-size: 5.5pt; text-transform: uppercase; letter-spacing: .05em; color: #5d6b78; margin: 1mm 0 0; }
+.cc-dados dt:first-child { margin-top: 0; }
+.cc-dados dd { margin: 0; font-size: 8.5pt; font-weight: 700; overflow-wrap: anywhere; }
+.cc-nome { text-transform: uppercase; line-height: 1.12; }
+.cc-rodape { height: 4mm; display: flex; align-items: flex-end; justify-content: flex-end; font-size: 6.5pt; color: #5d6b78; }
+.cc-rodape b { color: #16222e; margin-left: 1mm; }
+
+/* tamanho por comprimento (montar.ts › tamanhoPorComprimento): nunca corta letra */
+.cc-t9 { font-size: 9pt; }
+.cc-t8 { font-size: 8pt; }
+.cc-t7 { font-size: 7pt; }
+
+/* verso: a logo do evento, grande, em fundo branco */
+.cc-verso { align-items: center; justify-content: center; }
+.cc-verso img { max-width: 70mm; max-height: 45mm; object-fit: contain; }
+
+/* ---------------- Ficha de inscrição: A4 paisagem, 3 × 5 ---------------- */
+.folha-ficha {
+  width: 297mm;
+  height: 209mm;
+  padding: 9mm 12mm 8mm;
+  display: flex; flex-direction: column;
+  --fi-azul: #1f3a60;
+  --fi-linha: #9fb3cf;
+}
+.fi-cab { position: relative; text-align: center; padding-bottom: 2.5mm; border-bottom: 0.5mm solid var(--fi-azul); min-height: 22mm; }
+.fi-cab h1 { margin: 0; font-size: 17pt; font-weight: 700; color: var(--fi-azul); letter-spacing: .01em; }
+.fi-cab h2 { margin: 1mm 0 0; font-size: 11pt; font-weight: 700; color: var(--fi-azul); text-transform: uppercase; }
+.fi-cab p { margin: 1.2mm 0 0; font-size: 9pt; color: #4b5b6b; }
+.fi-logo { position: absolute; right: 0; top: 0; width: 20mm; height: 20mm; display: flex; align-items: center; justify-content: center; }
+.fi-logo img { max-width: 20mm; max-height: 20mm; object-fit: contain; }
+.fi-folha { position: absolute; left: 0; top: 0; font-size: 7.5pt; color: #5d6b78; }
+
+.fi-grade {
+  flex: 1; margin-top: 4mm;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(5, 21.5mm);
+  gap: 3mm 4mm;
+}
+.fi-vaga {
+  border: 0.35mm solid var(--fi-linha); border-radius: 2mm; background: #f6f8fb;
+  padding: 1.6mm 2.4mm; display: flex; gap: 2.6mm; align-items: center; overflow: hidden;
+}
+.fi-foto {
+  position: relative; width: 13.5mm; height: 18mm; flex: 0 0 auto;
+  border: 0.3mm dashed var(--fi-linha); color: #7f95b4;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 7pt; line-height: 1.15; text-align: center; overflow: hidden; background: #fff;
+}
+.fi-foto.com-foto { border-style: solid; }
+.fi-foto img { width: 100%; height: 100%; object-fit: cover; }
+.fi-numero { font-weight: 700; font-size: 7.5pt; margin-top: .6mm; }
+.fi-foto.com-foto .fi-numero { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; background: rgba(255, 255, 255, .88); color: var(--fi-azul); }
+.fi-campos { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2.4mm; font-size: 8.5pt; }
+.fi-linha { display: flex; align-items: baseline; gap: 1.6mm; min-width: 0; }
+.fi-linha b { color: #16222e; flex: 0 0 auto; }
+.fi-valor { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.15; }
+.fi-nome { font-size: 8pt; font-weight: 600; text-transform: uppercase; }
+.fi-pontilhado { flex: 1; min-width: 6mm; border-bottom: 0.3mm dotted #7f95b4; height: 3mm; }
+.fi-nasc { flex: 0 0 auto; }
+
+.fi-rodape {
+  margin-top: 4mm; padding-top: 3mm; border-top: 0.5mm solid var(--fi-azul);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) 44mm; gap: 8mm;
+  font-size: 8pt; color: #4b5b6b; height: 37mm;
+}
+.fi-bloco { display: flex; flex-direction: column; min-width: 0; }
+.fi-bloco h3 { margin: 0 0 1.5mm; font-size: 9.5pt; font-weight: 700; color: var(--fi-azul); text-transform: uppercase; }
+.fi-bloco .fi-texto { margin: 0 0 1.5mm; }
+.fi-bloco .fi-preenchido { color: #16222e; font-weight: 600; }
+.fi-assinatura { margin-top: auto; border-top: 0.35mm solid var(--fi-azul); padding-top: 1.2mm; text-align: center; }
+.fi-carimbo {
+  flex: 1; margin-top: 0.5mm; border: 0.35mm dashed var(--fi-linha); border-radius: 2mm;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  color: #7f95b4; font-size: 7.5pt;
+}
+.fi-carimbo b { font-size: 8pt; }

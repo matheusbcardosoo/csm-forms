@@ -6,9 +6,12 @@ import { api, ErroApi, mensagemErro, type CampoInvalido } from '@/api/cliente';
 import { useRecurso } from '@/hooks/useRecurso';
 import { useSessao } from '@/hooks/useSessao';
 import { useToast } from '@/hooks/useToast';
-import { Aviso, Botao, BotaoLink, CampoArea, CampoSelect, CampoTexto, Card, Carregando, EstadoVazio, Modal, Tabela, Tag, fmtData, fmtDataHora, iniciais } from '@/componentes/ui';
+import { Aviso, Botao, BotaoLink, CampoArea, CampoSelect, CampoTexto, Card, Carregando, Confirmar, EstadoVazio, Modal, Tabela, Tag, fmtData, fmtDataHora } from '@/componentes/ui';
 import { ROTULO_STATUS_HISTORICO, ROTULO_TIPO_HISTORICO, type HistoricoLista, type StatusHistorico } from '@shared/types/historico';
 import { Icone } from '@/componentes/Icones';
+import { FotoAluno } from '@/componentes/FotoAluno';
+import { ModalCarteirinhaAluno } from '@/app/carteirinhas/ModalCarteirinhaAluno';
+import { prepararFoto3x4 } from '@/compartilhado/imagem';
 import { CAMPOS_OBRIGATORIOS_HISTORICO, ROTULO_ORIGEM, ROTULO_SITUACAO_ALUNO, ROTULO_SITUACAO_MATRICULA, ROTULO_SITUACAO_NOTA, type Aluno, type AlunoDetalhe, type Auditoria, type GradeNotas, type MatriculaDetalhe, type SituacaoAluno, type SituacaoMatricula, type SituacaoNota } from '@shared/types/aluno';
 import type { Curso, EstabelecimentoExterno, Serie } from '@shared/types/curriculo';
 
@@ -20,6 +23,7 @@ export function AlunoFicha() {
   const aba = (params.get('aba') as Aba) || 'dados';
   const { podeEditar } = useSessao();
   const { dados, carregando, erro, recarregar } = useRecurso<AlunoDetalhe>(`/api/alunos/${id}`);
+  const [carteirinha, setCarteirinha] = useState(false);
 
   if (carregando && !dados) return <div className="wrap"><Carregando /></div>;
   if (erro || !dados) return <div className="wrap"><Aviso tipo="erro">{erro || 'Aluno não encontrado.'}</Aviso></div>;
@@ -33,7 +37,7 @@ export function AlunoFicha() {
     <div className="wrap">
       <Link className="cab-voltar" to="/app/alunos"><Icone nome="setaEsq" />Alunos</Link>
       <div className="ficha-cab">
-        <div className="ficha-av">{iniciais(aluno.nome)}</div>
+        <FotoAluno aluno={aluno} />
         <div className="ficha-id">
           <h1>{aluno.nome}</h1>
           <div className="ficha-meta">
@@ -46,9 +50,11 @@ export function AlunoFicha() {
         </div>
         <div className="acoes">
           {podeEditar ? <Botao icone="editar" onClick={() => irPara('dados')}>Editar dados</Botao> : null}
+          {podeEditar ? <Botao icone="cartao" onClick={() => setCarteirinha(true)}>Carteirinha</Botao> : null}
           {podeEditar ? <BotaoLink to={`/app/alunos/${aluno.id}/historico/novo`} variante="destaque" icone="documento">Gerar histórico</BotaoLink> : null}
         </div>
       </div>
+      {podeEditar ? <ModalCarteirinhaAluno aberto={carteirinha} aluno={aluno} aoFechar={() => setCarteirinha(false)} /> : null}
 
       <nav className="abas" role="tablist">
         {([['dados', 'Dados'], ['trajetoria', 'Trajetória'], ['notas', 'Notas'], ['historicos', 'Históricos']] as [Aba, string][]).map(([k, r]) => (
@@ -104,6 +110,8 @@ function AbaDados({ aluno, podeEditar, aoSalvar }: { aluno: Aluno; podeEditar: b
   const rot = (k: keyof Aluno, r: string) => faltando(k) ? <>{r} <small style={{ color: 'var(--erro)' }}>· falta, bloqueia a emissão</small></> : obrigatorio(k) ? <>{r} <small>· histórico</small></> : r;
 
   return (
+    <>
+    <BlocoFoto aluno={aluno} podeEditar={podeEditar} aoMudar={aoSalvar} />
     <Card semCorpo>
       <div className="card-corpo">
         <fieldset disabled={so || salvando} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
@@ -146,6 +154,68 @@ function AbaDados({ aluno, podeEditar, aoSalvar }: { aluno: Aluno; podeEditar: b
         <Botao onClick={() => { setForm(aluno); setSujo(false); }} disabled={!sujo}>Descartar</Botao>
         <Botao variante="primario" carregando={salvando} disabled={!sujo} onClick={salvar} icone="check">Salvar</Botao>
       </div> : null}
+    </Card>
+    </>
+  );
+}
+
+/* ---------- Foto (08-carteirinhas §7.5) ---------- */
+function BlocoFoto({ aluno, podeEditar, aoMudar }: { aluno: Aluno; podeEditar: boolean; aoMudar: () => void }) {
+  const toast = useToast();
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const [remover, setRemover] = useState(false);
+
+  async function executar(chave: string, fn: () => Promise<unknown>, ok: string) {
+    setOcupado(chave);
+    try { await fn(); toast.ok(ok); aoMudar(); }
+    catch (err) { toast.erro(mensagemErro(err)); }
+    finally { setOcupado(null); }
+  }
+
+  async function aoEscolher(arquivo: File | undefined) {
+    if (!arquivo) return;
+    if (arquivo.size > 20 * 1024 * 1024) { toast.erro('Arquivo grande demais (máx. 20 MB antes da redução).'); return; }
+    await executar('trocar', async () => {
+      const foto = await prepararFoto3x4(arquivo);
+      await api.post(`/api/alunos/${aluno.id}/foto`, { base64: foto.base64 });
+    }, 'Foto atualizada. A reimportação não a sobrescreve.');
+  }
+
+  const origem = aluno.foto_path
+    ? aluno.foto_origem === 'manual' ? 'Enviada pela secretaria — a importação não a substitui' : 'Copiada do Activesoft'
+    : aluno.foto_origem === 'manual' ? 'Removida pela secretaria — a importação não a recoloca' : 'Sem foto';
+
+  return (
+    <Card semCorpo className="bloco-foto">
+      <div className="card-corpo bloco-foto-corpo">
+        <FotoAluno aluno={aluno} className="foto-3x4" />
+        <div className="bloco-foto-info">
+          <h3>Foto</h3>
+          <p className="cel-sub">{origem}{aluno.foto_atualizada_em ? ` · ${fmtDataHora(aluno.foto_atualizada_em)}` : ''}</p>
+          <p className="cel-sub">Sai na carteirinha e na ficha de inscrição de eventos. O recorte é 3×4, centralizado.</p>
+          {podeEditar ? (
+            <div className="acoes">
+              <label className={`btn btn-sm ${ocupado ? 'desabilitado' : ''}`}>
+                {ocupado === 'trocar' ? <span className="spinner" style={{ width: 14, height: 14 }} /> : <Icone nome="upload" />}
+                {aluno.foto_path ? 'Trocar foto' : 'Enviar foto'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={!!ocupado}
+                  onChange={e => { aoEscolher(e.target.files?.[0]); e.target.value = ''; }} />
+              </label>
+              {aluno.foto_origem === 'manual' && aluno.foto_alterada_origem ? (
+                <Botao pequeno carregando={ocupado === 'origem'} disabled={!!ocupado}
+                  onClick={() => executar('origem', () => api.post(`/api/alunos/${aluno.id}/foto/origem`), 'Voltou a valer a foto do Activesoft.')}>
+                  Voltar à do Activesoft
+                </Botao>
+              ) : null}
+              {aluno.foto_path ? <Botao pequeno variante="fantasma" icone="lixeira" disabled={!!ocupado} onClick={() => setRemover(true)}>Remover</Botao> : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <Confirmar aberto={remover} titulo="Remover a foto?" perigo rotuloConfirmar="Remover" carregando={ocupado === 'remover'}
+        descricao="A carteirinha passa a sair com o quadro “sem foto”. A importação não recoloca a foto do Activesoft; para isso, use “Voltar à do Activesoft”."
+        aoFechar={() => setRemover(false)}
+        aoConfirmar={() => executar('remover', () => api.del(`/api/alunos/${aluno.id}/foto`), 'Foto removida.').then(() => setRemover(false))} />
     </Card>
   );
 }

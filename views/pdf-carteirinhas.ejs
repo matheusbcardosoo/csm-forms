@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Carteirinhas</title>
+<%
+/*
+  Carteirinhas dobráveis, 4 tiras por A4 (08-carteirinhas §3.4).
+
+  Par de client/src/componentes/PreviaCarteirinhas.tsx: mesmo objeto
+  `DocCarteirinhas`, mesmo CSS (shared/carteirinha-documento.css, embutido
+  pela rota) e as mesmas marcas (shared/carteirinha-folha.ts). Mexeu num,
+  mexa no outro.
+
+  Locals: doc (DocCarteirinhas) · css (string) · folhas (Cartao[][]) ·
+          marcas (por folha) · instrucao · rotuloDobra · estilo(fn)
+*/
+%>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  .folha-cartoes + .folha-cartoes { break-before: page; }
+  <%- css %>
+</style>
+</head>
+<body>
+<div id="pdf-root">
+<% folhas.forEach(function (cartoes, f) { %>
+  <section class="folha-cartoes">
+    <div class="cc-instrucao"><%= instrucao %></div>
+    <% marcas[f].forEach(function (m) { %><div class="cc-marca <%= m.tipo %>" style="<%= estilo(m) %>"></div><% }); %>
+    <div class="cc-dobra-rotulo" style="left: <%= rotuloDobra.left %>; top: <%= rotuloDobra.top %>">dobre</div>
+
+    <div class="cc-tiras">
+    <% cartoes.forEach(function (c) { %>
+      <div class="cc-tira">
+        <div class="cc-face cc-frente">
+          <div class="cc-cab">
+            <div class="cc-logo"><% if (doc.colegio.logo) { %><img src="<%= doc.colegio.logo %>" alt=""><% } %></div>
+            <div class="cc-evento cc-t<%= doc.evento.tamanho_nome %>"><%= doc.evento.nome %></div>
+            <div class="cc-logo"><% if (doc.evento.logo) { %><img src="<%= doc.evento.logo %>" alt=""><% } %></div>
+          </div>
+          <div class="cc-faixa"><%= c.turma %></div>
+          <div class="cc-corpo">
+            <% if (c.foto) { %><div class="cc-foto"><img src="<%= c.foto %>" alt=""></div><% } else { %><div class="cc-foto vazia">sem foto</div><% } %>
+            <dl class="cc-dados">
+              <dt>Nome</dt><dd class="cc-nome cc-t<%= c.tamanho_nome %>"><%= c.nome %></dd>
+              <dt>CPF</dt><dd><%= c.cpf_censurado %></dd>
+              <dt>Data de nascimento</dt><dd><%= c.data_nascimento %></dd>
+            </dl>
+          </div>
+          <div class="cc-rodape">Válida até <b><%= doc.evento.validade || '—' %></b></div>
+        </div>
+        <div class="cc-face cc-verso"><% if (doc.evento.logo) { %><img src="<%= doc.evento.logo %>" alt=""><% } %></div>
+      </div>
+    <% }); %>
+    </div>
+  </section>
+<% }); %>
+</div>
+<script>
+  (function () {
+    function waitForImages() {
+      var imgs = document.querySelectorAll('img');
+      return Promise.all(Array.prototype.map.call(imgs, function (img) {
+        if (img.complete) return Promise.resolve();
+        return new Promise(function (resolve) {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      }));
+    }
+    waitForImages().then(function () { window.__PDF_READY__ = true; });
+  })();
+</script>
+</body>
+</html>

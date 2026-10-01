@@ -80,7 +80,10 @@ const alunoBasicoSchema = z.object({
   data_nascimento: z.string().nullable().optional(),
   filiacao_1_id: z.number().nullable().optional(),
   filiacao_2_id: z.number().nullable().optional(),
-  registro_aluno_ra: z.string().nullable().optional()
+  registro_aluno_ra: z.string().nullable().optional(),
+  // link para o S3 da Activesoft; pode ser assinado (08-carteirinhas §5)
+  url_foto: z.string().nullable().optional(),
+  foto_data_hora_alteracao: z.string().nullable().optional()
 }).passthrough();
 
 const alunoSensivelSchema = z.object({
@@ -293,7 +296,7 @@ export class AdaptadorActivesoftApi implements AdaptadorAcademico {
     // filtro por data), sem carga horária (só "aulas dadas"). Situação
     // final e faltas vêm de enturmacao_com_detalhes e aluno_notas.
     // Documentos do aluno dependem do escopo "dados_complementares".
-    return { delta: false, cargaHoraria: false, situacaoFinal: true, faltas: true, documentosAluno: true, paginacao: true };
+    return { delta: false, cargaHoraria: false, situacaoFinal: true, faltas: true, documentosAluno: true, paginacao: true, fotoAluno: true };
   }
 
   /** Turmas do ano/série/turma pedidos + enturmações correspondentes, com cache por filtro (uma importação chama isto 3x: alunos, matrículas, notas). */
@@ -400,6 +403,10 @@ export class AdaptadorActivesoftApi implements AdaptadorAcademico {
         rgUf: sens?.rg_orgao_emissao_uf ?? undefined,
         cpf: sens?.cpf ?? base.cpf ?? undefined,
         ra: base.registro_aluno_ra ?? undefined,
+        urlFoto: base.url_foto || undefined,
+        // sem data de alteração a foto é baixada uma vez só (o link pode ser
+        // assinado e mudar a cada chamada — não serve de chave)
+        fotoAlteradaEm: base.url_foto ? (base.foto_data_hora_alteracao || undefined) : undefined,
         filiacao1: filiacao1Id != null ? responsaveisPorId.get(filiacao1Id) : undefined,
         filiacao2: filiacao2Id != null ? responsaveisPorId.get(filiacao2Id) : undefined
       });

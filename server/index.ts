@@ -22,6 +22,8 @@ import { alunosRouter } from './rotas/alunos';
 import { historicosRouter } from './rotas/historicos';
 import { historicosLoteRouter } from './rotas/historicos-lote';
 import { pdfInternoRouter } from './rotas/pdf-interno';
+import { carteirinhasRouter } from './rotas/carteirinhas';
+import { carteirinhasPdfInternoRouter } from './rotas/carteirinhas-pdf-interno';
 import { verificacaoRouter } from './rotas/verificacao';
 import { relatoriosRouter } from './rotas/relatorios';
 import { iniciarAgendador } from './servicos/agendador';
@@ -55,10 +57,12 @@ app.use('/api/alunos', alunosRouter);
 app.use('/api/historicos/lote', historicosLoteRouter);
 app.use('/api/historicos', historicosRouter);
 app.use('/api/relatorios', relatoriosRouter);
+app.use('/api/carteirinhas', carteirinhasRouter);
 // Módulo original (auth, formulários, respostas, PDFs)
 app.use('/api', apiRouter);
 app.use(pdfRouter);
 app.use(pdfInternoRouter);
+app.use(carteirinhasPdfInternoRouter);
 
 /* ---------- Verificação pública do documento (RF-HIST-14) ---------- */
 // Única rota sem sessão do sistema. Fica antes do SPA e das páginas

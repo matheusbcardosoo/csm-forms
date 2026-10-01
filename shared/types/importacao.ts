@@ -20,6 +20,14 @@ export interface AlunoOrigem {
   filiacao1?: string;
   filiacao2?: string;
   situacao?: string;             // texto cru; traduzido via mapeamento
+  /**
+   * Link para baixar a foto no momento da importação. Pode ser assinado e
+   * expirar: a foto é copiada para o Storage na mesma execução e o link
+   * nunca é guardado (08-carteirinhas §6.2).
+   */
+  urlFoto?: string;
+  /** ISO 8601 — muda quando a foto muda na origem; é a chave para não baixar de novo. */
+  fotoAlteradaEm?: string;
 }
 
 export interface MatriculaOrigem {
@@ -69,6 +77,8 @@ export interface Capacidades {
   faltas: boolean;
   documentosAluno: boolean;
   paginacao: boolean;
+  /** A origem devolve a foto do aluno. Sem isso, as fotos entram por upload na ficha. */
+  fotoAluno: boolean;
   limiteRequisicoes?: number;
 }
 
@@ -127,6 +137,18 @@ export interface RelatorioImportacao {
    * origem, porque o currículo imprime uma linha só para elas.
    */
   consolidacoes?: Consolidacao[];
+  /** Fotos copiadas da origem (só na importação efetiva; a simulação só conta). */
+  fotos?: ResumoFotos;
+}
+
+export interface ResumoFotos {
+  /** Simulação: quantas seriam baixadas. Efetiva: quantas foram. */
+  a_baixar: number;
+  novas: number;
+  atualizadas: number;
+  com_erro: number;
+  /** Foto enviada à mão e a origem trouxe outra: não sobrescrita (RF-FOTO-05). */
+  manuais_preservadas: number;
 }
 
 export interface Consolidacao {

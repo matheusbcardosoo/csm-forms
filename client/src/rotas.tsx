@@ -30,6 +30,9 @@ import { VersaoDetalhe } from '@/app/configuracoes/VersaoDetalhe';
 import { Estabelecimentos } from '@/app/configuracoes/Estabelecimentos';
 import { Observacoes } from '@/app/configuracoes/Observacoes';
 import { Usuarios } from '@/app/configuracoes/Usuarios';
+import { Pastas } from '@/app/carteirinhas/Pastas';
+import { PastaDetalhe } from '@/app/carteirinhas/PastaDetalhe';
+import { SubpastaDetalhe } from '@/app/carteirinhas/SubpastaDetalhe';
 import { EstadoVazio, BotaoLink, Carregando } from '@/componentes/ui';
 import type { Papel } from '@shared/types/usuario';
 
@@ -75,6 +78,13 @@ export const roteador = createBrowserRouter([
       { path: 'historicos/lote', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [{ index: true, element: <HistoricoLote /> }] },
       { path: 'historicos/:id', element: <HistoricoDetalhe /> },
       { path: 'relatorios', element: <Relatorios /> },
+      // invisível para coordenação e leitura (RNF-CART-01)
+      { path: 'carteirinhas', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [
+        { index: true, element: <Pastas /> },
+        { path: 'arquivadas', element: <Pastas arquivadas /> },
+        { path: ':pastaId', element: <PastaDetalhe /> },
+        { path: ':pastaId/:subpastaId', element: <SubpastaDetalhe /> }
+      ] },
       { path: 'importacoes', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [
         { index: true, element: <Importacoes /> },
         { path: 'mapeamentos', element: <Mapeamentos /> },

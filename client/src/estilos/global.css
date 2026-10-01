@@ -199,6 +199,8 @@ tbody tr:hover { background: var(--superficie-2); }
 .sub { display: block; font-size: 11.5px; color: var(--texto-3); font-weight: 400; }
 .cel-sub { font-size: 11.5px; color: var(--texto-3); font-weight: 400; }
 .cel-acoes { text-align: right; white-space: nowrap; }
+.cel-sel { width: 36px; }
+.cel-sel input { width: 16px; height: 16px; accent-color: var(--azul); }
 td code, .nome-cel code { white-space: nowrap; }
 .cel-acoes .btn + .btn { margin-left: 4px; }
 .linha-inativa td { opacity: .55; }
@@ -285,6 +287,7 @@ td code, .nome-cel code { white-space: nowrap; }
 /* layout de configuração com pré-visualização ao lado */
 .conf { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
 .conf-lado { display: flex; flex-direction: column; gap: 12px; position: sticky; top: calc(var(--topbar-h) + 16px); }
+.conf.conf-previa { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); }
 
 /* ---------- folha de papel (pré-visualização do documento) ---------- */
 .palco { background: var(--superficie-2); border: 1px solid var(--linha); border-radius: var(--r-lg); padding: 18px; display: flex; flex-direction: column; gap: 16px; align-items: center; overflow: auto; }
@@ -357,6 +360,19 @@ td code, .nome-cel code { white-space: nowrap; }
 /* ---------- ficha do aluno ---------- */
 .ficha-cab { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--r-lg); padding: 16px 18px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; box-shadow: var(--sombra); }
 .ficha-av { width: 46px; height: 46px; border-radius: 12px; background: var(--azul); color: #fff; display: grid; place-items: center; font-size: 16px; font-weight: 600; flex: 0 0 auto; }
+.ficha-av.com-foto { width: 48px; height: 64px; padding: 0; overflow: hidden; background: var(--superficie-2); border: 1px solid var(--linha); }
+.ficha-av img, .foto-3x4 img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* bloco Foto da aba Dados (08-carteirinhas §7.5) */
+.bloco-foto { margin-bottom: 14px; }
+.bloco-foto-corpo { display: flex; gap: 16px; align-items: flex-start; }
+.bloco-foto-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.bloco-foto-info h3 { font-size: 14px; }
+.bloco-foto-info .acoes { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+.foto-3x4 { width: 90px; height: 120px; border-radius: var(--r-md); background: var(--superficie-2); border: 1px dashed var(--linha-forte); color: var(--texto-3); display: grid; place-items: center; font-size: 22px; font-weight: 600; overflow: hidden; flex: 0 0 auto; }
+.foto-3x4.com-foto { border-style: solid; border-color: var(--linha); }
+label.btn { cursor: pointer; }
+label.btn:focus-within { outline: 2px solid var(--azul); outline-offset: 2px; }
+label.btn.desabilitado { opacity: .55; pointer-events: none; }
 .ficha-id { flex: 1; min-width: 180px; }
 .ficha-id h1 { font-size: 19px; }
 .ficha-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px; font-size: 12px; color: var(--texto-2); align-items: center; }
@@ -441,7 +457,7 @@ td code, .nome-cel code { white-space: nowrap; }
 
 /* ---------- responsividade ---------- */
 @media (max-width: 1100px) {
-  .conf { grid-template-columns: 1fr; }
+  .conf, .conf.conf-previa { grid-template-columns: 1fr; }
   .conf-lado { position: static; }
   /* o documento passa a vir antes do painel de edição, empilhado */
   .previa { grid-template-columns: 1fr; }
@@ -518,6 +534,7 @@ td code, .nome-cel code { white-space: nowrap; }
   table.responsiva td.cel-acoes { justify-content: flex-end; padding-top: 8px; }
   table.responsiva td.cel-acoes .btn { flex: 1; }
   table.responsiva td.cel-principal { display: block; text-align: left; padding-bottom: 6px; }
+  table.responsiva td.cel-sel { justify-content: flex-start; padding-bottom: 0; }
   table.responsiva td.cel-principal::before { display: none; }
   table.responsiva tbody tr:hover { background: transparent; }
 }
@@ -527,3 +544,33 @@ td code, .nome-cel code { white-space: nowrap; }
   .app { grid-template-columns: 1fr; }
   .conteudo { padding: 0; }
 }
+
+/* ---------- carteirinhas (08-carteirinhas §7) ---------- */
+/* o documento em si vive em shared/carteirinha-documento.css, compartilhado com o PDF */
+.previa-folhas { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.previa-folha { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%; }
+.previa-folha figcaption { font-size: 11.5px; color: var(--texto-3); }
+.previa-doc-caixa { background: #fff; box-shadow: 0 1px 3px rgba(15,56,90,.18), 0 8px 24px rgba(15,56,90,.10); overflow: hidden; flex: 0 0 auto; }
+.previa-tira .cc-face { outline: 1px dashed #c6d0da; outline-offset: -1px; }
+.previa-rolagem { overflow-x: auto; max-width: 100%; padding: 4px; }
+.pastas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.pasta-card { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--r-lg); padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--sombra); color: inherit; text-decoration: none; transition: border-color .12s; }
+.pasta-card:hover { border-color: var(--azul); }
+.pasta-card-cab { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.pasta-logo { width: 44px; height: 44px; border-radius: var(--r-md); background: var(--superficie-2); border: 1px solid var(--linha); display: grid; place-items: center; overflow: hidden; flex: 0 0 auto; color: var(--texto-3); }
+.pasta-logo img { width: 100%; height: 100%; object-fit: contain; }
+.pasta-logo svg { width: 20px; height: 20px; }
+.pasta-card h3 { font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+.pasta-card .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.modal-pasta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.modal-pasta .logo-campo { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.barra-selecao { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--linha); background: var(--info-bg); font-size: 13px; }
+.barra-selecao b { color: var(--info); }
+.lista-curta { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.lista-curta li { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.passos { margin: 8px 0 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; color: var(--texto-2); }
+@media (max-width: 760px) {
+  .modal-pasta { grid-template-columns: 1fr; }
+}
+button.link { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+.ficha-av.mini, .ficha-av.mini.com-foto { width: 30px; height: 40px; border-radius: 6px; font-size: 11px; }

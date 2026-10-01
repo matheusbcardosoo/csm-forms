@@ -2,6 +2,7 @@
 // importação sem credenciais do Activesoft. Os códigos de série e de
 // disciplina imitam o que uma API escolar costuma expor, para exercitar
 // o fluxo de mapeamento (pendência → confirmação).
+import zlib from 'zlib';
 import type { AdaptadorAcademico, AlunoOrigem, MatriculaOrigem, NotaOrigem, FiltroImportacao, ResultadoBusca, Capacidades } from './tipos';
 
 const SERIES = [
@@ -35,6 +36,47 @@ const NOMES = [
   ['Lucas Andrade Ribeiro', 'M', '2008-08-15'], ['Mariana Costa Oliveira', 'F', '2009-12-03'], ['Enzo Barbosa Freitas', 'M', '2008-06-24']
 ];
 
+/**
+ * Foto 3×4 de exemplo (silhueta sobre fundo colorido), como data URL PNG.
+ * O mock não pode depender de rede, e o serviço de fotos baixa `data:` do
+ * mesmo jeito que baixa o link do S3 da Activesoft.
+ */
+function fotoDeExemplo(i: number): string {
+  const L = 150, A = 200;
+  const fundos = [[214, 228, 240], [232, 222, 210], [220, 236, 222], [236, 220, 230]];
+  const [fr, fg, fb] = fundos[i % fundos.length];
+  const linhas: Buffer[] = [];
+  for (let y = 0; y < A; y++) {
+    const l = Buffer.alloc(1 + L * 3);
+    for (let x = 0; x < L; x++) {
+      const cabeca = (x - 75) ** 2 / 34 ** 2 + (y - 78) ** 2 / 42 ** 2 <= 1;
+      const ombros = y > 128 && (x - 75) ** 2 / 70 ** 2 + (y - 210) ** 2 / 78 ** 2 <= 1;
+      const c = cabeca || ombros ? [60 + (i * 13) % 40, 72, 92] : [fr, fg, fb];
+      l[1 + x * 3] = c[0]; l[2 + x * 3] = c[1]; l[3 + x * 3] = c[2];
+    }
+    linhas.push(l);
+  }
+  const bloco = (tipo: string, dados: Buffer) => {
+    const t = Buffer.from(tipo, 'ascii');
+    const len = Buffer.alloc(4); len.writeUInt32BE(dados.length);
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(Buffer.concat([t, dados])));
+    return Buffer.concat([len, t, dados, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(L, 0); ihdr.writeUInt32BE(A, 4); ihdr[8] = 8; ihdr[9] = 2;
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    bloco('IHDR', ihdr), bloco('IDAT', zlib.deflateSync(Buffer.concat(linhas))), bloco('IEND', Buffer.alloc(0))
+  ]);
+  return `data:image/png;base64,${png.toString('base64')}`;
+}
+
+function crc32(b: Buffer): number {
+  let c = ~0;
+  for (const byte of b) { c ^= byte; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); }
+  return ~c >>> 0;
+}
+
 // gerador pseudoaleatório determinístico (mesma semente → mesmas notas)
 function semente(s: string): () => number {
   let h = 2166136261;
@@ -61,7 +103,9 @@ function gerar(anoLetivo: number): Fixture {
       municipioNascimento: i % 4 === 3 ? undefined : 'Mogi das Cruzes', ufNascimento: i % 4 === 3 ? undefined : 'SP',
       nacionalidade: 'Brasileira', cpf: `${String(100 + i).padStart(3, '0')}.${String(200 + i).padStart(3, '0')}.${String(300 + i).padStart(3, '0')}-0${i % 10}`,
       ra: i % 5 === 4 ? undefined : `000.${String(123 + i * 7).padStart(3, '0')}.${String(456 + i).padStart(3, '0')}-${i % 10}`,
-      filiacao1: `Responsável ${i + 1}`, situacao: 'Matriculado'
+      filiacao1: `Responsável ${i + 1}`, situacao: 'Matriculado',
+      // um em cada quatro sem foto, para a conferência das carteirinhas ter o que acusar
+      ...(i % 4 === 2 ? {} : { urlFoto: fotoDeExemplo(i), fotoAlteradaEm: '2026-02-01T10:00:00.000Z' })
     });
     const codMat = `${codigo}/${anoLetivo}`;
     matriculas.push({
@@ -95,7 +139,7 @@ export class AdaptadorMock implements AdaptadorAcademico {
   async testarConexao() { return { ok: true, detalhe: 'Fixtures locais — nenhuma conexão externa.' }; }
 
   capacidades(): Capacidades {
-    return { delta: false, cargaHoraria: false, situacaoFinal: true, faltas: true, documentosAluno: true, paginacao: true };
+    return { delta: false, cargaHoraria: false, situacaoFinal: true, faltas: true, documentosAluno: true, paginacao: true, fotoAluno: true };
   }
 
   private filtrar(f: FiltroImportacao) {

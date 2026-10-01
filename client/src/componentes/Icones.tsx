@@ -39,7 +39,10 @@ const CAMINHOS: Record<string, string> = {
   arrastar: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
   cima: 'm6 15 6-6 6 6',
   baixo: 'm6 9 6 6 6-6',
-  upload: 'M12 16V4m0 0-4 4m4-4 4 4M4 20h16'
+  upload: 'M12 16V4m0 0-4 4m4-4 4 4M4 20h16',
+  cartao: 'M3 5h18v14H3zM6 9h4v5H6zM13 10h5M13 13h4M6 17h12',
+  pasta: 'M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z',
+  zip: 'M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM10 3v2m0 2v2m0 2v2m-1 2h2v3H9z'
 };
 
 export type NomeIcone = keyof typeof CAMINHOS;

@@ -240,16 +240,52 @@ export interface Coluna<T> {
   acoes?: boolean;       // coluna de botões
 }
 
-export function Tabela<T>({ colunas, linhas, chave, vazio, classeLinha }:
-  { colunas: Coluna<T>[]; linhas: T[]; chave: (l: T) => string; vazio?: ReactNode; classeLinha?: (l: T) => string | undefined }) {
+/**
+ * Seleção por checkbox, opcional. A tabela não guarda estado: quem usa
+ * controla o conjunto `marcados` (as chaves de `chave(l)`), e pode
+ * marcar fora da página atual — "selecionar todos do filtro".
+ */
+export interface SelecaoTabela<T> {
+  marcados: Set<string>;
+  aoMudar: (proximo: Set<string>) => void;
+  /** Linha que não pode ser marcada nem desmarcada (ex.: aluno já inscrito). */
+  bloqueada?: (l: T) => boolean;
+  rotulo: (l: T) => string;
+}
+
+export function Tabela<T>({ colunas, linhas, chave, vazio, classeLinha, selecao }:
+  { colunas: Coluna<T>[]; linhas: T[]; chave: (l: T) => string; vazio?: ReactNode; classeLinha?: (l: T) => string | undefined; selecao?: SelecaoTabela<T> }) {
   if (!linhas.length && vazio) return <>{vazio}</>;
+  const livres = selecao ? linhas.filter(l => !selecao.bloqueada?.(l)) : [];
+  const todosMarcados = !!selecao && livres.length > 0 && livres.every(l => selecao.marcados.has(chave(l)));
+  const alternarTodos = () => {
+    if (!selecao) return;
+    const proximo = new Set(selecao.marcados);
+    for (const l of livres) { if (todosMarcados) proximo.delete(chave(l)); else proximo.add(chave(l)); }
+    selecao.aoMudar(proximo);
+  };
+  const alternar = (l: T, marcar: boolean) => {
+    if (!selecao) return;
+    const proximo = new Set(selecao.marcados);
+    if (marcar) proximo.add(chave(l)); else proximo.delete(chave(l));
+    selecao.aoMudar(proximo);
+  };
   return (
     <div className="tab-box">
       <table className="responsiva">
-        <thead><tr>{colunas.map(c => <th key={c.chave} className={c.className}>{c.acoes ? <span className="sr-only">{c.rotulo}</span> : c.rotulo}</th>)}</tr></thead>
+        <thead><tr>
+          {selecao ? <th className="cel-sel"><input type="checkbox" aria-label="Selecionar todos desta página" checked={todosMarcados} disabled={!livres.length} onChange={alternarTodos} /></th> : null}
+          {colunas.map(c => <th key={c.chave} className={c.className}>{c.acoes ? <span className="sr-only">{c.rotulo}</span> : c.rotulo}</th>)}
+        </tr></thead>
         <tbody>
           {linhas.map(l => (
             <tr key={chave(l)} className={classeLinha?.(l)}>
+              {selecao ? (
+                <td className="cel-sel" data-rotulo="">
+                  <input type="checkbox" aria-label={selecao.rotulo(l)} checked={selecao.marcados.has(chave(l))} disabled={selecao.bloqueada?.(l)}
+                    onChange={e => alternar(l, e.target.checked)} />
+                </td>
+              ) : null}
               {colunas.map(c => (
                 <td key={c.chave} data-rotulo={c.acoes || c.principal ? '' : c.rotulo}
                   className={`${c.className || ''} ${c.acoes ? 'cel-acoes' : ''} ${c.principal ? 'cel-principal' : ''}`}>

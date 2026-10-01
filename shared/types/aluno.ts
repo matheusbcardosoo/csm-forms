@@ -5,6 +5,7 @@ import type { EstabelecimentoExterno } from './curriculo';
 export type SituacaoAluno = 'ativo' | 'transferido' | 'concluinte' | 'evadido' | 'inativo';
 export type OrigemRegistro = 'activesoft' | 'manual' | 'importacao_arquivo';
 export type SituacaoMatricula = 'em_curso' | 'aprovado' | 'aprovado_conselho' | 'reprovado' | 'transferido' | 'evadido';
+export type OrigemFoto = 'activesoft' | 'manual';
 export type SituacaoNota = 'aprovado' | 'reprovado' | 'dispensado' | 'cursando' | 'sem_registro';
 
 export const ROTULO_SITUACAO_ALUNO: Record<SituacaoAluno, string> = {
@@ -44,6 +45,11 @@ export interface Aluno {
   filiacao_2: string | null;
   situacao: SituacaoAluno;
   origem: OrigemRegistro;
+  /** Caminho no bucket 'alunos-fotos'; a imagem sai por GET /api/alunos/:id/foto. */
+  foto_path: string | null;
+  foto_origem: OrigemFoto | null;
+  foto_alterada_origem: string | null;
+  foto_atualizada_em: string | null;
   editado: boolean;
   editado_por: string | null;
   editado_em: string | null;

@@ -14,7 +14,7 @@ interface InfoAdaptador { nome: 'activesoft' | 'arquivo' | 'mock'; rotulo: strin
 
 const ROTULO_CAP: { chave: keyof Capacidades; rotulo: string }[] = [
   { chave: 'cargaHoraria', rotulo: 'Carga horária por componente' }, { chave: 'situacaoFinal', rotulo: 'Situação final da matrícula' },
-  { chave: 'faltas', rotulo: 'Faltas' }, { chave: 'documentosAluno', rotulo: 'Documentos do aluno' }, { chave: 'delta', rotulo: 'Só alterados desde a última vez' }, { chave: 'paginacao', rotulo: 'Paginação' }
+  { chave: 'faltas', rotulo: 'Faltas' }, { chave: 'documentosAluno', rotulo: 'Documentos do aluno' }, { chave: 'fotoAluno', rotulo: 'Foto do aluno' }, { chave: 'delta', rotulo: 'Só alterados desde a última vez' }, { chave: 'paginacao', rotulo: 'Paginação' }
 ];
 
 export function Importacoes() {

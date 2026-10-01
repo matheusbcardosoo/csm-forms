@@ -6,6 +6,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AdaptadorAcademico } from '../adapters/activesoft';
 import { buscarTudo } from '../adapters/activesoft';
+import { sincronizarFotos } from './fotos';
 import type { AlunoOrigem, MatriculaOrigem, NotaOrigem, FiltroImportacao, TipoImportacao, ModoImportacao, RelatorioImportacao, LinhaRelatorio, DivergenciaPrevista } from '../../shared/types/importacao';
 
 export interface ParametrosExecucao {
@@ -459,6 +460,23 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
           await gravar({ entidade: 'aluno', chave: a.codigoOrigem, descricao: a.nome }, () =>
             db.from('aluno').update({ ...aplicar, dados_importados: { ...importadoAntes, ...aplicar }, sincronizado_em: agora }).eq('id', local.id));
         }
+      }
+
+      // Fotos (08-carteirinhas §6.2): fora do loop e fora da comparação de
+      // campos — a foto não é dado do cadastro e não gera divergência.
+      if (capacidades.fotoAluno) {
+        const itens = alunos.flatMap(a => {
+          const local = alunosPorCodigo.get(a.codigoOrigem);
+          if (!a.urlFoto || !local || (efetiva && String(local.id).startsWith('sim:'))) return [];
+          return [{
+            alunoId: local.id, nome: a.nome, urlFoto: a.urlFoto, fotoAlteradaEm: a.fotoAlteradaEm,
+            local: { foto_path: (local.foto_path as string | null) ?? null, foto_origem: (local.foto_origem as string | null) ?? null, foto_alterada_origem: (local.foto_alterada_origem as string | null) ?? null }
+          }];
+        });
+        const fotos = await sincronizarFotos(db, itens, efetiva);
+        relatorio.fotos = fotos.resumo;
+        relatorio.avisos.push(...fotos.avisos);
+        if (!efetiva && fotos.resumo.a_baixar) relatorio.avisos.push(`${fotos.resumo.a_baixar} foto(s) seriam copiadas do Activesoft. Nada foi baixado: isto é uma simulação.`);
       }
     }
 

@@ -70,7 +70,7 @@ export class AdaptadorArquivo implements AdaptadorAcademico {
   async testarConexao() { return { ok: true, detalhe: `${this.alunos.length} alunos · ${this.matriculas.length} matrículas · ${this.notas.length} notas no arquivo` }; }
 
   capacidades(): Capacidades {
-    return { delta: false, cargaHoraria: this.notas.some(n => n.cargaHoraria != null), situacaoFinal: this.matriculas.some(m => !!m.situacaoFinal), faltas: this.notas.some(n => n.faltas != null), documentosAluno: this.alunos.some(a => !!a.cpf || !!a.rg), paginacao: false };
+    return { delta: false, cargaHoraria: this.notas.some(n => n.cargaHoraria != null), situacaoFinal: this.matriculas.some(m => !!m.situacaoFinal), faltas: this.notas.some(n => n.faltas != null), documentosAluno: this.alunos.some(a => !!a.cpf || !!a.rg), paginacao: false, fotoAluno: false };
   }
 
   private mats(f: FiltroImportacao) {
