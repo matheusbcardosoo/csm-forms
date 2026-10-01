@@ -45,7 +45,7 @@ export interface Emissao {
 }
 
 /** Contadores de conferência (RF-CART-07). */
-export interface Contadores { inscritos: number; sem_foto: number; sem_ra: number; sem_cpf: number; sem_nascimento: number }
+export interface Contadores { inscritos: number; sem_foto: number; sem_ra: number; sem_nascimento: number }
 
 export interface PastaResumo extends CarteirinhaPasta, Contadores {
   subpastas: number;
@@ -62,10 +62,10 @@ export interface PastaDetalhe {
   ultima_emissao: Emissao | null;
 }
 
-export type PendenciaInscrito = 'sem_foto' | 'sem_ra' | 'sem_cpf' | 'sem_nascimento';
+export type PendenciaInscrito = 'sem_foto' | 'sem_ra' | 'sem_nascimento';
 
 export const ROTULO_PENDENCIA: Record<PendenciaInscrito, string> = {
-  sem_foto: 'sem foto', sem_ra: 'sem R.A.', sem_cpf: 'sem CPF', sem_nascimento: 'sem nascimento'
+  sem_foto: 'sem foto', sem_ra: 'sem R.A.', sem_nascimento: 'sem nascimento'
 };
 
 export interface InscritoDetalhe {
@@ -115,8 +115,8 @@ export interface Cartao {
   tamanho_nome: TamanhoTexto;
   /**
    * R.A., sem censura — é o documento que identifica o aluno no cartão.
-   * O cartão não leva CPF nenhum (nem censurado): o objeto nem tem o
-   * campo, para que um erro de template não o vaze (RNF-CART-06).
+   * Nenhum documento do módulo leva CPF: o objeto nem tem o campo, para
+   * que um erro de template não o vaze (RNF-CART-06).
    */
   ra: string;                   // como está no cadastro, ou "—"
   data_nascimento: string;      // dd/mm/aaaa ou "—"
@@ -134,7 +134,6 @@ export interface InscritoFicha {
   aluno_id: string;
   nome: string;
   ra: string;                   // como está no cadastro, ou "—"
-  cpf: string;                  // completo e formatado: a direção atesta o documento
   data_nascimento: string;      // dd/mm/aaaa ou "—"
   foto: string | null;
 }

@@ -40,7 +40,6 @@ export function TagsPendencias({ c, vazioOk = true }: { c: Contadores; vazioOk?:
   const itens = [
     c.sem_foto ? <Tag key="f" tipo="aviso" ponto>{c.sem_foto} sem foto</Tag> : null,
     c.sem_ra ? <Tag key="r" tipo="aviso" ponto>{c.sem_ra} sem R.A.</Tag> : null,
-    c.sem_cpf ? <Tag key="c" tipo="aviso" ponto>{c.sem_cpf} sem CPF</Tag> : null,
     c.sem_nascimento ? <Tag key="n" tipo="aviso" ponto>{c.sem_nascimento} sem nascimento</Tag> : null
   ].filter(Boolean);
   if (itens.length) return <span className="tags" style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>{itens}</span>;
@@ -69,7 +68,7 @@ export function ModalImprimir({ aberto, documento, aoFechar, url, nomeArquivo, e
       rodape={<><Botao onClick={aoFechar}>Cancelar</Botao><Botao variante="primario" icone="documento" carregando={baixando} onClick={baixar}>Baixar {documento === 'zip' ? 'ZIP' : 'PDF'}</Botao></>}>
       <Aviso tipo="aviso"><b>Imprima em tamanho real (100%).</b> Desmarque “ajustar à página” na janela de impressão{documento === 'ficha' ? '' : ': com o ajuste, o cartão encolhe e a dobra sai fora do meio'}.</Aviso>
       {documento === 'ficha' ? (
-        <p className="cel-sub" style={{ marginTop: 10, fontSize: 13 }}>A ficha sai com o <b>CPF completo</b> de cada aluno, porque a direção atesta os documentos. É documento interno: guarde a via assinada na secretaria.</p>
+        <p className="cel-sub" style={{ marginTop: 10, fontSize: 13 }}>A ficha sai com o <b>R.A.</b> e a data de nascimento de cada aluno, para a direção atestar. É documento de controle: guarde a via assinada na secretaria.</p>
       ) : (
         <ol className="passos">
           <li>Recorte cada tira inteira pelas marcas dos cantos (frente e verso juntos).</li>

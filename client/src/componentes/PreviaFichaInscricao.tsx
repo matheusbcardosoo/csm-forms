@@ -35,7 +35,6 @@ export function PreviaFichaInscricao({ doc, escala = 0.5 }: { doc: DocFichaInscr
                           <b>R.A.:</b>{i ? <span className="fi-valor">{i.ra}</span> : <span className="fi-pontilhado" />}
                           <b>Nasc:</b>{i ? <span className="fi-nasc">{i.data_nascimento}</span> : <span className="fi-pontilhado" style={{ flex: '0 0 16mm' }} />}
                         </div>
-                        <div className="fi-linha"><b>CPF:</b>{i ? <span className="fi-valor">{i.cpf}</span> : <span className="fi-pontilhado" />}</div>
                       </div>
                     </div>
                   ))}

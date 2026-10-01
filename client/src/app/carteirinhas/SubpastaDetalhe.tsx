@@ -98,14 +98,13 @@ export function SubpastaDetalhe() {
               <Link to={`/app/carteirinhas/${pasta.id}`} style={{ fontWeight: 600, color: 'inherit' }}>Ir para a pasta</Link>
             </Aviso>
           ) : null}
-          {conferencia.avisos.sem_foto || conferencia.avisos.sem_ra || conferencia.avisos.sem_cpf || conferencia.avisos.sem_nascimento ? (
+          {conferencia.avisos.sem_foto || conferencia.avisos.sem_ra || conferencia.avisos.sem_nascimento ? (
             <Aviso tipo="aviso"><b>Conferência:</b> {[
               conferencia.avisos.sem_foto && `${conferencia.avisos.sem_foto} sem foto`,
               conferencia.avisos.sem_ra && `${conferencia.avisos.sem_ra} sem R.A.`,
-              conferencia.avisos.sem_cpf && `${conferencia.avisos.sem_cpf} sem CPF válido (só na ficha)`,
               conferencia.avisos.sem_nascimento && `${conferencia.avisos.sem_nascimento} sem nascimento`
             ].filter(Boolean).join(' · ')}. Não impede a emissão: o campo sai com “—” e a foto, com o quadro “sem foto”.</Aviso>
-          ) : inscritos.length ? <Aviso tipo="ok">Todos os inscritos têm foto, R.A., CPF e data de nascimento.</Aviso> : null}
+          ) : inscritos.length ? <Aviso tipo="ok">Todos os inscritos têm foto, R.A. e data de nascimento.</Aviso> : null}
 
           <Card semCorpo titulo="Inscritos" descricao={manual ? 'Ordem manual — é a numeração da ficha' : 'Ordem alfabética — é a numeração da ficha'}
             acoes={inscritos.length > 1 ? (

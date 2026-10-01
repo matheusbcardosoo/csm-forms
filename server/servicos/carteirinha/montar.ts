@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { formatarCPF, apenasDigitos, nomeDeExibicao } from '../../../shared/formatos';
+import { nomeDeExibicao } from '../../../shared/formatos';
 import { dataUrl, lerFoto, tipoDaImagem } from '../fotos';
 import {
   INSCRITOS_POR_FOLHA_FICHA,
@@ -22,7 +22,6 @@ export interface AlunoInscrito {
   id: string;
   nome: string;
   nome_social: string | null;
-  cpf: string | null;
   data_nascimento: string | null;
   foto_path: string | null;
   foto_atualizada_em: string | null;
@@ -32,7 +31,7 @@ export interface AlunoInscrito {
   ordem: number;
 }
 
-const SELECAO_ALUNO = 'id, nome, nome_social, cpf, data_nascimento, foto_path, foto_atualizada_em, codigo_activesoft, ra, matricula(turma, ano_letivo(ano), serie(nome))';
+const SELECAO_ALUNO = 'id, nome, nome_social, data_nascimento, foto_path, foto_atualizada_em, codigo_activesoft, ra, matricula(turma, ano_letivo(ano), serie(nome))';
 
 type LinhaAluno = Omit<AlunoInscrito, 'serie_turma' | 'ordem'> & {
   matricula: { turma: string | null; ano_letivo: { ano: number } | null; serie: { nome: string } | null }[] | null;
@@ -80,17 +79,16 @@ export async function carregarAluno(db: SupabaseClient, id: string): Promise<Alu
 
 /* ---------------- Conferência (RF-CART-15) ---------------- */
 
-export function pendencias(a: Pick<AlunoInscrito, 'foto_path' | 'ra' | 'cpf' | 'data_nascimento'>): PendenciaInscrito[] {
+export function pendencias(a: Pick<AlunoInscrito, 'foto_path' | 'ra' | 'data_nascimento'>): PendenciaInscrito[] {
   const p: PendenciaInscrito[] = [];
   if (!a.foto_path) p.push('sem_foto');
-  if (!(a.ra || '').trim()) p.push('sem_ra');                 // cartão e ficha
-  if (apenasDigitos(a.cpf).length !== 11) p.push('sem_cpf'); // só a ficha
+  if (!(a.ra || '').trim()) p.push('sem_ra');
   if (!a.data_nascimento) p.push('sem_nascimento');
   return p;
 }
 
 export function contar(alunos: AlunoInscrito[]): Contadores {
-  const c: Contadores = { inscritos: alunos.length, sem_foto: 0, sem_ra: 0, sem_cpf: 0, sem_nascimento: 0 };
+  const c: Contadores = { inscritos: alunos.length, sem_foto: 0, sem_ra: 0, sem_nascimento: 0 };
   for (const a of alunos) for (const p of pendencias(a)) c[p]++;
   return c;
 }
@@ -204,7 +202,7 @@ async function montarCartao(img: Imagens, a: AlunoInscrito, turma: string): Prom
     turma,
     nome,
     tamanho_nome: tamanhoPorComprimento(nome, [38, 48]),
-    // o cartão leva o R.A., e o CPF nem entra no objeto (RNF-CART-06)
+    // o documento é o R.A.; o CPF nem é lido do banco (RNF-CART-06)
     ra: (a.ra || '').trim() || '—',
     data_nascimento: fmtDataBr(a.data_nascimento),
     foto: await img.foto(a)
@@ -249,8 +247,6 @@ export async function montarFichaInscricao(db: SupabaseClient, pasta: Carteirinh
       aluno_id: a.id,
       nome: nomeDeExibicao(a),
       ra: (a.ra || '').trim() || '—',
-      // completo: documento interno, assinado pela direção (RNF-CART-06)
-      cpf: a.cpf ? formatarCPF(a.cpf) : '—',
       data_nascimento: fmtDataBr(a.data_nascimento),
       foto: await img.foto(a)
     }))));

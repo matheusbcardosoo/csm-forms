@@ -1,7 +1,7 @@
 # Carteirinhas Estudantis
 
 > Levantamento de requisitos e plano de implementação.
-> v0.1 em 01/10/2026 · v0.2 em 01/10/2026: incorpora as decisões do Matheus (cartão dobrável frente/verso, 4 por folha, logo do evento, validade, CPF censurado, permissões) e a **ficha de inscrição** por subpasta · **v0.3 em 01/10/2026**: fecha as quatro perguntas restantes (nome social, porta-crachá, CPF completo na ficha, vagas em branco) · **v0.4 em 01/10/2026**: o cartão troca o CPF censurado pelo **R.A. sem censura**; a ficha passa a trazer R.A. e CPF.
+> v0.1 em 01/10/2026 · v0.2 em 01/10/2026: incorpora as decisões do Matheus (cartão dobrável frente/verso, 4 por folha, logo do evento, validade, CPF censurado, permissões) e a **ficha de inscrição** por subpasta · **v0.3 em 01/10/2026**: fecha as quatro perguntas restantes (nome social, porta-crachá, CPF completo na ficha, vagas em branco) · **v0.4 em 01/10/2026**: o cartão troca o CPF censurado pelo **R.A. sem censura**, e **nenhum documento do módulo traz CPF** — a ficha também passa a usar o R.A.
 > **Status (01/10/2026): Fases 1 a 7 implementadas** na branch `feat/carteirinhas` (Fase 6: lote pela lista, ordem manual, duplicar pasta e escolher o diretor; o QR do RF-CART-20 ficou de fora). **Pendente:** Fase 0 com o token real (formato e peso de `url_foto`), teste físico de impressão (Fase 3, item 5) e aplicar as migrations 014 e 015 em produção. Decisões tomadas na implementação em §9.3.
 > Módulo paralelo ao histórico: não depende de a F5 estar 100% e não mexe em nenhuma regra do histórico.
 
@@ -150,7 +150,7 @@ Reproduz o modelo anexado (`docs/modelos/FICHA_INSCRICAO_MODELO.pdf`, *Campeonat
 |---|---|---|
 | RF-FICHA-01 | Gerar a ficha de inscrição de uma subpasta: A4 **paisagem**, 15 inscritos por folha em **3 colunas × 5 linhas**, numerados `#01`, `#02`… na ordem da subpasta | Must |
 | RF-FICHA-02 | **Cabeçalho:** "FICHA DE INSCRIÇÃO ESCOLAR"; abaixo, em caixa alta, **`<NOME DA PASTA> — <NOME DA SUBPASTA>`**; abaixo, "Registro Oficial de Inscritos e Homologação da Direção"; logo do evento no canto superior direito | Must |
-| RF-FICHA-03 | **Cada inscrito:** foto 3×4, número, Nome, Doc (**CPF completo**, formatado `123.456.789-32`) e Nasc. A direção atesta os documentos, então precisa vê-los inteiros. Aluno sem foto sai com o quadro "FOTO 3x4" vazio, como no modelo | Must |
+| RF-FICHA-03 | **Cada inscrito:** foto 3×4, número, Nome, **R.A.** e Nasc. (v0.4: o CPF saiu da ficha). Aluno sem foto sai com o quadro "FOTO 3x4" vazio, como no modelo | Must |
 | RF-FICHA-04 | **Rodapé de toda folha**, com três blocos. **Professor(a) responsável:** nome impresso se a subpasta tiver um, senão linha pontilhada, mais a linha de assinatura. **Direção do colégio:** "Atesto a veracidade das informações e documentos apresentados para os **N** alunos inscritos acima", com N igual ao número de inscritos **daquela folha**; "Diretor(a):" com o nome do diretor ativo em Signatários (RF-INST-05), ou linha pontilhada se não houver; linha de assinatura. **Carimbo:** quadro tracejado | Must |
 | RF-FICHA-05 | Mais de 15 inscritos: continua em outra folha, com cabeçalho e rodapé repetidos e "Folha 1 de 2" no cabeçalho. Cada folha é assinada por si, porque o atesto fala "dos alunos acima" | Must |
 | RF-FICHA-06 | Vagas não ocupadas na última folha saem **em branco**, com o quadro e a numeração seguinte, como no modelo, para inscrição de última hora à mão. O atesto continua contando só os inscritos impressos | Must |
@@ -170,7 +170,7 @@ A ficha é um **documento de controle impresso e assinado à mão**. Assim como 
 | RNF-CART-03 | **Desempenho:** 40 alunos geram as carteirinhas em menos de 10 s e a ficha em menos de 6 s. A foto entra no HTML já redimensionada (§6.3) |
 | RNF-CART-04 | **Independência do histórico:** nenhuma tabela, função ou template do histórico é alterado (§8) |
 | RNF-CART-05 | **Disponibilidade:** com o Activesoft fora do ar, a emissão funciona com as fotos já copiadas (RNF-05) |
-| RNF-CART-06 | **Documento por documento** (v0.4): o **cartão** traz o **R.A.** e nenhum CPF, porque é ele que circula no evento e pode ser perdido — o objeto do cartão nem tem campo de CPF, para que um erro de template não o vaze. A **ficha de inscrição** traz **R.A. e CPF completo**, porque é documento interno de controle, assinado pela direção e guardado pela secretaria. A tela de emissão da ficha lembra isso |
+| RNF-CART-06 | **Sem CPF nos documentos** (v0.4): o cartão e a ficha identificam o aluno pelo **R.A.**, sem censura. O CPF não sai em nenhum dos dois — os objetos montados nem têm o campo e o CPF nem é lido do banco pelo módulo, para que um erro de template não o vaze |
 
 ---
 
@@ -487,7 +487,7 @@ Nada em `server/servicos/historico/`, `views/pdf-historico.ejs`, `shared/histori
 | Verso | Logo do evento |
 | Tamanho e impressão | 4 por A4. Cartão dobrável: frente à esquerda, verso à direita, impressão de um lado só. Face de 95 × 60 mm |
 | Validade | Personalizável **por pasta**, obrigatória para emitir |
-| CPF | ~~Censurado, `123.xxx.xxx-32`, nos dois documentos~~ → v0.4: cartão com R.A. sem censura e sem CPF; ficha com R.A. e CPF completo |
+| CPF | ~~Censurado, `123.xxx.xxx-32`, nos dois documentos~~ → v0.4: nenhum dos dois documentos traz CPF; ambos usam o R.A. sem censura |
 | Quem emite | Só admin e secretaria. O módulo fica invisível para os demais papéis |
 | Ficha de inscrição | Por subpasta, no modelo anexado (`docs/modelos/FICHA_INSCRICAO_MODELO.pdf`) |
 
@@ -517,8 +517,7 @@ Nenhuma bloqueia o início. Todas têm proposta padrão.
 | `sharp` | **Não entrou.** Upload manual (foto e logo) é reduzido no navegador, via canvas: foto 3×4 a 600 × 800 JPEG q=0,82, logo até 1200 px PNG, SVG rasterizado | A foto do Activesoft entra como vem (até 5 MB). Com fotos de exemplo, 40 alunos geram as carteirinhas em 2,6 s e a ficha em 1,9 s. Reavaliar na Fase 0 com o peso real |
 | Ficha sem validade/logo | Não bloqueia | O bloqueio do RF-CART-15 é das carteirinhas, que sairiam incompletas; a ficha não imprime validade e funciona sem logo |
 | Subpasta vazia | A ficha sai com uma folha de 15 vagas em branco | Serve para inscrição à mão |
-| R.A. no cartão (v0.4) | O CPF censurado saiu do cartão; entrou o R.A. sem censura. Na ficha, R.A. e CPF em linhas próprias (Nome · R.A. + Nasc. · CPF). A conferência cobra "sem R.A." (cartão e ficha) e "sem CPF" (só ficha), sem bloquear | Pedido do Matheus em 01/10/2026 |
-| CPF inválido na ficha | Sai o valor cru | A direção precisa ver que está errado |
+| R.A. no lugar do CPF (v0.4) | Cartão e ficha usam o R.A. sem censura; o CPF saiu dos dois (na ficha, o inscrito volta a ter duas linhas: Nome · R.A. + Nasc.). A conferência cobra "sem R.A." no lugar de "sem CPF", sem bloquear | Pedido do Matheus em 01/10/2026 |
 | Tamanho do nome | Fonte escolhida pelo comprimento no servidor (9/8/7 pt) e não por medição | O mesmo número vai para a tela e para o PDF, sem depender da fonte instalada. O texto quebra linha e nunca é cortado |
 | Fonte do documento | Arial / Liberation Sans, como o histórico | O Chromium do Docker só tem `fonts-liberation`, de métrica igual à Arial: tela e PDF quebram linha no mesmo lugar |
 | Logo do colégio | `instituicao.logo_path`, senão `public/images/logo.jpg` — a logo principal, a mesma dos formulários e dos PDFs de visita. O brasão (`logo-brasao.png`) é a marca da São Marcos School e não entra. Sai no cabeçalho do cartão e no canto esquerdo da ficha de inscrição (a do evento fica à direita) | A tela de Instituição ainda não tem upload de logo; nenhum dos dois documentos sai sem a marca |
@@ -611,6 +610,6 @@ Sete fases pequenas, cada uma entregável e testável sozinha.
 | Fotos grandes travam o Chromium | Alto | Redimensionar na entrada (§6.3). Teste de 40 alunos como critério de pronto |
 | Impressora reescala o PDF e a dobra sai fora do meio | Médio | Aviso de 100%. Marcas de dobra na margem. Teste físico na Fase 3 |
 | Cartão de 95 × 60 não cabe no porta-crachá | Médio | Medir na Fase 0. O tamanho é uma variável CSS |
-| Foto e dados de menor em documento perdido | Médio (LGPD) | O cartão não traz CPF (só R.A.). Módulo restrito a admin e secretaria. Buckets privados |
+| Foto e dados de menor em documento perdido | Médio (LGPD) | Nenhum documento traz CPF (só R.A.). Módulo restrito a admin e secretaria. Buckets privados |
 | Conflito de merge com o histórico | Baixo | Lógica em arquivos próprios, com uma linha de ligação nos compartilhados (§8) |
 | Muitos alunos sem foto no Activesoft | Médio | Contador "sem foto" e atalho para o upload a partir da conferência |

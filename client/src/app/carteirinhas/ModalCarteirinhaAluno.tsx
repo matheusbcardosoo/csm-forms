@@ -79,7 +79,7 @@ export function ModalCarteirinhaAluno({ aberto, aluno, aoFechar }: { aberto: boo
           {subpastaId ? (
             <div style={{ marginTop: 14 }}>
               {previa.carregando && !previa.dados ? <Carregando /> : previa.dados ? <div className="previa-rolagem" style={{ display: 'flex', justifyContent: 'center' }}><PreviaTira doc={previa.dados} escala={0.95} /></div> : null}
-              <p className="cel-sub" style={{ marginTop: 8, textAlign: 'center' }}>Frente à esquerda, verso à direita. O CPF sai sempre censurado.</p>
+              <p className="cel-sub" style={{ marginTop: 8, textAlign: 'center' }}>Frente à esquerda, verso à direita. O documento do cartão é o R.A.</p>
             </div>
           ) : null}
 
