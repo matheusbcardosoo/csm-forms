@@ -13,7 +13,7 @@ Colégio São Marcos — Mogi das Cruzes/SP, rede particular, sob a Diretoria de
 | [05-modelo-historico.md](05-modelo-historico.md) | Anatomia campo a campo do histórico real — o que o gerador tem de reproduzir |
 | [06-versionamento-curricular.md](06-versionamento-curricular.md) | Como a estrutura curricular é versionada para que o histórico de 2019 saia com os nomes de 2019 |
 | [07-acervo-antigo-diferido.md](07-acervo-antigo-diferido.md) | ⛔ **Feature diferida** — históricos anteriores ao Activesoft. Leia antes de implementá-la |
-| [08-carteirinhas.md](08-carteirinhas.md) | Carteirinhas e fichas de inscrição de eventos: foto do aluno, pastas/subpastas, cartão dobrável 4 por A4 — requisitos e plano (não implementado) |
+| [08-carteirinhas.md](08-carteirinhas.md) | Carteirinhas e fichas de inscrição de eventos: foto do aluno, pastas/subpastas, cartão dobrável 4 por A4 — requisitos e plano (implementado na branch `feat/carteirinhas`, F0 pendente: ver §10) |
 | [modelos/FICHA_INSCRICAO_MODELO.pdf](modelos/FICHA_INSCRICAO_MODELO.pdf) | Modelo da ficha de inscrição por subpasta (Campeonato 2026) |
 | [modelos/JULIA_TEMPLATE.pdf](modelos/JULIA_TEMPLATE.pdf) | Modelo real em uso (EM Bilíngue, aluno anonimizado) |
 | [mockups/painel-secretaria.html](mockups/painel-secretaria.html) | Protótipo navegável das telas — abrir no navegador |

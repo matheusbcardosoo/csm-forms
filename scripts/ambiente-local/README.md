@@ -58,4 +58,14 @@ Depois `npm run build` (ou `npm run dev:client`) e entre em http://localhost:300
 docker compose -f scripts/ambiente-local/docker-compose.yml down -v
 ```
 
-O que não é imitado: Storage (assinaturas digitalizadas e **o PDF guardado do histórico emitido** — o download funciona, só regera a cada vez em vez de servir o arquivo do bucket), troca de senha real, e-mails. Nada daqui vai para produção.
+**Storage** é imitado de forma mínima pelo `fake-supabase.mjs` (upload, download, remoção e URL assinada), com os arquivos na pasta temporária do sistema (`csm-fake-storage`) — o bastante para fotos de aluno, logos de evento e o PDF guardado do histórico. Ele **não aplica as políticas de RLS dos buckets**: a restrição por papel do Storage só se testa no Supabase de verdade (a das tabelas, no PostgREST, vale aqui normalmente).
+
+**Banco que já existia antes de uma migration nova?** O volume só roda as migrations na criação. Para não perder o que já está lá, aplique a nova por cima (todas são idempotentes) e recarregue o PostgREST:
+
+```bash
+docker compose -f scripts/ambiente-local/docker-compose.yml exec -T db psql -U postgres -v ON_ERROR_STOP=1 < supabase/migrations/015_carteirinhas.sql
+```
+
+**Carteirinhas:** importe alunos com o `mock` (3 em cada 4 vêm com foto), crie uma pasta em **Carteirinhas** com logo e validade, uma subpasta, inscreva alunos e baixe o PDF. O login pelo formulário recusa `admin@local` (o campo de e-mail exige domínio); entre por `POST /api/auth/login` ou use um e-mail de semente com domínio.
+
+O que não é imitado: troca de senha real, e-mails, RLS do Storage. Nada daqui vai para produção.

@@ -21,6 +21,10 @@ PAINEL (autenticado)
   /app/importacoes/nova              nova importação
   /app/importacoes/:id               relatório e divergências
   /app/mapeamentos                   códigos do Activesoft ↔ cadastro local
+  /app/carteirinhas                  pastas de eventos (08-carteirinhas)
+  /app/carteirinhas/arquivadas
+  /app/carteirinhas/:pastaId         subpastas da pasta
+  /app/carteirinhas/:pastaId/:subpastaId   inscritos, prévia, emissão
   /app/formularios                   formulários (módulo atual)
   /app/formularios/respostas         respostas recebidas
   /app/config/instituicao            dados da instituição
@@ -35,7 +39,7 @@ PAINEL (autenticado)
   /app/config/documentos             modelo do histórico e numeração
 ```
 
-**Visibilidade por papel:** `admin` vê tudo · `secretaria` vê tudo menos `/app/config/usuarios` e `/app/config/documentos` · `coordenacao` vê alunos, históricos (leitura) e formulários · `leitura` só consulta.
+**Visibilidade por papel:** `admin` vê tudo · `secretaria` vê tudo menos `/app/config/usuarios` e `/app/config/documentos` · `coordenacao` vê alunos, históricos (leitura) e formulários · `leitura` só consulta. **Carteirinhas** é só de `admin` e `secretaria`: menu, rotas, API e buckets ficam invisíveis para os demais (RNF-CART-01). A foto do aluno na ficha continua visível para todo papel ativo.
 
 ## 2. Estrutura do painel
 

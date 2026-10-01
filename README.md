@@ -14,6 +14,7 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 | F5 — Histórico | Assistente de geração, montagem da grade cruzando versões curriculares, pré-visualização fiel (mesmo CSS do PDF), edição, conferência, emissão com numeração e snapshot, PDF, 2ª via, cancelamento, textos-padrão de observação | ✅ |
 | F6 — Formulários | Migração dos wizards e das respostas para React | ✅ |
 | F7 — Refino | Máscaras de campo, QR de verificação com página pública, geração em lote por turma, relatórios (documentos · importações · divergências, com CSV) e importação agendada | ✅ |
+| Carteirinhas | Foto do aluno (importada e por upload), pastas de eventos e subpastas, carteirinha dobrável 4 por A4, ficha de inscrição 15 por folha, emissão por subpasta, pasta ou aluno ([08-carteirinhas.md](docs/08-carteirinhas.md)) — migrations 014 e 015 | ✅ código · ⏳ teste físico de impressão |
 
 ## Estrutura
 
@@ -53,7 +54,7 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
 │                           inalterados. `views/pdf-historico.ejs` (F5) é o par do componente
 │                           `PreviaDocumento.tsx`: mesmo objeto, mesmo CSS — mexeu num, mexa no outro
 ├── public/                 estáticos legados (css/js usados só pelos templates de PDF, ver 02-arquitetura.md) e imagens
-├── supabase/migrations/    001–006, imutáveis, aplicadas em ordem
+├── supabase/migrations/    001–015, imutáveis, aplicadas em ordem
 ├── scripts/ambiente-local/ Supabase local (Postgres + PostgREST + GoTrue falso) para desenvolver sem tocar produção
 ├── scripts/                provisionamento de contas
 └── docs/                   requisitos, arquitetura, modelo do histórico, mockup

@@ -38,6 +38,8 @@ export interface AlunoOrigem {
   filiacao1?: string;
   filiacao2?: string;
   situacao?: string;             // texto cru; traduzido via mapeamento_activesoft
+  urlFoto?: string;              // link baixável na hora; pode ser assinado — nunca é guardado
+  fotoAlteradaEm?: string;       // ISO 8601 — chave para não baixar de novo
 }
 
 export interface MatriculaOrigem {
@@ -102,9 +104,12 @@ export interface Capacidades {
   faltas: boolean;
   documentosAluno: boolean;  // RG, certidão, naturalidade
   paginacao: boolean;
+  fotoAluno: boolean;        // devolve a foto (activesoft e mock: sim; arquivo: não — foto por upload)
   limiteRequisicoes?: number;
 }
 ```
+
+**Foto do aluno** (08-carteirinhas §6.2): depois da etapa de alunos, `server/servicos/fotos.ts › sincronizarFotos()` copia a foto para o bucket `alunos-fotos` — só na importação efetiva; a simulação conta quantas baixaria. Baixa de novo só quando `fotoAlteradaEm` muda; sem data, baixa uma vez só. Foto enviada à mão não é sobrescrita: a cópia da origem fica guardada ao lado (`activesoft/{id}`) e o relatório avisa. Falha de download vira aviso, nunca parada. O link da origem não vai para log, relatório nem `dados_importados`. No Activesoft vem de `lista_alunos.url_foto` / `foto_data_hora_alteracao` — sem requisição extra à API.
 
 `capacidades()` é o que a interface usa para avisar a secretaria: *"a API não devolve carga horária — o histórico vai usar a matriz curricular local"*. Sem isso, o dado some silenciosamente do documento.
 

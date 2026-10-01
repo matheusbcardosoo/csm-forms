@@ -2,7 +2,7 @@
 
 > Levantamento de requisitos e plano de implementação.
 > v0.1 em 01/10/2026 · v0.2 em 01/10/2026: incorpora as decisões do Matheus (cartão dobrável frente/verso, 4 por folha, logo do evento, validade, CPF censurado, permissões) e a **ficha de inscrição** por subpasta · **v0.3 em 01/10/2026**: fecha as quatro perguntas restantes (nome social, porta-crachá, CPF completo na ficha, vagas em branco).
-> **Status: planejamento. Nenhum código escrito.**
+> **Status (01/10/2026): Fases 1 a 7 implementadas** na branch `feat/carteirinhas` (Fase 6: lote pela lista, ordem manual, duplicar pasta e escolher o diretor; o QR do RF-CART-20 ficou de fora). **Pendente:** Fase 0 com o token real (formato e peso de `url_foto`), teste físico de impressão (Fase 3, item 5) e aplicar as migrations 014 e 015 em produção. Decisões tomadas na implementação em §9.3.
 > Módulo paralelo ao histórico: não depende de a F5 estar 100% e não mexe em nenhuma regra do histórico.
 
 ## 1. Contexto e objetivo
@@ -504,6 +504,26 @@ Nenhuma bloqueia o início. Todas têm proposta padrão.
 | 5 | A URL da foto do Activesoft é **assinada**? E qual o **peso** médio das fotos? | Responde-se na Fase 0. Decide o `sharp` |
 
 ---
+
+### 9.3 Decidido na implementação (01/10/2026)
+
+| Tema | Decisão | Por quê |
+|---|---|---|
+| Duas cópias da foto | `alunos-fotos/activesoft/{id}` e `manual/{id}`, sem extensão; `foto_path` aponta para a que vale | "Voltar à foto do Activesoft" fica instantâneo e funciona com a origem fora do ar. A reimportação continua atualizando a cópia da origem mesmo quando a manual manda, e avisa uma vez por mudança |
+| `url_foto` não vai para `dados_importados` | Diferente do §6.1 | Um link assinado muda a cada chamada: entraria na comparação de campos e quebraria a idempotência (RNF-03), além de guardar um link de acesso à foto de um menor |
+| Sem data de alteração | Baixa uma vez só | O link não serve de chave pelo mesmo motivo |
+| Remover foto | Grava `foto_origem = 'manual'` sem arquivo | A reimportação não recoloca uma foto que a secretaria tirou de propósito |
+| Tipo de imagem | Lido dos bytes (JPEG/PNG/WebP), nunca do nome ou do Content-Type | O servidor recusa SVG e qualquer outra coisa, mesmo que a tela seja contornada |
+| `sharp` | **Não entrou.** Upload manual (foto e logo) é reduzido no navegador, via canvas: foto 3×4 a 600 × 800 JPEG q=0,82, logo até 1200 px PNG, SVG rasterizado | A foto do Activesoft entra como vem (até 5 MB). Com fotos de exemplo, 40 alunos geram as carteirinhas em 2,6 s e a ficha em 1,9 s. Reavaliar na Fase 0 com o peso real |
+| Ficha sem validade/logo | Não bloqueia | O bloqueio do RF-CART-15 é das carteirinhas, que sairiam incompletas; a ficha não imprime validade e funciona sem logo |
+| Subpasta vazia | A ficha sai com uma folha de 15 vagas em branco | Serve para inscrição à mão |
+| CPF inválido | Cartão: "—". Ficha: o valor cru | No cartão, mostrar o cru vazaria dígitos sem censura. Na ficha, a direção precisa ver que está errado |
+| Tamanho do nome | Fonte escolhida pelo comprimento no servidor (9/8/7 pt) e não por medição | O mesmo número vai para a tela e para o PDF, sem depender da fonte instalada. O texto quebra linha e nunca é cortado |
+| Fonte do documento | Arial / Liberation Sans, como o histórico | O Chromium do Docker só tem `fonts-liberation`, de métrica igual à Arial: tela e PDF quebram linha no mesmo lugar |
+| Logo do colégio | `instituicao.logo_path`, senão `brasao_path`, senão `public/images/logo-brasao.png` | A tela de Instituição ainda não tem upload de logo; o cartão nunca sai sem a marca |
+| Rotas internas do PDF | Arquivo próprio, `server/rotas/carteirinhas-pdf-interno.ts` | `pdf-interno.ts` é do histórico (RNF-CART-04) |
+| Avulsa | O PDF registra escopo `avulsa`; o aluno não precisa estar inscrito na subpasta escolhida | O evento e a turma vêm da subpasta, como pede o RF-CART-11 |
+| Ambiente local | `fake-supabase.mjs` ganhou um Storage mínimo em disco | Sem ele não dava para testar foto e logo de ponta a ponta. Não aplica RLS de bucket |
 
 ## 10. Plano de implementação
 
