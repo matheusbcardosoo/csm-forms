@@ -40,7 +40,7 @@
             <div class="cc-evento cc-t<%= doc.evento.tamanho_nome %>"><%= doc.evento.nome %></div>
             <div class="cc-logo"><% if (doc.evento.logo) { %><img src="<%= doc.evento.logo %>" alt=""><% } %></div>
           </div>
-          <div class="cc-faixa"><%= c.turma %></div>
+          <div class="cc-faixa cc-f<%= c.tamanho_turma %>"><%= c.turma %></div>
           <div class="cc-corpo">
             <% if (c.foto) { %><div class="cc-foto"><img src="<%= c.foto %>" alt=""></div><% } else { %><div class="cc-foto vazia">sem foto</div><% } %>
             <dl class="cc-dados">

@@ -7,10 +7,10 @@ import fs from 'fs';
 import path from 'path';
 import { getServiceClient } from '../../lib/supabase';
 import {
-  carregarAluno, carregarPasta, carregarSubpasta, diretorAtivo, montarCarteirinhas, montarFichaInscricao, ordenar,
-  type AlunoInscrito
+  carregarAluno, carregarPasta, carregarSubpasta, diretorAtivo, montarCarteirinhas, montarFichaInscricao, ordenar, separarRepetidos,
+  subpastasDaPasta, type AlunoInscrito
 } from '../servicos/carteirinha/montar';
-import { CARTOES_POR_FOLHA, type CarteirinhaSubpasta, type DocFichaInscricao } from '../../shared/types/carteirinha';
+import { CARTOES_POR_FOLHA, type DocCarteirinhas, type DocFichaInscricao } from '../../shared/types/carteirinha';
 import { INSTRUCAO_IMPRESSAO, emGrupos, estiloMarca, marcasDaFolha, posicaoRotuloDobra, type Marca } from '../../shared/carteirinha-folha';
 
 export const carteirinhasPdfInternoRouter = Router();
@@ -31,28 +31,45 @@ function estiloTexto(m: Marca): string {
   return Object.entries(estiloMarca(m)).map(([k, v]) => `${k}: ${v}`).join('; ');
 }
 
+/**
+ * Com `pasta`: só os alunos de mais de uma subpasta, cada cartão com todas
+ * elas na faixa — o fim da pasta inteira quando eles vão juntos. Com
+ * `subpasta`: a subpasta, ou só os `alunos` pedidos dela.
+ */
+async function documentoPedido(db: ReturnType<typeof getServiceClient>, req: Request): Promise<DocCarteirinhas | string> {
+  if (req.query.pasta) {
+    const pasta = await carregarPasta(db, String(req.query.pasta));
+    if (!pasta) return 'Pasta não encontrada.';
+    const { grupos } = separarRepetidos(await subpastasDaPasta(db, pasta.id));
+    if (!grupos.length) return 'Nenhum aluno em mais de uma subpasta.';
+    const docs = [];
+    for (const g of grupos) docs.push(await montarCarteirinhas(db, pasta, g, g.alunos, 'pdf'));
+    return { ...docs[0], cartoes: docs.flatMap(d => d.cartoes) };
+  }
+
+  const dados = await carregarSubpasta(db, String(req.query.subpasta || ''));
+  if (!dados) return 'Subpasta não encontrada.';
+  // `alunos` = seleção (RF-CART-18) ou o avulso (RF-CART-11), que pode
+  // ainda não estar inscrito na subpasta escolhida
+  const pedidos = lista(req.query.alunos);
+  let alunos: AlunoInscrito[] = dados.alunos;
+  if (pedidos.length) {
+    const porId = new Map(dados.alunos.map(a => [a.id, a]));
+    alunos = [];
+    for (const id of pedidos) {
+      const a = porId.get(id) || await carregarAluno(db, id);
+      if (a) alunos.push(a);
+    }
+    alunos = ordenar(alunos, dados.subpasta.ordenacao);
+  }
+  return montarCarteirinhas(db, dados.pasta, dados.subpasta, alunos, 'pdf');
+}
+
 carteirinhasPdfInternoRouter.get('/internal/pdf/carteirinhas', async (req, res) => {
   if (!autorizado(req)) return res.status(403).send('Forbidden');
   try {
-    const db = getServiceClient();
-    const dados = await carregarSubpasta(db, String(req.query.subpasta || ''));
-    if (!dados) return res.status(404).send('Subpasta não encontrada.');
-
-    // `alunos` = seleção (RF-CART-18) ou o avulso (RF-CART-11), que pode
-    // ainda não estar inscrito na subpasta escolhida
-    const pedidos = lista(req.query.alunos);
-    let alunos: AlunoInscrito[] = dados.alunos;
-    if (pedidos.length) {
-      const porId = new Map(dados.alunos.map(a => [a.id, a]));
-      alunos = [];
-      for (const id of pedidos) {
-        const a = porId.get(id) || await carregarAluno(db, id);
-        if (a) alunos.push(a);
-      }
-      alunos = ordenar(alunos, dados.subpasta.ordenacao);
-    }
-
-    const doc = await montarCarteirinhas(db, dados.pasta, dados.subpasta, alunos, 'pdf');
+    const doc = await documentoPedido(getServiceClient(), req);
+    if (typeof doc === 'string') return res.status(404).send(doc);
     const folhas = emGrupos(doc.cartoes, CARTOES_POR_FOLHA);
     res.render('pdf-carteirinhas', {
       doc, css: cssDocumento(), folhas,
@@ -72,15 +89,15 @@ carteirinhasPdfInternoRouter.get('/internal/pdf/ficha-inscricao', async (req, re
     const docs: DocFichaInscricao[] = [];
 
     if (req.query.pasta) {
-      // pasta inteira: uma ficha por subpasta, em sequência (RF-FICHA-07)
+      // pasta inteira: uma ficha por subpasta, em sequência (RF-FICHA-07);
+      // com `repetidos`, quem está em mais de uma sai só nas últimas folhas,
+      // sob o título com todas as subpastas dele
       const pasta = await carregarPasta(db, String(req.query.pasta));
       if (!pasta) return res.status(404).send('Pasta não encontrada.');
-      const { data: subs, error } = await db.from('carteirinha_subpasta').select('id').eq('pasta_id', pasta.id).order('ordem').order('nome');
-      if (error) throw error;
-      for (const s of subs || []) {
-        const dados = await carregarSubpasta(db, s.id);
-        if (dados) docs.push(await montarFichaInscricao(db, pasta, dados.subpasta as CarteirinhaSubpasta, dados.alunos, 'pdf', diretor));
-      }
+      const todas = await subpastasDaPasta(db, pasta.id);
+      const { subs, grupos } = req.query.repetidos === '1' ? separarRepetidos(todas) : { subs: todas, grupos: [] };
+      for (const s of subs) docs.push(await montarFichaInscricao(db, pasta, s.subpasta, s.alunos, 'pdf', diretor));
+      for (const g of grupos) docs.push(await montarFichaInscricao(db, pasta, g, g.alunos, 'pdf', diretor));
     } else {
       const dados = await carregarSubpasta(db, String(req.query.subpasta || ''));
       if (!dados) return res.status(404).send('Subpasta não encontrada.');

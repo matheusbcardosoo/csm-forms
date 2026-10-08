@@ -107,10 +107,13 @@ export interface EventoDoc { nome: string; logo: string | null; validade: string
 
 /** Tamanho da fonte (pt) escolhido pelo comprimento: nunca corta letra. */
 export type TamanhoTexto = 9 | 8 | 7;
+/** Fonte (pt) da faixa da turma, que tem altura fixa. */
+export type TamanhoFaixa = 8 | 7 | 6;
 
 export interface Cartao {
   aluno_id: string;
-  turma: string;                // nome da subpasta
+  turma: string;                // nome da subpasta ("A | B" para quem está em várias)
+  tamanho_turma: TamanhoFaixa;
   nome: string;
   tamanho_nome: TamanhoTexto;
   /**

@@ -75,6 +75,9 @@
   font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
   white-space: nowrap; overflow: hidden; padding: 0 2mm;
 }
+/* várias subpastas no mesmo cartão ("A | B | C") */
+.cc-faixa.cc-f7 { font-size: 7pt; letter-spacing: .04em; }
+.cc-faixa.cc-f6 { font-size: 6pt; letter-spacing: .02em; }
 .cc-corpo { height: 33mm; display: flex; gap: 3mm; }
 .cc-foto {
   width: 25mm; height: 33mm; flex: 0 0 auto;

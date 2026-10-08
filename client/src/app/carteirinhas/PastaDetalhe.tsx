@@ -22,6 +22,8 @@ export function PastaDetalhe() {
   const [imprimir, setImprimir] = useState<{ documento: 'carteirinhas' | 'ficha' | 'zip'; url: string; nome: string } | null>(null);
   const [excluir, setExcluir] = useState(false);
   const [duplicar, setDuplicar] = useState<{ nome: string; com_inscritos: boolean } | null>(null);
+  // padrão: quem está em várias subpastas recebe um cartão só, no fim
+  const [juntarRepetidos, setJuntarRepetidos] = useState(true);
 
   if (carregando && !dados) return <div className="wrap"><Carregando /></div>;
   if (erro || !dados) return <div className="wrap"><Aviso tipo="erro">{erro || 'Pasta não encontrada.'}</Aviso></div>;
@@ -29,6 +31,8 @@ export function PastaDetalhe() {
   const { pasta, subpastas, totais } = dados;
   const logo = urlLogoPasta(pasta);
   const incompleta = !pasta.validade || !pasta.logo_evento_path;
+  // a soma por subpasta passa do total de alunos distintos quando alguém está em mais de uma
+  const temRepetidos = subpastas.reduce((n, s) => n + s.inscritos, 0) > totais.inscritos;
 
   async function executar(chave: string, fn: () => Promise<unknown>, ok?: string) {
     setOcupado(chave);
@@ -154,7 +158,12 @@ export function PastaDetalhe() {
           finally { setOcupado(null); }
         }} />
 
-      {imprimir ? <ModalImprimir aberto documento={imprimir.documento} url={imprimir.url} nomeArquivo={imprimir.nome} aoFechar={() => setImprimir(null)} aoBaixar={recarregar} /> : null}
+      {imprimir ? <ModalImprimir aberto documento={imprimir.documento} nomeArquivo={imprimir.nome} aoFechar={() => setImprimir(null)} aoBaixar={recarregar}
+        url={temRepetidos && juntarRepetidos ? `${imprimir.url}?repetidos=1` : imprimir.url}
+        extra={temRepetidos ? <div style={{ marginTop: 12 }}>
+          <CampoCheck checked={juntarRepetidos} onChange={e => setJuntarRepetidos(e.target.checked)}
+            rotulo={<>Alunos em mais de uma subpasta nas últimas folhas <small>· uma vez só, com o título “Subpasta A | Subpasta B”{imprimir.documento === 'zip' ? ', num PDF à parte no ZIP' : ''}</small></>} />
+        </div> : undefined} /> : null}
     </div>
   );
 }

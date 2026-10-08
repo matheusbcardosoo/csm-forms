@@ -155,6 +155,7 @@ Reproduz o modelo anexado (`docs/modelos/FICHA_INSCRICAO_MODELO.pdf`, *Campeonat
 | RF-FICHA-05 | Mais de 15 inscritos: continua em outra folha, com cabeçalho e rodapé repetidos e "Folha 1 de 2" no cabeçalho. Cada folha é assinada por si, porque o atesto fala "dos alunos acima" | Must |
 | RF-FICHA-06 | Vagas não ocupadas na última folha saem **em branco**, com o quadro e a numeração seguinte, como no modelo, para inscrição de última hora à mão. O atesto continua contando só os inscritos impressos | Must |
 | RF-FICHA-07 | Pasta inteira: um PDF com as fichas de todas as subpastas em sequência (o próprio modelo anexado é isso, com Futsal e Voleibol) | Should |
+| RF-FICHA-09 | Pasta inteira, opcional (`?repetidos=1`, vale também para o ZIP): o aluno inscrito em mais de uma subpasta sai uma vez só, nas últimas folhas, agrupado por combinação de subpastas e com todas no título, em ordem alfabética ("Sub A \| Sub B"); professores distintos idem. No ZIP, vira um PDF à parte (`carteirinhas-varias-subpastas.pdf`), com as subpastas na faixa do cartão | Could |
 | RF-FICHA-08 | Escolher o diretor no momento da emissão, quando houver mais de um signatário ativo com esse cargo | Could |
 
 A ficha é um **documento de controle impresso e assinado à mão**. Assim como a carteirinha, o sistema não congela nem guarda a ficha: ela sai com o dado atual, e a via assinada é a de papel. O log de emissão registra quem gerou e para quais alunos (RF-CART-17).
@@ -345,7 +346,7 @@ Rotas internas no padrão de `server/rotas/pdf-interno.ts`, protegidas por `INTE
 | `GET /subpastas/:id/previa?doc=carteirinhas\|ficha` | Documento montado para a prévia |
 | `GET /subpastas/:id/carteirinhas.pdf?alunos=…` | RF-CART-12/18. Registra a emissão |
 | `GET /subpastas/:id/ficha.pdf` | RF-CART-13. Registra a emissão |
-| `GET /pastas/:id/fichas.pdf` · `GET /pastas/:id/carteirinhas.zip` | RF-CART-14. Registra a emissão |
+| `GET /pastas/:id/fichas.pdf` · `GET /pastas/:id/carteirinhas.zip` | RF-CART-14. Registra a emissão. `?repetidos=1`: RF-FICHA-09 |
 
 No roteador de alunos:
 

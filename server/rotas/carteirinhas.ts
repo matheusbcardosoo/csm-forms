@@ -8,9 +8,9 @@ import { validar, z, texto, textoObrigatorio, dataIso, uuid } from '../lib/valid
 import { tipoDaImagem } from '../servicos/fotos';
 import {
   BUCKET_CARTEIRINHAS, carregarAluno, carregarPasta, carregarSubpasta, conferir, contar, detalharInscritos, logoDoColegio,
-  montarCarteirinhas, montarFichaInscricao, ordenar, diretorAtivo, type AlunoInscrito
+  montarCarteirinhas, montarFichaInscricao, ordenar, diretorAtivo, separarRepetidos, subpastasDaPasta, type AlunoInscrito
 } from '../servicos/carteirinha/montar';
-import { gerarPdfCarteirinhas, gerarPdfFicha, registrarEmissao, slug } from '../servicos/carteirinha/pdf';
+import { gerarPdfCarteirinhas, gerarPdfCarteirinhasRepetidos, gerarPdfFicha, registrarEmissao, slug } from '../servicos/carteirinha/pdf';
 import type {
   CarteirinhaPasta, CarteirinhaSubpasta, Contadores, Emissao, InscricaoDoAluno, PastaDetalhe, PastaResumo, SubpastaDetalhe, SubpastaResumo
 } from '../../shared/types/carteirinha';
@@ -398,21 +398,16 @@ carteirinhasRouter.get('/subpastas/:id/ficha.pdf', seguro(async (req, res) => {
 }));
 
 /* ---------- pasta inteira (RF-CART-14 / RF-FICHA-07) ---------- */
-async function subpastasCheias(db: Db, pastaId: string) {
-  const { data, error } = await db.from('carteirinha_subpasta').select('id').eq('pasta_id', pastaId).order('ordem').order('nome');
-  if (error) throw error;
-  const todas: NonNullable<Awaited<ReturnType<typeof carregarSubpasta>>>[] = [];
-  for (const s of data || []) { const d = await carregarSubpasta(db, s.id); if (d) todas.push(d); }
-  return todas;
-}
+// `?repetidos=1`: quem está em mais de uma subpasta sai uma vez só, no fim,
+// com todas as subpastas dele no título ("A | B | C")
 
 carteirinhasRouter.get('/pastas/:id/fichas.pdf', seguro(async (req, res) => {
   const { client, perfil } = ctx(res);
   const pasta = await carregarPasta(client, req.params.id);
   if (!pasta) return res.status(404).json({ error: 'Pasta não encontrada.' });
-  const subs = await subpastasCheias(client, pasta.id);
+  const subs = await subpastasDaPasta(client, pasta.id);
   if (!subs.length) return res.status(422).json({ error: 'A pasta não tem subpastas.' });
-  const pdf = await gerarPdfFicha({ pasta: pasta.id }, req.query.diretor ? String(req.query.diretor) : null);
+  const pdf = await gerarPdfFicha({ pasta: pasta.id, repetidos: req.query.repetidos === '1' }, req.query.diretor ? String(req.query.diretor) : null);
   await registrarEmissao(client, { pasta_id: pasta.id, subpasta_id: null, documento: 'ficha_inscricao', escopo: 'pasta', aluno_ids: [...new Set(subs.flatMap(s => s.alunos.map(a => a.id)))], emitido_por: perfil.email });
   enviarPdf(res, pdf, `fichas-inscricao-${slug(pasta.nome)}.pdf`);
 }));
@@ -423,20 +418,32 @@ carteirinhasRouter.get('/pastas/:id/carteirinhas.zip', seguro(async (req, res) =
   if (!pasta) return res.status(404).json({ error: 'Pasta não encontrada.' });
   const { bloqueios } = conferir(pasta, []);
   if (bloqueios.length) return res.status(422).json({ error: bloqueios.join(' ') });
-  const subs = (await subpastasCheias(client, pasta.id)).filter(s => s.alunos.length);
-  if (!subs.length) return res.status(422).json({ error: 'Nenhuma subpasta tem inscritos.' });
+  const todas = await subpastasDaPasta(client, pasta.id);
+  const juntar = req.query.repetidos === '1';
+  const separadas = juntar ? separarRepetidos(todas) : { subs: todas, grupos: [] };
+  const subs = separadas.subs.filter(s => s.alunos.length);
+  const repetidos = separadas.grupos.flatMap(g => g.alunos);
+  if (!subs.length && !repetidos.length) return res.status(422).json({ error: 'Nenhuma subpasta tem inscritos.' });
 
   const zip = new JSZip();
   const usados = new Set<string>();
-  for (const s of subs) {
-    let nome = `carteirinhas-${slug(s.subpasta.nome)}.pdf`;
-    for (let n = 2; usados.has(nome); n++) nome = `carteirinhas-${slug(s.subpasta.nome)}-${n}.pdf`;
+  const nomeLivre = (base: string) => {
+    let nome = `${base}.pdf`;
+    for (let n = 2; usados.has(nome); n++) nome = `${base}-${n}.pdf`;
     usados.add(nome);
-    zip.file(nome, await gerarPdfCarteirinhas(s.subpasta.id));
+    return nome;
+  };
+  for (const s of subs) {
+    // com os repetidos à parte, a subpasta sai só com quem é só dela
+    zip.file(nomeLivre(`carteirinhas-${slug(s.subpasta.nome)}`), await gerarPdfCarteirinhas(s.subpasta.id, juntar ? s.alunos.map(a => a.id) : undefined));
   }
+  if (repetidos.length) zip.file(nomeLivre('carteirinhas-varias-subpastas'), await gerarPdfCarteirinhasRepetidos(pasta.id));
   const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' });
   for (const s of subs) {
     await registrarEmissao(client, { pasta_id: pasta.id, subpasta_id: s.subpasta.id, documento: 'carteirinhas', escopo: 'pasta', aluno_ids: s.alunos.map(a => a.id), emitido_por: perfil.email });
+  }
+  if (repetidos.length) {
+    await registrarEmissao(client, { pasta_id: pasta.id, subpasta_id: null, documento: 'carteirinhas', escopo: 'pasta', aluno_ids: repetidos.map(a => a.id), emitido_por: perfil.email });
   }
   res.set({ 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="carteirinhas-${slug(pasta.nome)}.zip"`, 'Content-Length': String(buffer.length) });
   res.send(buffer);

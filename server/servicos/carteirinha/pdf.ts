@@ -23,8 +23,15 @@ export async function gerarPdfCarteirinhas(subpastaId: string, alunoIds?: string
   return renderCarteirinhasPdf({ baseUrl: baseUrl(), query: q.toString(), internalToken: process.env.INTERNAL_PDF_SECRET });
 }
 
-export async function gerarPdfFicha(alvo: { subpasta: string } | { pasta: string }, diretorId?: string | null): Promise<Buffer> {
-  const q = new URLSearchParams(alvo as Record<string, string>);
+/** Só os alunos de mais de uma subpasta da pasta (o fim do ZIP da pasta). */
+export async function gerarPdfCarteirinhasRepetidos(pastaId: string): Promise<Buffer> {
+  const q = new URLSearchParams({ pasta: pastaId });
+  return renderCarteirinhasPdf({ baseUrl: baseUrl(), query: q.toString(), internalToken: process.env.INTERNAL_PDF_SECRET });
+}
+
+export async function gerarPdfFicha(alvo: { subpasta: string } | { pasta: string; repetidos?: boolean }, diretorId?: string | null): Promise<Buffer> {
+  const q = 'pasta' in alvo ? new URLSearchParams({ pasta: alvo.pasta }) : new URLSearchParams({ subpasta: alvo.subpasta });
+  if ('pasta' in alvo && alvo.repetidos) q.set('repetidos', '1');
   if (diretorId) q.set('diretor', diretorId);
   return renderFichaInscricaoPdf({ baseUrl: baseUrl(), query: q.toString(), internalToken: process.env.INTERNAL_PDF_SECRET });
 }

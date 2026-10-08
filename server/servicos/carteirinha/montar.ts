@@ -11,7 +11,7 @@ import { dataUrl, lerFoto, tipoDaImagem } from '../fotos';
 import {
   INSCRITOS_POR_FOLHA_FICHA,
   type CarteirinhaPasta, type CarteirinhaSubpasta, type Cartao, type Conferencia, type Contadores,
-  type DocCarteirinhas, type DocFichaInscricao, type FolhaFicha, type InscritoFicha, type InscritoDetalhe, type PendenciaInscrito, type TamanhoTexto
+  type DocCarteirinhas, type DocFichaInscricao, type FolhaFicha, type InscritoFicha, type InscritoDetalhe, type PendenciaInscrito, type TamanhoFaixa, type TamanhoTexto
 } from '../../../shared/types/carteirinha';
 
 export const BUCKET_CARTEIRINHAS = 'carteirinhas';
@@ -69,6 +69,61 @@ export async function carregarSubpasta(db: SupabaseClient, id: string): Promise<
   if (e2) throw e2;
   const alunos = ((ins || []) as unknown as { ordem: number; aluno: LinhaAluno }[]).filter(i => i.aluno).map(i => paraInscrito(i.aluno, i.ordem));
   return { pasta, subpasta: sub as CarteirinhaSubpasta, alunos: ordenar(alunos, sub.ordenacao) };
+}
+
+/** Todas as subpastas da pasta, na ordem da tela, com os inscritos (pasta inteira). */
+export async function subpastasDaPasta(db: SupabaseClient, pastaId: string): Promise<SubpastaCheia[]> {
+  const { data, error } = await db.from('carteirinha_subpasta').select('id').eq('pasta_id', pastaId).order('ordem').order('nome');
+  if (error) throw error;
+  const todas: SubpastaCheia[] = [];
+  for (const s of data || []) { const d = await carregarSubpasta(db, s.id); if (d) todas.push(d); }
+  return todas;
+}
+
+export type SubpastaCheia = NonNullable<Awaited<ReturnType<typeof carregarSubpasta>>>;
+
+/** Alunos inscritos nas mesmas subpastas, impressos juntos no fim da pasta. */
+export interface GrupoRepetidos {
+  /** "Sub 12 Vôlei | Sub 14 Futsal" — o título da ficha e a faixa do cartão. */
+  nome: string;
+  professor_responsavel: string | null;
+  subpastas: CarteirinhaSubpasta[];
+  alunos: AlunoInscrito[];
+}
+
+/**
+ * Tira de cada subpasta quem está inscrito em mais de uma e junta essas
+ * pessoas por combinação de subpastas — para irem nas
+ * últimas folhas, uma vez só, com todas as subpastas no título.
+ */
+export function separarRepetidos(subs: SubpastaCheia[]): { subs: SubpastaCheia[]; grupos: GrupoRepetidos[] } {
+  const onde = new Map<string, number[]>();
+  subs.forEach((s, i) => s.alunos.forEach(a => onde.set(a.id, [...(onde.get(a.id) || []), i])));
+
+  const grupos = new Map<string, { indices: number[]; alunos: AlunoInscrito[] }>();
+  for (const [id, indices] of onde) {
+    if (indices.length < 2) continue;
+    const chave = indices.join(',');
+    if (!grupos.has(chave)) grupos.set(chave, { indices, alunos: [] });
+    grupos.get(chave)!.alunos.push(subs[indices[0]].alunos.find(a => a.id === id)!);
+  }
+  // títulos em ordem alfabética ("Futsal - Sub 12 | Vôlei Masculino - Sub 12"),
+  // e os grupos na ordem dos títulos; numeric: "Sub 8" antes de "Sub 10"
+  const alfabetica = (a: string, b: string) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true });
+
+  return {
+    subs: subs.map(s => ({ ...s, alunos: s.alunos.filter(a => onde.get(a.id)!.length < 2) })),
+    grupos: [...grupos.values()].map(g => {
+      const subpastas = g.indices.map(i => subs[i].subpasta).sort((a, b) => alfabetica(a.nome, b.nome));
+      const professores = [...new Set(subpastas.map(s => (s.professor_responsavel || '').trim()).filter(Boolean))];
+      return {
+        nome: subpastas.map(s => s.nome).join(' | '),
+        professor_responsavel: professores.join(' | ') || null,
+        subpastas,
+        alunos: ordenar(g.alunos, 'alfabetica')
+      };
+    }).sort((a, b) => alfabetica(a.nome, b.nome))
+  };
 }
 
 export async function carregarAluno(db: SupabaseClient, id: string): Promise<AlunoInscrito | null> {
@@ -195,11 +250,18 @@ export function tamanhoPorComprimento(texto: string, limites: [number, number]):
   return n <= limites[0] ? 9 : n <= limites[1] ? 8 : 7;
 }
 
+/** A faixa tem altura fixa: com várias subpastas ("A | B | C"), a fonte desce. */
+export function tamanhoFaixa(turma: string): TamanhoFaixa {
+  const n = turma.length;
+  return n <= 40 ? 8 : n <= 50 ? 7 : 6;
+}
+
 async function montarCartao(img: Imagens, a: AlunoInscrito, turma: string): Promise<Cartao> {
   const nome = nomeDeExibicao(a);
   return {
     aluno_id: a.id,
     turma,
+    tamanho_turma: tamanhoFaixa(turma),
     nome,
     tamanho_nome: tamanhoPorComprimento(nome, [38, 48]),
     // o documento é o R.A.; o CPF nem é lido do banco (RNF-CART-06)
@@ -238,7 +300,7 @@ export async function diretorAtivo(db: SupabaseClient, id?: string | null): Prom
   return data?.[0]?.nome || null;
 }
 
-export async function montarFichaInscricao(db: SupabaseClient, pasta: CarteirinhaPasta, subpasta: CarteirinhaSubpasta, alunos: AlunoInscrito[], modo: Modo, diretor: string | null): Promise<DocFichaInscricao> {
+export async function montarFichaInscricao(db: SupabaseClient, pasta: CarteirinhaPasta, subpasta: Pick<CarteirinhaSubpasta, 'nome' | 'professor_responsavel'>, alunos: AlunoInscrito[], modo: Modo, diretor: string | null): Promise<DocFichaInscricao> {
   const img = new Imagens(db, modo);
   const inscritos: InscritoFicha[] = [];
   for (let i = 0; i < alunos.length; i += 8) {

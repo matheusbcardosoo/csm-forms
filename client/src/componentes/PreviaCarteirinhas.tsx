@@ -19,7 +19,7 @@ export function TiraCartao({ doc, c }: { doc: DocCarteirinhas; c: Cartao }) {
           <div className={`cc-evento cc-t${doc.evento.tamanho_nome}`}>{doc.evento.nome}</div>
           <div className="cc-logo">{doc.evento.logo ? <img src={doc.evento.logo} alt="" /> : null}</div>
         </div>
-        <div className="cc-faixa">{c.turma}</div>
+        <div className={`cc-faixa cc-f${c.tamanho_turma}`}>{c.turma}</div>
         <div className="cc-corpo">
           {c.foto ? <div className="cc-foto"><img src={c.foto} alt="" /></div> : <div className="cc-foto vazia">sem foto</div>}
           <dl className="cc-dados">

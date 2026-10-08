@@ -91,7 +91,7 @@ function docExemplo(form: FormPasta, logo: string | null): DocCarteirinhas {
   return {
     evento: { nome, logo, validade: fmtValidade(form.validade), tamanho_nome: nome.length <= 30 ? 9 : nome.length <= 40 ? 8 : 7 },
     colegio: { nome: 'Colégio São Marcos', logo: '/api/carteirinhas/logo-colegio' },
-    cartoes: [{ aluno_id: 'exemplo', turma: 'Sub 12 Vôlei', nome: 'Ana Beatriz Souza Lima', tamanho_nome: 9, ra: '000.123.456-7', data_nascimento: '09/04/2014', foto: null }]
+    cartoes: [{ aluno_id: 'exemplo', turma: 'Sub 12 Vôlei', tamanho_turma: 8, nome: 'Ana Beatriz Souza Lima', tamanho_nome: 9, ra: '000.123.456-7', data_nascimento: '09/04/2014', foto: null }]
   };
 }
 
