@@ -10,6 +10,7 @@ import { useAnoLetivo } from '@/hooks/useAnoLetivo';
 import { Aviso, Botao, BotaoLink, Cabecalho, CampoSelect, CampoTexto, Card, Carregando, EstadoVazio, Modal, Tabela, Tag } from '@/componentes/ui';
 import { Icone } from '@/componentes/Icones';
 import { ROTULO_STATUS_VERSAO, type Curso, type Serie, type VersaoResumo, type VigenciaCurricular } from '@shared/types/curriculo';
+import { Req } from '@/componentes/NotasInternas';
 
 interface Cadastros { cursos: Curso[]; series: Serie[] }
 
@@ -173,7 +174,7 @@ export function Curriculos() {
                     ))}
                   </tbody>
                 </table></div>
-                <div className="card-rodape"><Icone nome="alerta" style={{ width: 14, height: 14, color: 'var(--aviso)' }} /> Ano/série sem currículo bloqueia a emissão do histórico daquele período (RF-VER-11) — em vez de sair com a grade errada.</div>
+                <div className="card-rodape"><Icone nome="alerta" style={{ width: 14, height: 14, color: 'var(--aviso)' }} /> Ano/série sem currículo bloqueia a emissão do histórico daquele período<Req id="RF-VER-11" /> — em vez de sair com a grade errada.</div>
               </Card>
             </div>
           ) : null}

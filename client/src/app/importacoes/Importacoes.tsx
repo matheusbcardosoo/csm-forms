@@ -9,6 +9,7 @@ import { useAnoLetivo } from '@/hooks/useAnoLetivo';
 import { Aviso, Botao, BotaoLink, Cabecalho, CampoSelect, CampoTexto, Card, Carregando, EstadoVazio, Modal, Tabela, Tag, fmtDataHora } from '@/componentes/ui';
 import { Icone } from '@/componentes/Icones';
 import { ROTULO_TIPO_IMPORTACAO, type Capacidades, type Importacao, type ModoImportacao, type TipoImportacao } from '@shared/types/importacao';
+import { NotaInterna } from '@/componentes/NotasInternas';
 
 interface InfoAdaptador { nome: 'activesoft' | 'arquivo' | 'mock'; rotulo: string; capacidades: Capacidades; conexao: { ok: boolean; detalhe?: string }; colunasModelo: Record<'alunos' | 'matriculas' | 'notas', readonly string[]> }
 
@@ -69,7 +70,7 @@ export function Importacoes() {
         </Card>
         <div className="pilha">
           <Aviso><b>Como funciona.</b> Escolhe-se ano letivo, série/turma e o que importar. <b>Simular primeiro</b> mostra o que entraria sem gravar nada; <b>Importar agora</b> grava e gera o relatório.</Aviso>
-          <Aviso><b>Regra central (RF-INT-06).</b> Uma nota corrigida à mão nunca é sobrescrita em silêncio: vira divergência com os dois valores lado a lado e a decisão é humana.</Aviso>
+          <NotaInterna><b>Regra central (RF-INT-06).</b> Uma nota corrigida à mão nunca é sobrescrita em silêncio: vira divergência com os dois valores lado a lado e a decisão é humana.</NotaInterna>
           <Aviso tipo="info"><b>Sem a API ainda?</b> Envie arquivos CSV com as colunas do contrato canônico. Modelos: <a href="/api/importacoes/csv-modelo/alunos">alunos</a> · <a href="/api/importacoes/csv-modelo/matriculas">matrículas</a> · <a href="/api/importacoes/csv-modelo/notas">notas</a>.</Aviso>
         </div>
       </div>

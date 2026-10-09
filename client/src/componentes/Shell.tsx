@@ -7,6 +7,7 @@ import { useSessao } from '@/hooks/useSessao';
 import { useAnoLetivo } from '@/hooks/useAnoLetivo';
 import { Icone, type NomeIcone } from './Icones';
 import { iniciais } from './ui';
+import { ModalTrocarSenha } from './ModalTrocarSenha';
 import { ROTULO_PAPEL, type Papel } from '@shared/types/usuario';
 
 interface ItemNav { to: string; rotulo: string; icone: NomeIcone; papeis?: Papel[]; fim?: boolean }
@@ -31,7 +32,7 @@ const CONFIGURACAO: ItemNav[] = [
   { to: '/app/config/curriculos', rotulo: 'Currículos', icone: 'grade', papeis: ['admin', 'secretaria'] },
   { to: '/app/config/estabelecimentos', rotulo: 'Outras escolas', icone: 'escola', papeis: ['admin', 'secretaria'] },
   { to: '/app/config/observacoes', rotulo: 'Observações', icone: 'documento', papeis: ['admin', 'secretaria'] },
-  { to: '/app/config/usuarios', rotulo: 'Usuários', icone: 'usuarios', papeis: ['admin'] }
+  { to: '/app/config/usuarios', rotulo: 'Usuários', icone: 'usuarios', papeis: ['admin', 'secretaria'] }
 ];
 
 function visivel(item: ItemNav, papel: Papel | null): boolean {
@@ -43,6 +44,7 @@ export function Shell() {
   const { anos, ano, setAno } = useAnoLetivo();
   const [aberta, setAberta] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
   const local = useLocation();
   const navegar = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -136,6 +138,7 @@ export function Shell() {
                 <button type="button" role="menuitem" onClick={() => setTema(t => t === 'dark' ? 'light' : t === 'light' ? 'auto' : 'dark')}>
                   <Icone nome="tema" />Tema: {tema === 'auto' ? 'automático' : tema === 'dark' ? 'escuro' : 'claro'}
                 </button>
+                <button type="button" role="menuitem" onClick={() => { setMenu(false); setTrocandoSenha(true); }}><Icone nome="chave" />Trocar senha</button>
                 <a role="menuitem" href="/" ><Icone nome="externo" />Central de formulários</a>
                 <button type="button" role="menuitem" onClick={sair}><Icone nome="sair" />Sair</button>
               </div>
@@ -146,6 +149,7 @@ export function Shell() {
         <main className="conteudo" id="conteudo">
           <Outlet />
         </main>
+        <ModalTrocarSenha aberto={trocandoSenha} aoFechar={() => setTrocandoSenha(false)} />
       </div>
     </div>
   );

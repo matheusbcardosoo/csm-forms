@@ -3,6 +3,11 @@
  * ==========================================================
  * provision-staff-users.mjs
  *
+ * >>> Uso normal agora é pelo painel: Configuração → Usuários cria a
+ * >>> conta com senha provisória e a cartilha de primeiro acesso.
+ * >>> Este script fica para o PRIMEIRO administrador (quando ainda não
+ * >>> há ninguém para entrar no painel) e para emergências.
+ *
  * Cria contas de login (Supabase Auth) pra todo mundo que estiver
  * na tabela usuario_perfil (ativo = true), com a senha padrão
  * "SaoMarcos" e a flag must_change_password=true (isso força a troca

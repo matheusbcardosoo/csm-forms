@@ -86,10 +86,23 @@ router.post('/auth/change-password', async (req, res) => {
 
   try {
     const { password } = req.body;
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(422).json({ error: 'A senha precisa ter ao menos 8 caracteres.' });
+    }
+    if (password === 'SaoMarcos') {
+      return res.status(422).json({ error: 'Escolha uma senha diferente da padrão.' });
+    }
 
     // Obtem e-mail antes de alterar (necessario para re-login em seguida)
     const { data: userData } = await client.auth.getUser();
     const email = userData?.user?.email;
+
+    // A senha nova não pode ser a provisória (ou a atual): se ela já entra,
+    // é a mesma. A tentativa usa um client descartável — não mexe na sessão.
+    if (email) {
+      const { error: mesma } = await getAnonClient().auth.signInWithPassword({ email, password });
+      if (!mesma) return res.status(422).json({ error: 'A nova senha precisa ser diferente da senha atual.' });
+    }
 
     const { error } = await client.auth.updateUser({
       password,

@@ -109,7 +109,7 @@ export const roteador = createBrowserRouter([
           { path: 'curriculos/:id', element: <VersaoDetalhe /> },
           { path: 'estabelecimentos', element: <Estabelecimentos /> },
           { path: 'observacoes', element: <Observacoes /> },
-          { path: 'usuarios', element: <SoPapel papeis={['admin']} />, children: [{ index: true, element: <Usuarios /> }] }
+          { path: 'usuarios', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [{ index: true, element: <Usuarios /> }] }
         ]
       },
       { path: '*', element: <NaoEncontrado /> }

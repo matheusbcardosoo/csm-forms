@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/useToast';
 import { Aviso, Botao, Cabecalho, Card, Carregando, EstadoVazio, Kpi, Tabela, Tag } from '@/componentes/ui';
 import { metaTipo, TIPOS_HISTORICO, type TipoHistorico } from '@shared/types/historico';
 import type { Curso, Serie } from '@shared/types/curriculo';
+import { AvisoEmDesenvolvimento, Req } from '@/componentes/NotasInternas';
 
 interface Candidato {
   aluno: { id: string; nome: string; ra: string | null };
@@ -123,6 +124,7 @@ export function HistoricoLote() {
     <div className="wrap">
       <Cabecalho titulo="Históricos em lote" descricao="Para a turma inteira — concluintes no fim do ano, por exemplo"
         acoes={<Link className="btn" to="/app/historicos">Ver documentos</Link>} />
+      <AvisoEmDesenvolvimento funcao="A geração de históricos em lote" />
 
       <Card titulo="1. Escolha a turma" descricao="A conferência roda para cada aluno antes de qualquer coisa ser criada" semCorpo>
         <div className="card-corpo" style={{ paddingTop: 12 }}>
@@ -217,7 +219,7 @@ export function HistoricoLote() {
             {meta.certificado ? (
               <>
                 <Aviso tipo="aviso">
-                  Histórico de conclusão só emite com o <b>número de publicação da SED</b> de cada aluno (RF-HIST-15).
+                  Histórico de conclusão só emite com o <b>número de publicação da SED</b> de cada aluno<Req id="RF-HIST-15" />.
                   É digitação, um por um — não há API. Quem ficar sem número continua rascunho e pode ser emitido depois pela tela do documento.
                 </Aviso>
                 <div style={{ marginTop: 12 }}>

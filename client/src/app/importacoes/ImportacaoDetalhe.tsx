@@ -8,6 +8,7 @@ import { useRecurso } from '@/hooks/useRecurso';
 import { useToast } from '@/hooks/useToast';
 import { Aviso, Botao, BotaoLink, Cabecalho, Card, Carregando, EstadoVazio, Kpi, Tag, fmtDataHora } from '@/componentes/ui';
 import { ROTULO_TIPO_IMPORTACAO, type Divergencia, type Importacao, type LinhaRelatorio, type Mapeamento, type ResolucaoDivergencia } from '@shared/types/importacao';
+import { Req } from '@/componentes/NotasInternas';
 
 interface Resposta { importacao: Importacao; divergencias: Divergencia[]; pendencias: (Mapeamento & { versao: { id: string; nome: string } | null; sugestao: { id: string; nome_impresso: string } | null })[] }
 type Aba = 'divergencias' | 'pendencias' | 'registros' | 'erros' | 'consolidacoes';
@@ -110,7 +111,7 @@ export function ImportacaoDetalhe() {
           <Aviso tipo="erro">
             <b>Nenhum currículo publicado para {rel.seriesSemCurriculo.map(s => `${s.ano} · ${s.serie}`).join(', ')}.</b>{' '}
             As matrículas entram, mas ficam <b>sem grade curricular</b> — e sem grade não há onde encaixar nota nenhuma, então
-            nenhuma nota dessas séries foi gravada e nenhum código de disciplina chegou a virar mapeamento (RF-VER-11).
+            nenhuma nota dessas séries foi gravada e nenhum código de disciplina chegou a virar mapeamento<Req id="RF-VER-11" />.
             É por isso que a importação mostra erros <b>e</b> nenhuma pendência de mapeamento: o problema é um passo antes.
             <div style={{ marginTop: 6, fontSize: 12.5 }}>
               {rel.seriesSemCurriculo.map(s => <div key={s.serie_id + s.ano}>{s.ano} · {s.serie} — {s.matriculas} matrícula(s) sem grade</div>)}

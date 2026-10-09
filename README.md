@@ -83,13 +83,9 @@ Planejamento completo em [docs/](docs/README.md). Estado das fases:
    > update usuario_perfil set papel = 'admin' where email = 'voce@saomarcos.g12.br';
    > ```
 
-4. Provisione contas de login para quem está em `usuario_perfil`:
+4. Contas de login: o painel cria sozinho. Em **Configuração → Usuários** (admin ou secretaria), adicionar uma pessoa cria a conta no Supabase Auth com uma **senha provisória aleatória** e mostra a **cartilha de primeiro acesso** (link, e-mail, senha, passo a passo) para enviar a ela. A troca de senha é obrigatória no primeiro acesso. Quem foi cadastrado antes disso aparece como "Sem login" — use **Criar login** na linha da pessoa.
 
-   ```bash
-   node scripts/provision-staff-users.mjs
-   ```
-
-   Senha padrão `SaoMarcos`, troca obrigatória no primeiro acesso.
+   Para o **primeiro administrador** (antes de existir alguém para entrar no painel), o script antigo continua servindo: `node scripts/provision-staff-users.mjs` (senha padrão `SaoMarcos`, troca obrigatória).
 
 ## Executando
 

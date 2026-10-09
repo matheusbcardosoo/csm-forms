@@ -11,6 +11,14 @@ export const ROTULO_PAPEL: Record<Papel, string> = {
   leitura: 'Leitura'
 };
 
+/** O que cada papel pode fazer — tela de usuários e cartilha de primeiro acesso. */
+export const DESCRICAO_PAPEL: Record<Papel, string> = {
+  admin: 'Tudo, incluindo configuração da instituição, currículos e usuários',
+  secretaria: 'Importa, edita notas, gera e emite históricos, vê formulários e cadastra a equipe',
+  coordenacao: 'Consulta alunos, notas e históricos; não emite nem edita nota',
+  leitura: 'Somente consulta'
+};
+
 export interface Perfil {
   email: string;
   nome: string | null;
@@ -18,6 +26,19 @@ export interface Perfil {
   ativo: boolean;
   criado_em?: string;
   ultimo_acesso_em?: string | null;
+}
+
+/** Linha da tela de equipe: o perfil e a situação da conta de login. */
+export interface PerfilEquipe extends Perfil {
+  tem_login: boolean;
+  /** Conta criada, senha provisória ainda não trocada. */
+  primeiro_acesso_pendente: boolean;
+}
+
+/** Resposta de cadastro / nova senha provisória — a senha vem uma vez só. */
+export interface AcessoCriado {
+  perfil: Perfil;
+  senha_provisoria: string;
 }
 
 /** Estado de sessão devolvido por GET /api/auth/session. */

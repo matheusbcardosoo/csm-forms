@@ -574,3 +574,23 @@ label.btn.desabilitado { opacity: .55; pointer-events: none; }
 }
 button.link { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
 .ficha-av.mini, .ficha-av.mini.com-foto { width: 30px; height: 40px; border-radius: 6px; font-size: 11px; }
+
+/* ---------- Notas internas (só admin) e aviso de função em desenvolvimento ---------- */
+.req-codigo { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .86em; color: var(--texto-3); white-space: nowrap; }
+.nota-interna { position: relative; }
+.nota-interna .nota-lateral { border-style: dashed; }
+.nota-interna-rotulo { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--texto-3); margin-bottom: 4px; }
+.aviso-em-desenvolvimento { margin-bottom: 14px; }
+
+/* ---------- Cartilha de primeiro acesso ---------- */
+.cartilha { font-size: 13.5px; line-height: 1.55; color: var(--texto); }
+.cartilha h3 { font-size: 13.5px; margin: 16px 0 6px; color: var(--texto); }
+.cartilha p { margin: 0 0 6px; }
+.cartilha ol, .cartilha ul { margin: 0; padding-left: 20px; }
+.cartilha li { margin-bottom: 4px; }
+.cartilha dl { margin: 0; padding: 10px 13px; border: 1px solid var(--linha); border-radius: var(--r-sm); background: var(--info-bg); display: grid; gap: 6px; }
+.cartilha dl > div { display: grid; grid-template-columns: 170px 1fr; gap: 12px; }
+.cartilha dt { font-weight: 600; }
+.cartilha dd { margin: 0; word-break: break-all; }
+.cartilha .cartilha-senha { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 15px; font-weight: 700; letter-spacing: .06em; }
+@media (max-width: 560px) { .cartilha dl > div { grid-template-columns: 1fr; gap: 0; } }

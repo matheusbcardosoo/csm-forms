@@ -44,6 +44,7 @@ export function PaginaLogin() {
     setErro(null);
     if (nova.length < 8) return setErro('A senha precisa ter ao menos 8 caracteres.');
     if (nova === SENHA_PADRAO) return setErro('Escolha uma senha diferente da padrão.');
+    if (senha && nova === senha) return setErro('A nova senha precisa ser diferente da senha provisória.');
     if (nova !== confirma) return setErro('As senhas não são iguais.');
     setOcupado(true);
     try {
@@ -74,7 +75,7 @@ export function PaginaLogin() {
             <form onSubmit={aoEntrar} noValidate>
               <div className="login-ico"><Icone nome="cadeado" /></div>
               <h2>Entrar no painel</h2>
-              <p>Use seu e-mail institucional. No primeiro acesso, a senha é <strong>{SENHA_PADRAO}</strong> — você vai trocá-la em seguida.</p>
+              <p>Use seu e-mail institucional. No primeiro acesso, entre com a <strong>senha provisória</strong> da sua cartilha de primeiro acesso — você vai trocá-la em seguida.</p>
               {erro ? <div className="login-erro" role="alert"><Icone nome="alerta" />{erro}</div> : null}
               <CampoTexto rotulo="E-mail" type="email" name="email" autoComplete="username" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="nome@saomarcos.com.br" autoFocus />
               <CampoTexto rotulo="Senha" type="password" name="senha" autoComplete="current-password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="Sua senha" />

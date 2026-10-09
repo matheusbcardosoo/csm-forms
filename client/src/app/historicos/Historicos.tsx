@@ -6,6 +6,7 @@ import { useRecurso } from '@/hooks/useRecurso';
 import { Aviso, BotaoLink, Cabecalho, Card, Carregando, EstadoVazio, Kpi, Tabela, Tag, fmtData, fmtDataHora } from '@/componentes/ui';
 import { Icone } from '@/componentes/Icones';
 import { ROTULO_STATUS_HISTORICO, ROTULO_TIPO_HISTORICO, type HistoricoLista, type StatusHistorico, type TipoHistorico } from '@shared/types/historico';
+import { AvisoEmDesenvolvimento, NotaInterna } from '@/componentes/NotasInternas';
 
 const COR_STATUS: Record<StatusHistorico, 'ok' | 'aviso' | 'info' | 'neutro' | 'erro'> = {
   rascunho: 'aviso', conferido: 'info', emitido: 'ok', cancelado: 'erro'
@@ -39,6 +40,7 @@ export function Historicos() {
           <BotaoLink to="/app/historicos/lote" icone="grade">Gerar em lote</BotaoLink>
           <BotaoLink to="/app/alunos" variante="primario" icone="alunos">Gerar para um aluno</BotaoLink>
         </>} />
+      <AvisoEmDesenvolvimento funcao="A emissão de históricos" />
 
       <div className="grade g4" style={{ marginBottom: 16 }}>
         <Kpi rotulo="Documentos" valor={linhas.length} detalhe="nos filtros atuais" />
@@ -91,7 +93,7 @@ export function Historicos() {
       </Card>
 
       <div style={{ marginTop: 14 }}>
-        <Aviso tipo="aviso"><b>Guarda da v1 (RF-VER-11).</b> Pedido que cai num ano letivo sem currículo cadastrado tem a emissão bloqueada com aviso — nunca sai documento com a grade de hoje para um aluno de outra época.</Aviso>
+        <NotaInterna tipo="aviso"><b>Guarda da v1 (RF-VER-11).</b> Pedido que cai num ano letivo sem currículo cadastrado tem a emissão bloqueada com aviso — nunca sai documento com a grade de hoje para um aluno de outra época.</NotaInterna>
       </div>
     </div>
   );

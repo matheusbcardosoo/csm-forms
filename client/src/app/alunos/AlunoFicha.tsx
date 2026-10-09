@@ -14,6 +14,7 @@ import { ModalCarteirinhaAluno } from '@/app/carteirinhas/ModalCarteirinhaAluno'
 import { prepararFoto3x4 } from '@/compartilhado/imagem';
 import { CAMPOS_OBRIGATORIOS_HISTORICO, ROTULO_ORIGEM, ROTULO_SITUACAO_ALUNO, ROTULO_SITUACAO_MATRICULA, ROTULO_SITUACAO_NOTA, type Aluno, type AlunoDetalhe, type Auditoria, type GradeNotas, type MatriculaDetalhe, type SituacaoAluno, type SituacaoMatricula, type SituacaoNota } from '@shared/types/aluno';
 import type { Curso, EstabelecimentoExterno, Serie } from '@shared/types/curriculo';
+import { AvisoEmDesenvolvimento, Req } from '@/componentes/NotasInternas';
 
 type Aba = 'dados' | 'trajetoria' | 'notas' | 'historicos';
 
@@ -65,7 +66,7 @@ export function AlunoFicha() {
       {validacao.length && aba !== 'historicos' ? (
         <div style={{ marginBottom: 14 }}>
           <Aviso tipo={bloqueios.length ? 'aviso' : 'info'}>
-            <b>Conferência para o histórico (RF-ALU-08).</b>
+            <b>Conferência para o histórico<Req id="RF-ALU-08" />.</b>
             <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
               {validacao.filter(v => v.aba === aba || (!v.aba)).map(v => <li key={v.codigo + (v.matricula_id || '')}>{v.nivel === 'bloqueia' ? '⛔ ' : '⚠ '}{v.mensagem}</li>)}
               {validacao.filter(v => v.aba && v.aba !== aba).length ? <li style={{ color: 'var(--texto-3)' }}>+ {validacao.filter(v => v.aba && v.aba !== aba).length} em outras abas</li> : null}
@@ -303,6 +304,8 @@ function AbaHistoricos({ aluno, podeEditar }: { aluno: Aluno; podeEditar: boolea
   const { dados, carregando } = useRecurso<HistoricoLista[]>(`/api/historicos?aluno_id=${aluno.id}`);
   if (carregando && !dados) return <Card semCorpo><Carregando /></Card>;
   return (
+    <>
+    <AvisoEmDesenvolvimento funcao="A emissão de históricos" />
     <Card semCorpo titulo="Documentos deste aluno" descricao="Rascunhos, emitidos e 2ª via"
       acoes={podeEditar ? <BotaoLink to={`/app/alunos/${aluno.id}/historico/novo`} variante="primario" pequeno icone="documento">Gerar histórico</BotaoLink> : undefined}>
       <Tabela<HistoricoLista>
@@ -323,6 +326,7 @@ function AbaHistoricos({ aluno, podeEditar }: { aluno: Aluno; podeEditar: boolea
         ]}
       />
     </Card>
+    </>
   );
 }
 
@@ -367,7 +371,7 @@ function AbaNotas({ alunoId, matriculas, podeEditar, aoMudar }: { alunoId: strin
       </div>
       {erro ? <Aviso tipo="erro">{erro}</Aviso> : null}
       {carregando && !g ? <Carregando /> : null}
-      {g && !g.versao ? <Aviso tipo="erro"><b>Sem currículo para este período.</b> A grade não tem linhas porque não há versão curricular vigente para {g.matricula.ano_letivo.ano} / {g.matricula.serie.nome}. Cadastre a vigência em <Link to="/app/config/curriculos">Currículos</Link>. Até lá a emissão fica bloqueada (RF-VER-11).</Aviso> : null}
+      {g && !g.versao ? <Aviso tipo="erro"><b>Sem currículo para este período.</b> A grade não tem linhas porque não há versão curricular vigente para {g.matricula.ano_letivo.ano} / {g.matricula.serie.nome}. Cadastre a vigência em <Link to="/app/config/curriculos">Currículos</Link>. Até lá a emissão fica bloqueada<Req id="RF-VER-11" />.</Aviso> : null}
       {g && g.versao ? (
         <Card semCorpo titulo={`Notas finais — ${g.matricula.serie.nome} · ${g.matricula.ano_letivo.ano}`} descricao="As linhas vêm da versão curricular congelada nesta matrícula. Clique numa célula para editar — toda alteração pede motivo e fica registrada."
           acoes={<Botao pequeno icone="relogio" onClick={() => setVerAuditoria(true)}>Histórico de alterações</Botao>}
@@ -409,7 +413,7 @@ function AbaNotas({ alunoId, matriculas, podeEditar, aoMudar }: { alunoId: strin
         </Card>
       ) : null}
 
-      <Modal aberto={!!edit} titulo={`Editar nota — ${edit?.nome || ''}`} descricao="A alteração é registrada com autor, data, valor anterior e motivo (RF-ALU-05)." aoFechar={() => setEdit(null)} tamanho="sm"
+      <Modal aberto={!!edit} titulo={`Editar nota — ${edit?.nome || ''}`} descricao={<>A alteração é registrada com autor, data, valor anterior e motivo<Req id="RF-ALU-05" />.</>} aoFechar={() => setEdit(null)} tamanho="sm"
         rodape={<><Botao onClick={() => setEdit(null)}>Cancelar</Botao><Botao variante="primario" carregando={salvando} icone="check" onClick={salvarNota} disabled={!edit || edit.motivo.trim().length < 5}>Salvar</Botao></>}>
         {edit ? <div className="form-grade">
           {conceito ? (

@@ -11,6 +11,7 @@ import { Aviso, Botao, BotaoLink, Cabecalho, CampoArea, CampoSelect, Card, Carre
 import { Icone } from '@/componentes/Icones';
 import { ROTULO_SITUACAO_MATRICULA, type SituacaoMatricula } from '@shared/types/aluno';
 import { ROTULO_TIPO_HISTORICO, TIPOS_HISTORICO, metaTipo, type Historico, type PreparoHistorico, type TipoHistorico } from '@shared/types/historico';
+import { AvisoEmDesenvolvimento, Req } from '@/componentes/NotasInternas';
 
 const PASSOS = ['Tipo', 'Anos do documento', 'Conferência', 'Assinaturas e observações'];
 
@@ -60,7 +61,7 @@ export function HistoricoNovo() {
   if (!escolhidas.length) bloqueios.push('Selecione ao menos um ano letivo.');
   for (const m of escolhidas) {
     const rot = `${m.ano} · ${m.serie}`;
-    if (m.sem_curriculo) bloqueios.push(`${rot}: nenhum currículo cadastrado para o período (RF-VER-11). Cadastre a versão vigente daquele ano em Currículos.`);
+    if (m.sem_curriculo) bloqueios.push(`${rot}: nenhum currículo cadastrado para o período. Cadastre a versão vigente daquele ano em Currículos.`);
     else if (m.total_itens && m.total_notas < m.total_itens) bloqueios.push(`${rot}: ${m.total_itens - m.total_notas} componente(s) sem nota.`);
     if (m.situacao_final === 'em_curso' && meta.certificado) bloqueios.push(`${rot}: situação final ainda "em curso" — conclusão exige o ano encerrado.`);
     else if (m.situacao_final === 'em_curso') alertas.push(`${rot}: situação final ainda "em curso".`);
@@ -98,6 +99,7 @@ export function HistoricoNovo() {
     <div className="wrap wrap-estreito">
       <Cabecalho titulo="Gerar histórico" descricao={`${dados.aluno.nome}${dados.aluno.ra ? ` · RA ${dados.aluno.ra}` : ''}`}
         voltar={{ to: `/app/alunos/${id}`, rotulo: 'Voltar à ficha' }} />
+      <AvisoEmDesenvolvimento funcao="A geração de históricos" />
 
       <div className="passos">
         {PASSOS.map((p, i) => (
@@ -162,7 +164,7 @@ export function HistoricoNovo() {
 
           {/* ---------- 3. Conferência ---------- */}
           {passo === 2 ? (
-            <Card titulo="Conferência (RF-ALU-08)" descricao="O que falta para o documento sair correto.">
+            <Card titulo={<>Conferência<Req id="RF-ALU-08" /></>} descricao="O que falta para o documento sair correto.">
               {!bloqueios.length && !alertas.length ? (
                 <div className="linha-h" style={{ color: 'var(--ok)' }}><Icone nome="check" />Tudo conferido — nenhum impedimento.</div>
               ) : (
@@ -201,7 +203,7 @@ export function HistoricoNovo() {
                   <div className="campo col-2">
                     <label htmlFor="sed">Registro / Visto Confere (SED) <small>· obrigatório para emitir</small></label>
                     <input id="sed" value={sed} onChange={e => setSed(e.target.value)} inputMode="numeric" placeholder="ex.: 000000000000" />
-                    <div className="dica">Número de publicação copiado do fluxo de Concluintes da SED (RF-HIST-15). Pode ficar em branco agora e ser preenchido antes de emitir.</div>
+                    <div className="dica">Número de publicação copiado do fluxo de Concluintes da SED<Req id="RF-HIST-15" />. Pode ficar em branco agora e ser preenchido antes de emitir.</div>
                   </div>
                 ) : null}
                 <CampoArea className="col-2" rotulo="Observações" rows={5} value={observacoes} onChange={e => setObservacoes(e.target.value)}

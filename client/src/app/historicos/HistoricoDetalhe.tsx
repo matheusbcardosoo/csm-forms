@@ -16,6 +16,7 @@ import {
   ROTULO_STATUS_HISTORICO, ROTULO_TIPO_HISTORICO, TIPOS_HISTORICO, metaTipo,
   type HistoricoDetalhe as Detalhe, type StatusHistorico, type TipoHistorico
 } from '@shared/types/historico';
+import { AvisoEmDesenvolvimento, Req } from '@/componentes/NotasInternas';
 
 const COR_STATUS: Record<StatusHistorico, 'ok' | 'aviso' | 'info' | 'erro'> = {
   rascunho: 'aviso', conferido: 'info', emitido: 'ok', cancelado: 'erro'
@@ -145,6 +146,7 @@ export function HistoricoDetalhe() {
   return (
     <div className="wrap">
       <Link className="cab-voltar" to="/app/historicos"><Icone nome="setaEsq" />Históricos</Link>
+      <AvisoEmDesenvolvimento funcao="A edição e emissão de históricos" />
 
       <div className="ficha-cab">
         <div className="ficha-id">
@@ -191,7 +193,7 @@ export function HistoricoDetalhe() {
           <Card titulo="Conferência" descricao={bloqueios.length ? `${bloqueios.length} pendência(s) impedem a emissão` : alertas.length ? 'Nenhum impedimento — só avisos' : 'Tudo conferido'} semCorpo>
             <div className="card-corpo" style={{ paddingTop: 12 }}>
               {h.status === 'emitido' ? (
-                <p className="cel-sub">Documento emitido em {fmtData(h.emitido_em)} por {h.emitido_por}. O conteúdo está congelado (RF-HIST-06).</p>
+                <p className="cel-sub">Documento emitido em {fmtData(h.emitido_em)} por {h.emitido_por}. O conteúdo está congelado<Req id="RF-HIST-06" />.</p>
               ) : !dados.validacao.length ? (
                 <div className="linha-h" style={{ color: 'var(--ok)' }}><Icone nome="check" />Nada pendente.</div>
               ) : (
@@ -234,7 +236,7 @@ export function HistoricoDetalhe() {
               <CampoArea rotulo="Texto impresso no verso" rows={7} value={form.observacoes} disabled={!editavel} onChange={e => mudar('observacoes', e.target.value)} />
               {editavel && dados.modelos_observacao.length ? (
                 <div style={{ marginTop: 8 }}>
-                  <div className="cel-sub" style={{ marginBottom: 6 }}>Textos-padrão (RF-HIST-04):</div>
+                  <div className="cel-sub" style={{ marginBottom: 6 }}>Textos-padrão<Req id="RF-HIST-04" />:</div>
                   <div className="linha-h" style={{ gap: 6 }}>
                     {dados.modelos_observacao.map(m => (
                       <Botao key={m.id} pequeno icone="mais" onClick={() => mudar('observacoes', (form.observacoes ? `${form.observacoes}\n` : '') + m.texto)}>{m.titulo}</Botao>
@@ -267,7 +269,7 @@ export function HistoricoDetalhe() {
                 <CampoTexto rotulo="Folha" value={form.folha} disabled={!editavel} onChange={e => mudar('folha', e.target.value)} />
                 <CampoTexto className="col-2" rotulo={<>Registro / Visto Confere (SED){meta.certificado ? <small> · obrigatório</small> : null}</>}
                   value={form.numero_registro_gdae} disabled={!editavel} inputMode="numeric" onChange={e => mudar('numero_registro_gdae', e.target.value)}
-                  dica="Copiado do fluxo de Concluintes da SED (RF-HIST-15). Sem API — é digitação." />
+                  dica={<>Copiado do fluxo de Concluintes da SED<Req id="RF-HIST-15" />. Sem API — é digitação.</>} />
               </div>
               <p className="cel-sub" style={{ marginTop: 10 }}>
                 {h.numero_registro != null ? `Número atribuído na emissão: ${h.numero_registro}/${h.ano_registro}.` : 'O número de registro é atribuído automaticamente na emissão.'}
@@ -383,7 +385,7 @@ function ModalAuditoria({ aberto, historicoId, aoFechar }: { aberto: boolean; hi
   const { dados, carregando } = useRecurso<Auditoria[]>(aberto ? `/api/historicos/${historicoId}/auditoria` : null);
   const fmt = (v: Record<string, unknown> | null) => v ? Object.entries(v).map(([k, x]) => `${k}: ${x == null ? '—' : String(x)}`).join(' · ') : '—';
   return (
-    <Modal aberto={aberto} titulo="Histórico do documento" descricao="Quem gerou, quem conferiu, quem emitiu (RF-HIST-11)." aoFechar={aoFechar} tamanho="lg">
+    <Modal aberto={aberto} titulo="Histórico do documento" descricao={<>Quem gerou, quem conferiu, quem emitiu<Req id="RF-HIST-11" />.</>} aoFechar={aoFechar} tamanho="lg">
       {carregando && !dados ? <Carregando /> : !dados?.length ? <p className="cel-sub">Nenhum registro ainda.</p> : (
         <div className="tab-box"><table className="responsiva">
           <thead><tr><th>Quando</th><th>Ação</th><th>Campo</th><th>De → para</th><th>Motivo</th><th>Por</th></tr></thead>

@@ -5,6 +5,7 @@ import { useSessao } from '@/hooks/useSessao';
 import { useAnoLetivo } from '@/hooks/useAnoLetivo';
 import { Aviso, BotaoLink, Cabecalho, Card, Carregando, EstadoVazio, Kpi, fmtDataHora } from '@/componentes/ui';
 import { Icone } from '@/componentes/Icones';
+import { NotaInterna } from '@/componentes/NotasInternas';
 
 interface Painel {
   anoLetivoAtual: number;
@@ -27,7 +28,7 @@ export function Inicio() {
     <div className="wrap">
       <Cabecalho
         titulo={primeiroNome ? `Olá, ${primeiroNome}` : 'Início'}
-        descricao={`Ano letivo de ${ano ?? dados?.anoLetivoAtual ?? new Date().getFullYear()} · Secretaria Digital, fases 0–4 em operação`}
+        descricao={`Ano letivo de ${ano ?? dados?.anoLetivoAtual ?? new Date().getFullYear()}`}
         acoes={temPapel('admin', 'secretaria') ? <>
           <BotaoLink to="/app/importacoes" icone="importar">Importar do Activesoft</BotaoLink>
           <BotaoLink to="/app/historicos" variante="primario" icone="mais">Novo histórico</BotaoLink>
@@ -38,7 +39,7 @@ export function Inicio() {
 
       <div className="grade g4" style={{ marginBottom: 16 }}>
         <Kpi rotulo="Alunos ativos" valor={dados?.indicadores.alunosAtivos ?? null} detalhe={dados?.indicadores.ultimaImportacao ? `última importação ${fmtDataHora(dados.indicadores.ultimaImportacao.iniciado_em)}` : 'nenhuma importação ainda'} />
-        <Kpi rotulo="Emitidos no mês" valor={dados?.indicadores.emitidosNoMes ?? null} detalhe="Emissão de histórico (fase 5)" tipo="ok" />
+        <Kpi rotulo="Emitidos no mês" valor={dados?.indicadores.emitidosNoMes ?? null} detalhe="Históricos e 2ª vias" tipo="ok" />
         <Kpi rotulo="Divergências abertas" valor={dados?.indicadores.divergenciasAbertas ?? null} detalhe={dados?.indicadores.pendentesMapeamento ? `${dados.indicadores.pendentesMapeamento} código(s) sem mapeamento` : 'nada aguardando decisão'} tipo="aviso" />
         <Kpi rotulo="Currículos vigentes" valor={dados ? dados.indicadores.versoesVigentes : carregando ? '…' : 0}
           detalhe={dados ? `${dados.indicadores.cursosAtivos} curso(s) · ${dados.indicadores.versoesRascunho} rascunho(s)` : undefined} tipo="neutro" />
@@ -48,7 +49,7 @@ export function Inicio() {
         <Card titulo="Precisa de atenção" descricao="Itens que travam a configuração ou a emissão de documento" semCorpo>
           {carregando && !dados ? <Carregando /> : null}
           {dados && dados.pendencias.length === 0 ? (
-            <EstadoVazio icone="check" titulo="Nada pendente" descricao="A configuração institucional está completa para as fases em operação." />
+            <EstadoVazio icone="check" titulo="Nada pendente" descricao="A configuração institucional está completa." />
           ) : null}
           {dados?.pendencias.map((p, i) => (
             <div className="pend" key={i}>
@@ -73,9 +74,9 @@ export function Inicio() {
             </table></div>
           </Card>
 
-          <Aviso>
+          <NotaInterna>
             <b>Escopo da v1.</b> O painel atende alunos cuja trajetória está no Activesoft. A importação (fase 3) roda com dados de exemplo ou arquivo CSV até a API ser documentada; a emissão do histórico (fase 5) é a próxima entrega.
-          </Aviso>
+          </NotaInterna>
         </div>
       </div>
     </div>

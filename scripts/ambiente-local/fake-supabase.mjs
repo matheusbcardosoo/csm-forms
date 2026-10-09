@@ -1,8 +1,12 @@
 // Supabase "de mentira" para desenvolvimento local: encaminha /rest/v1/*
-// para o PostgREST, imita o GoTrue em /auth/v1/* (qualquer senha vale) e
+// para o PostgREST, imita o GoTrue em /auth/v1/* e
 // um Storage mínimo em /storage/v1/object/* (arquivos em disco, na pasta
 // temporária do sistema). O Storage NÃO aplica as políticas de RLS dos
 // buckets — a restrição por papel de lá só se testa no Supabase de verdade.
+// Auth: e-mail sem conta criada aqui entra com qualquer senha (admin@local
+// etc.); conta criada pela API admin (/auth/v1/admin/users, usada pela tela
+// de Usuários) guarda senha e user_metadata em memória e passa a conferi-los.
+// Reiniciar o fake esquece essas contas.
 // Uso: node fake-supabase.mjs   (porta 54321; PostgREST em :3001)
 import http from 'node:http';
 import crypto from 'node:crypto';
@@ -26,8 +30,37 @@ export function jwt(claims) {
 function decodificar(token) {
   try { return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()); } catch { return null; }
 }
+/** Contas criadas pela API admin: e-mail → { senha, user_metadata, criado }. */
+const CONTAS = new Map();
 function usuario(email) {
-  return { id: crypto.createHash('md5').update(email).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5'), aud: 'authenticated', role: 'authenticated', email, email_confirmed_at: new Date().toISOString(), app_metadata: { provider: 'email' }, user_metadata: {}, created_at: new Date().toISOString() };
+  const conta = CONTAS.get(email.toLowerCase());
+  return { id: crypto.createHash('md5').update(email.toLowerCase()).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5'), aud: 'authenticated', role: 'authenticated', email, email_confirmed_at: new Date().toISOString(), app_metadata: { provider: 'email' }, user_metadata: conta ? conta.user_metadata : {}, created_at: conta ? conta.criado : new Date().toISOString() };
+}
+function contaPorId(id) {
+  for (const email of CONTAS.keys()) if (usuario(email).id === id) return email;
+  return null;
+}
+function adminUsuarios(req, res, url, corpo, bearer) {
+  if (decodificar(bearer)?.role !== 'service_role') return json(res, 403, { code: 403, error_code: 'not_admin', msg: 'User not allowed' });
+  const id = url.pathname.replace(/^\/auth\/v1\/admin\/users\/?/, '');
+  const dados = corpo ? JSON.parse(corpo) : {};
+  if (!id && req.method === 'GET') return json(res, 200, { users: [...CONTAS.keys()].map(usuario), aud: 'authenticated' });
+  if (!id && req.method === 'POST') {
+    const email = String(dados.email || '').toLowerCase();
+    if (CONTAS.has(email)) return json(res, 422, { code: 422, error_code: 'email_exists', msg: 'A user with this email address has already been registered' });
+    CONTAS.set(email, { senha: dados.password, user_metadata: dados.user_metadata || {}, criado: new Date().toISOString() });
+    return json(res, 200, usuario(email));
+  }
+  const email = contaPorId(id);
+  if (!email) return json(res, 404, { code: 404, error_code: 'user_not_found', msg: 'User not found' });
+  if (req.method === 'PUT') {
+    const conta = CONTAS.get(email);
+    if (dados.password) conta.senha = dados.password;
+    if (dados.user_metadata) conta.user_metadata = dados.user_metadata;
+    return json(res, 200, usuario(email));
+  }
+  if (req.method === 'DELETE') { CONTAS.delete(email); return json(res, 200, {}); }
+  return json(res, 200, usuario(email));
 }
 function sessao(email) {
   const u = usuario(email);
@@ -97,7 +130,8 @@ if (process.argv[1] && process.argv[1].endsWith('fake-supabase.mjs')) {
         if (url.pathname === '/auth/v1/token') {
           const dados = corpo ? JSON.parse(corpo) : {};
           if (url.searchParams.get('grant_type') === 'password') {
-            if (!dados.email || !dados.password) return json(res, 400, { error: 'invalid_grant', error_description: 'Invalid login credentials' });
+            const conta = CONTAS.get(String(dados.email || '').toLowerCase());
+            if (!dados.email || !dados.password || (conta && conta.senha !== dados.password)) return json(res, 400, { error: 'invalid_grant', error_description: 'Invalid login credentials' });
             return json(res, 200, sessao(dados.email));
           }
           const c = decodificar(bearer) || {};
@@ -106,9 +140,19 @@ if (process.argv[1] && process.argv[1].endsWith('fake-supabase.mjs')) {
         if (url.pathname === '/auth/v1/user') {
           const c = decodificar(bearer);
           if (!c?.email) return json(res, 401, { message: 'invalid token' });
-          if (req.method === 'PUT') return json(res, 200, usuario(c.email));
+          if (req.method === 'PUT') {
+            const dados = corpo ? JSON.parse(corpo) : {};
+            const email = c.email.toLowerCase();
+            const conta = CONTAS.get(email) || { senha: null, user_metadata: {}, criado: new Date().toISOString() };
+            if (dados.password) conta.senha = dados.password;
+            if (dados.data) conta.user_metadata = { ...conta.user_metadata, ...dados.data };
+            // Conta "qualquer senha" que troca a senha passa a ser conferida.
+            if (conta.senha) CONTAS.set(email, conta);
+            return json(res, 200, usuario(c.email));
+          }
           return json(res, 200, usuario(c.email));
         }
+        if (url.pathname.startsWith('/auth/v1/admin/users')) return adminUsuarios(req, res, url, corpo, bearer);
         if (url.pathname === '/auth/v1/logout') { res.writeHead(204); return res.end(); }
         return json(res, 404, { message: 'not found: ' + url.pathname });
       }
