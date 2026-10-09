@@ -22,6 +22,9 @@ export function Usuarios() {
   const [cartilha, setCartilha] = useState<AcessoCriado | null>(null);
 
   const existente = !!editando && (dados || []).some(u => u.email === editando.email) && !!editando.criado_em;
+  // O próprio cadastro: só o nome é editável. Papel e acesso ficam travados
+  // para ninguém se promover nem se trancar para fora (o servidor recusa também).
+  const proprio = existente && editando?.email === eu?.email;
   // Secretaria cadastra a equipe, mas não administradores (o servidor confere de novo).
   const papeisPermitidos = ehAdmin ? PAPEIS : PAPEIS.filter(p => p !== 'admin');
   const podeMexer = (u: Perfil) => ehAdmin || u.papel !== 'admin';
@@ -31,7 +34,7 @@ export function Usuarios() {
     setSalvando(true); setCampos([]);
     try {
       if (existente) {
-        await api.put(`/api/usuarios/${encodeURIComponent(editando.email!)}`, { nome: editando.nome, papel: editando.papel, ativo: editando.ativo });
+        await api.put(`/api/usuarios/${encodeURIComponent(editando.email!)}`, proprio ? { nome: editando.nome } : { nome: editando.nome, papel: editando.papel, ativo: editando.ativo });
         toast.ok('Perfil salvo.');
       } else {
         const r = await api.post<AcessoCriado>('/api/usuarios', editando);
@@ -98,10 +101,11 @@ export function Usuarios() {
           <div className="form-grade">
             <CampoTexto className="col-2" rotulo="E-mail institucional" name="email" type="email" inputMode="email" value={editando.email || ''} onChange={e => setEditando(f => ({ ...f, email: e.target.value }))} erros={campos} obrigatorio disabled={existente} autoFocus />
             <CampoTexto className="col-2" rotulo="Nome" name="nome" value={editando.nome || ''} onChange={e => setEditando(f => ({ ...f, nome: e.target.value }))} erros={campos} />
-            <CampoSelect className="col-2" rotulo="Papel" name="papel" value={editando.papel || 'secretaria'} onChange={e => setEditando(f => ({ ...f, papel: e.target.value as Papel }))} erros={campos} dica={DESCRICAO_PAPEL[(editando.papel || 'secretaria') as Papel]}>
-              {papeisPermitidos.map(p => <option key={p} value={p}>{ROTULO_PAPEL[p]}</option>)}
+            <CampoSelect className="col-2" rotulo="Papel" name="papel" value={editando.papel || 'secretaria'} onChange={e => setEditando(f => ({ ...f, papel: e.target.value as Papel }))} erros={campos} disabled={proprio}
+              dica={proprio ? 'Você não pode mudar o próprio papel. Se precisar, peça a um administrador.' : DESCRICAO_PAPEL[(editando.papel || 'secretaria') as Papel]}>
+              {(proprio ? [editando.papel as Papel] : papeisPermitidos).map(p => <option key={p} value={p}>{ROTULO_PAPEL[p]}</option>)}
             </CampoSelect>
-            <div className="col-2"><CampoCheck rotulo="Acesso ativo" checked={editando.ativo !== false} onChange={e => setEditando(f => ({ ...f, ativo: e.target.checked }))} /></div>
+            <div className="col-2"><CampoCheck rotulo="Acesso ativo" checked={editando.ativo !== false} disabled={proprio} onChange={e => setEditando(f => ({ ...f, ativo: e.target.checked }))} /></div>
           </div>
         ) : null}
       </Modal>
