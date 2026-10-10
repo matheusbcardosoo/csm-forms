@@ -723,7 +723,18 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
         if (configurado) {
           const naSerie = configurado.porSerie.get(mat.serie_id);
           if (naSerie?.habilitado) item = itemPorId.get(naSerie.itemId);
-          else {
+          else if (naSerie) {
+            // Desligado DE PROPÓSITO nesta série (ex.: DP — dependência —,
+            // que não entra na média da série corrente): é decisão
+            // registrada no currículo, não falha. Fica no relatório como
+            // ignorado, sem virar erro a cada importação.
+            cont.ignorados++;
+            const nomeSerie = seriesLocais.find(x => x.id === mat.serie_id)?.nome || 'série do aluno';
+            linha({ entidade: 'nota', acao: 'ignorar', chave: `${n.matriculaCodigoOrigem}/${n.disciplinaCodigoOrigem}`,
+              descricao: `${nomeAluno} · "${n.disciplinaDescricao || n.disciplinaCodigoOrigem}" desligada na ${nomeSerie}`,
+              detalhe: `Desligada de propósito na composição de "${configurado.nome}" desta série (Configuração › Currículos). A nota não entra no histórico.` });
+            continue;
+          } else {
             const chaveErro = `${n.matriculaCodigoOrigem}/${n.disciplinaCodigoOrigem}`;
             const outras = [...configurado.porSerie.keys()]
               .map(sid => seriesLocais.find(x => x.id === sid)?.nome)
@@ -732,9 +743,7 @@ export async function executarImportacao(db: SupabaseClient, adaptador: Adaptado
             erroRegistro(
               { entidade: 'nota', chave: chaveErro, descricao: `${nomeAluno} · "${n.disciplinaDescricao || n.disciplinaCodigoOrigem}" não vale na ${nomeSerie}` },
               'Disciplina fora das séries configuradas',
-              naSerie
-                ? `O código "${n.disciplinaCodigoOrigem}" compõe "${configurado.nome}" mas está desabilitado na ${nomeSerie}, no currículo deste curso. Se ele vale aqui, habilite a série em Configuração › Currículos; se não vale, a nota está vindo para a turma errada na origem.`
-                : `O código "${n.disciplinaCodigoOrigem}" compõe "${configurado.nome}"${outras ? ` em ${outras}` : ''}, mas não na ${nomeSerie}. Habilite a série no currículo se ele também valer aqui.`);
+              `O código "${n.disciplinaCodigoOrigem}" compõe "${configurado.nome}"${outras ? ` em ${outras}` : ''}, mas não na ${nomeSerie}. Habilite a série no currículo se ele também valer aqui.`);
             continue;
           }
         }
