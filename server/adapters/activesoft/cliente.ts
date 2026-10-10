@@ -31,6 +31,13 @@
 //  - Não existe carga horária por disciplina (só "aulas dadas", que não é
 //    a mesma unidade) — capacidades().cargaHoraria fica false, como já
 //    era no stub; o histórico usa os totais da versão curricular local.
+//  - lista_alunos (e lista_alunos_dados_sensiveis) só devolve, por
+//    padrão, alunos com matrícula ATIVA. Já enturmacao_com_detalhes traz
+//    também as inativas — o transferido aparece na turma mas não no
+//    cadastro. Os ausentes vêm de uma segunda chamada com
+//    mostrar_todos_os_alunos=1, que a API só aceita junto com
+//    periodo_sigla (conferido contra a API em 09/10/2026: true/S dão
+//    "Informe um número", e sem o período dá 422).
 //  - Documentos do aluno (RG, naturalidade, nacionalidade) exigem o
 //    escopo "dados_complementares" no token; se o token não tiver esse
 //    escopo, seguimos sem esses campos (aviso no console) em vez de
@@ -120,7 +127,9 @@ const enturmacaoDetalheSchema = z.object({
   turma_id: z.number(),
   aluno_id: z.number(),
   data_efetivacao_matricula: z.string().nullable().optional(),
-  situacao_aluno_turma: z.string().nullable().optional()
+  situacao_aluno_turma: z.string().nullable().optional(),
+  // A = Ativo, I = Inativo (transferido etc.), P = Pré-matrícula, S = Seleção
+  situacao_aluno_turma_tipo: z.string().nullable().optional()
 }).passthrough();
 
 const faseNotaSchema = z.object({
@@ -235,12 +244,12 @@ async function chamar<T>(cfg: ConfigActivesoft, caminho: string, query: Record<s
 }
 
 /** Percorre todas as páginas (limit/offset) de um endpoint de listagem. */
-async function paginarTudo<T>(cfg: ConfigActivesoft, caminho: string, itemSchema: ZodType<T>): Promise<T[]> {
+async function paginarTudo<T>(cfg: ConfigActivesoft, caminho: string, itemSchema: ZodType<T>, extra: Record<string, string | number> = {}): Promise<T[]> {
   const schema = envelopeSchema(itemSchema);
   const itens: T[] = [];
   let offset = 0;
   for (;;) {
-    const pagina = await chamar(cfg, caminho, { limit: cfg.paginaTamanho, offset }, schema);
+    const pagina = await chamar(cfg, caminho, { ...extra, limit: cfg.paginaTamanho, offset }, schema);
     const lote = Array.isArray(pagina) ? pagina : pagina.results;
     itens.push(...lote);
     const acabou = Array.isArray(pagina) ? true : !pagina.next;
@@ -253,6 +262,15 @@ async function paginarTudo<T>(cfg: ConfigActivesoft, caminho: string, itemSchema
     if (offset > 500000) throw new Error(`Activesoft API — paginação sem fim em ${caminho}`);
   }
   return itens;
+}
+
+/**
+ * Matrícula ativa na turma. Sem o tipo (versão antiga da API), cai no
+ * texto: só "Ativo"/"Cursando" contam como ativa.
+ */
+function ativa(e: EnturmacaoDetalhe): boolean {
+  if (e.situacao_aluno_turma_tipo) return e.situacao_aluno_turma_tipo.toUpperCase() === 'A';
+  return /^(ativ|cursand)/i.test((e.situacao_aluno_turma ?? '').trim());
 }
 
 /** Executa `fn` para cada item com no máximo `limite` chamadas em paralelo. */
@@ -330,6 +348,13 @@ export class AdaptadorActivesoftApi implements AdaptadorAcademico {
       const todasEnturmacoes = await paginarTudo(this.cfg, '/enturmacao_com_detalhes/', enturmacaoDetalheSchema);
       let enturmacoes = todasEnturmacoes.filter(e => idsTurma.has(e.turma_id));
       if (f.alunoCodigoOrigem) enturmacoes = enturmacoes.filter(e => String(e.aluno_id) === f.alunoCodigoOrigem);
+      // Troca de turma não é transferência: a matrícula inativa de quem está
+      // ativo em outra turma da MESMA série sai daqui — senão as duas caem
+      // na mesma matrícula local (aluno + ano + série) e a inativa podia
+      // marcar como transferido quem só mudou de sala.
+      const serieDaTurma = new Map(turmasDoAno.map(t => [t.id, t.serie_codigo || String(t.serie_id ?? '')]));
+      const ativoNaSerie = new Set(enturmacoes.filter(ativa).map(e => `${e.aluno_id}|${serieDaTurma.get(e.turma_id)}`));
+      enturmacoes = enturmacoes.filter(e => ativa(e) || !ativoNaSerie.has(`${e.aluno_id}|${serieDaTurma.get(e.turma_id)}`));
       return { turmas: turmasDoAno, enturmacoes };
     })();
     this.cacheMatriculas.set(chave, promessa);
@@ -360,19 +385,46 @@ export class AdaptadorActivesoftApi implements AdaptadorAcademico {
     return this.pagina(itens);
   }
 
+  /**
+   * Lista de alunos incluindo os inativos do período (transferidos etc.):
+   * a chamada padrão só traz quem tem matrícula ativa; os enturmados que
+   * faltarem vêm de mostrar_todos_os_alunos=1, por sigla de período.
+   */
+  private async alunosComInativos<T extends { id: number }>(caminho: string, schema: ZodType<T>, idsAluno: Set<number>, siglas: string[]): Promise<Map<number, T>> {
+    const porId = new Map<number, T>();
+    for (const a of await paginarTudo(this.cfg, caminho, schema)) if (idsAluno.has(a.id)) porId.set(a.id, a);
+    if (porId.size < idsAluno.size) {
+      for (const sigla of siglas) {
+        for (const a of await paginarTudo(this.cfg, caminho, schema, { mostrar_todos_os_alunos: 1, periodo_sigla: sigla })) {
+          if (idsAluno.has(a.id) && !porId.has(a.id)) porId.set(a.id, a);
+        }
+      }
+    }
+    return porId;
+  }
+
   async buscarAlunos(f: FiltroImportacao): Promise<ResultadoBusca<AlunoOrigem>> {
-    const { enturmacoes } = await this.matriculasBrutas(f);
+    const { turmas, enturmacoes } = await this.matriculasBrutas(f);
     if (!enturmacoes.length) return this.pagina([]);
     const idsAluno = new Set(enturmacoes.map(e => e.aluno_id));
+    // sigla exatamente como o SIGA devolve (vem com espaços à direita, ex. "2026  ")
+    const siglas = [...new Set(turmas.map(t => String(t.sigla_periodo ?? '')).filter(sg => sg.trim()))];
 
-    const basicos = await paginarTudo(this.cfg, '/lista_alunos/', alunoBasicoSchema);
-    const porId = new Map(basicos.filter(a => idsAluno.has(a.id)).map(a => [a.id, a]));
+    const porId = await this.alunosComInativos('/lista_alunos/', alunoBasicoSchema, idsAluno, siglas);
 
-    const sensiveisPorId = new Map<number, z.infer<typeof alunoSensivelSchema>>();
+    let sensiveisPorId = new Map<number, z.infer<typeof alunoSensivelSchema>>();
     try {
-      for (const s of await paginarTudo(this.cfg, '/lista_alunos_dados_sensiveis/', alunoSensivelSchema)) sensiveisPorId.set(s.id, s);
+      sensiveisPorId = await this.alunosComInativos('/lista_alunos_dados_sensiveis/', alunoSensivelSchema, idsAluno, siglas);
     } catch (err) {
       console.warn('[activesoft] lista_alunos_dados_sensiveis indisponível (falta o escopo "dados_complementares" no token?) — seguindo sem naturalidade/RG/nacionalidade.', err instanceof Error ? err.message : err);
+    }
+
+    // Situação do aluno no ano: "Ativo" se tem alguma matrícula ativa; senão,
+    // o texto da matrícula ("Transferido"...), traduzido em servicos/importacao.ts.
+    const situacaoPorAluno = new Map<number, string>();
+    for (const e of enturmacoes) {
+      if (ativa(e)) situacaoPorAluno.set(e.aluno_id, 'Ativo');
+      else if (!situacaoPorAluno.has(e.aluno_id) && e.situacao_aluno_turma) situacaoPorAluno.set(e.aluno_id, e.situacao_aluno_turma);
     }
 
     const responsaveisPorId = new Map<number, string>();
@@ -385,7 +437,12 @@ export class AdaptadorActivesoftApi implements AdaptadorAcademico {
     const itens: AlunoOrigem[] = [];
     for (const id of idsAluno) {
       const base = porId.get(id);
-      if (!base) continue; // aluno enturmado mas ausente em lista_alunos — inconsistência da origem, ignora
+      if (!base) {
+        // nem com mostrar_todos_os_alunos: inconsistência da origem. Fica no
+        // log; a matrícula dele aparece como erro no relatório.
+        console.warn(`[activesoft] aluno ${id} enturmado em ${f.anoLetivo} mas ausente de lista_alunos (mesmo com mostrar_todos_os_alunos).`);
+        continue;
+      }
       const sens = sensiveisPorId.get(id);
       const sexoBruto = (sens?.sexo ?? base.sexo ?? '').toUpperCase();
       const filiacao1Id = sens?.mae_id ?? base.filiacao_1_id ?? undefined;
@@ -408,7 +465,8 @@ export class AdaptadorActivesoftApi implements AdaptadorAcademico {
         // assinado e mudar a cada chamada — não serve de chave)
         fotoAlteradaEm: base.url_foto ? (base.foto_data_hora_alteracao || undefined) : undefined,
         filiacao1: filiacao1Id != null ? responsaveisPorId.get(filiacao1Id) : undefined,
-        filiacao2: filiacao2Id != null ? responsaveisPorId.get(filiacao2Id) : undefined
+        filiacao2: filiacao2Id != null ? responsaveisPorId.get(filiacao2Id) : undefined,
+        situacao: situacaoPorAluno.get(id)
       });
     }
     return this.pagina(itens);
