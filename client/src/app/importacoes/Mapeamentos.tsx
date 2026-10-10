@@ -83,11 +83,12 @@ export function Mapeamentos() {
   const series = (cadastros.dados?.series || []).sort((a, b) => a.ordem - b.ordem);
   const nomeSerie = (id: string | null) => series.find(s => s.id === id)?.nome || '';
   const definir = (k: string, v: string) => { const p = new URLSearchParams(params); if (v) p.set(k, v); else p.delete(k); setParams(p); };
-  // código → componente já definido como destino global. Uma linha presa
-  // a currículo que aparece aqui não está esperando mapeamento: o destino
-  // existe, o que falta é o componente estar na grade daquele currículo.
-  const globalPorCodigo = new Map((dados || []).filter(m => m.tipo === 'disciplina' && !m.versao_id && m.confirmado && m.componente).map(m => [m.codigo_origem, m.componente!]));
-  const bloqueadoPelaGrade = (m: Linha) => m.tipo === 'disciplina' && !!m.versao_id && !m.confirmado && globalPorCodigo.has(m.codigo_origem);
+  // Linha presa a currículo cujo código já tem destino global: não está
+  // esperando mapeamento — o destino existe, o que falta é o componente na
+  // grade de alguma série daquele currículo. O servidor manda isso em
+  // `global` (vale também com "Somente pendentes", que esconde os globais).
+  const bloqueadoPelaGrade = (m: Linha) => m.tipo === 'disciplina' && !!m.versao_id && !m.confirmado && !!m.global;
+  const juntar = (nomes: string[]) => nomes.length <= 1 ? nomes.join('') : `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
   const pendentes = (dados || []).filter(m => !m.confirmado);
   const comSugestao = pendentes.filter(m => (m.tipo === 'disciplina' ? m.sugestao_item_id : m.destino_valor));
 
@@ -109,7 +110,8 @@ export function Mapeamentos() {
             {pendentes.filter(bloqueadoPelaGrade).length ? (
               <div style={{ marginTop: 8 }}>
                 <b>{pendentes.filter(bloqueadoPelaGrade).length} deles não se resolvem aqui:</b> o código já tem destino, e o que falta é
-                o componente estar na grade daquele currículo. Mapear de novo não muda nada — quem resolve é <b>Configuração › Currículos</b>.
+                o componente na grade de alguma série do currículo. Por isso voltam a cada importação — mapear de novo não muda nada,
+                quem resolve é <b>Configuração › Currículos</b>. Cada linha diz qual série completar.
               </div>
             ) : null}
           </Aviso>
@@ -134,16 +136,18 @@ export function Mapeamentos() {
                 <td data-rotulo="Destino">
                   {bloqueadoPelaGrade(m) ? (
                     <div style={{ fontSize: 12.5 }}>
-                      <div>Já vale para todos os cursos: <b>{globalPorCodigo.get(m.codigo_origem)!.nome_canonico}</b>.</div>
+                      <div>Destino já definido para todos os cursos: <b>{m.global!.nome}</b>.</div>
                       <div className="cel-sub" style={{ marginTop: 2 }}>
-                        Este currículo não tem esse componente na grade — por isso os registros ficaram de fora. Inclua o componente
-                        no currículo, ou escolha abaixo uma linha da grade como exceção só aqui.
+                        {m.global!.series_sem_componente.length
+                          ? <>Falta na grade: <b>{juntar(m.global!.series_sem_componente)}</b> deste currículo não {m.global!.series_sem_componente.length > 1 ? 'têm' : 'tem'} <b>{m.global!.nome}</b>, então a nota desses alunos não tem onde entrar. </>
+                          : <>A grade deste currículo não tem esse componente na série do aluno. </>}
+                        Inclua o componente em Currículos e rode a importação de novo — ou, se a nota não deve ir para o histórico, escolha abaixo uma linha como exceção só aqui.
                       </div>
                       <select value="" disabled={ocupado === m.id} onChange={e => { if (e.target.value) salvar(m, { versao_item_id: e.target.value.slice(2), componente_id: null, confirmado: true }); }} aria-label={`Exceção para ${m.codigo_origem}`} style={{ marginTop: 6, maxWidth: 320, width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--linha-forte)', background: 'var(--superficie)', color: 'var(--texto)', fontSize: 12.5 }}>
                         <option value="">— exceção: mandar para outra linha só neste currículo —</option>
                         {(itensPorVersao[m.versao_id || ''] || []).map(i => <option key={i.id} value={`i:${i.id}`}>{i.rotulo}</option>)}
                       </select>
-                      <div style={{ marginTop: 6 }}><Link to="/app/config/curriculos">Abrir Currículos</Link></div>
+                      <div style={{ marginTop: 6 }}><Link to={m.versao?.curso_id ? `/app/config/curriculos?curso=${m.versao.curso_id}` : '/app/config/curriculos'}>Abrir o currículo {m.versao?.nome || ''}</Link></div>
                     </div>
                   ) : m.tipo === 'disciplina' ? (
                     <select value={valorDestino(m)} disabled={ocupado === m.id} onChange={e => {

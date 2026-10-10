@@ -209,4 +209,12 @@ export interface Mapeamento {
   observacao: string | null;
   sugestao_item_id: string | null;
   registros_afetados: number;
+  /**
+   * Só em pendência de disciplina presa a um currículo cujo código JÁ tem
+   * destino global: o componente do global e as séries daquele currículo
+   * cuja grade não tem esse componente. É por elas que a pendência volta a
+   * cada importação — mapear de novo não resolve, completar a grade sim.
+   * Calculado pelo servidor (GET /mapeamentos), independe do filtro da tela.
+   */
+  global?: { componente_id: string; nome: string; series_sem_componente: string[] } | null;
 }

@@ -7,7 +7,8 @@ import { validar, z, texto, uuid } from '../lib/validacao';
 import { getServiceClient } from '../../lib/supabase';
 import { adaptadorPadrao, criarAdaptador, COLUNAS_MODELO, type NomeAdaptador } from '../adapters/activesoft';
 import { rodar } from '../servicos/agendador';
-import { executarImportacao } from '../servicos/importacao';
+import { executarImportacao, normalizar } from '../servicos/importacao';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { montarGradeDaOrigem } from '../servicos/grade-da-origem';
 
 export const importacoesRouter = Router();
@@ -37,6 +38,51 @@ importacoesRouter.get('/', exigirPapel('admin', 'secretaria'), seguro(async (_re
 }));
 
 /* ---------- mapeamentos (antes de /:id para não colidir) ---------- */
+
+/**
+ * Séries de cada currículo cuja grade NÃO tem o componente — com a mesma
+ * regra da importação (servicos/importacao.ts, passos 2 e 2b): a série
+ * resolve se tem uma linha com esse componente, ou uma linha sem
+ * componente com o nome idêntico ao dele. Devolve, por "versão|componente",
+ * os nomes das séries que ficam sem destino.
+ */
+async function seriesSemComponente(client: SupabaseClient, pares: { versao_id: string; componente_id: string }[]): Promise<Map<string, string[]>> {
+  const resultado = new Map<string, string[]>();
+  if (!pares.length) return resultado;
+  const versoes = [...new Set(pares.map(p => p.versao_id))];
+  const componentes = [...new Set(pares.map(p => p.componente_id))];
+  const [itensR, compR, seriesR] = await Promise.all([
+    client.from('versao_item').select('serie_id, componente_id, nome_impresso, versao_agrupamento!inner(versao_bloco!inner(versao_id))').in('versao_agrupamento.versao_bloco.versao_id', versoes).range(0, 9999),
+    client.from('componente').select('id, nome_canonico, sigla').in('id', componentes),
+    client.from('serie').select('id, nome, ordem')
+  ]);
+  if (itensR.error) throw itensR.error;
+  if (compR.error) throw compR.error;
+  if (seriesR.error) throw seriesR.error;
+  type ItemBruto = { serie_id: string; componente_id: string | null; nome_impresso: string; versao_agrupamento: { versao_bloco: { versao_id: string } } };
+  const itens = (itensR.data as unknown as ItemBruto[]).map(i => ({ ...i, versao_id: i.versao_agrupamento.versao_bloco.versao_id }));
+  const comp = new Map((compR.data || []).map(c => [c.id as string, c as { id: string; nome_canonico: string; sigla: string | null }]));
+  const serie = new Map((seriesR.data || []).map(s => [s.id as string, s as { id: string; nome: string; ordem: number }]));
+  for (const { versao_id, componente_id } of pares) {
+    const c = comp.get(componente_id);
+    const daVersao = itens.filter(i => i.versao_id === versao_id);
+    const seriesDaVersao = [...new Set(daVersao.map(i => i.serie_id))];
+    const faltam = seriesDaVersao.filter(sid => !daVersao.some(i => i.serie_id === sid && (
+      i.componente_id === componente_id ||
+      (!i.componente_id && !!c && (normalizar(i.nome_impresso) === normalizar(c.nome_canonico) || (!!c.sigla && normalizar(i.nome_impresso) === normalizar(c.sigla))))
+    )));
+    resultado.set(`${versao_id}|${componente_id}`, faltam
+      .sort((a, b) => (serie.get(a)?.ordem ?? 0) - (serie.get(b)?.ordem ?? 0))
+      .map(sid => serie.get(sid)?.nome || 'série sem nome'));
+  }
+  return resultado;
+}
+
+/** Lista "1ª Série, 2ª Série e 3ª série". */
+function listar(nomes: string[]): string {
+  return nomes.length <= 1 ? nomes.join('') : `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
+}
+
 importacoesRouter.get('/mapeamentos', exigirPapel('admin', 'secretaria'), seguro(async (req, res) => {
   const { client } = ctx(res);
   let q = client.from('mapeamento_activesoft').select('*, versao:versao_curricular(id, nome, curso_id), componente:componente(id, nome_canonico, sigla), item:versao_item!mapeamento_activesoft_versao_item_id_fkey(id, nome_impresso, serie_id), sugestao:versao_item!mapeamento_activesoft_sugestao_item_id_fkey(id, nome_impresso, serie_id)').order('confirmado').order('tipo').order('codigo_origem');
@@ -47,7 +93,35 @@ importacoesRouter.get('/mapeamentos', exigirPapel('admin', 'secretaria'), seguro
   if (req.query.pendentes === '1') q = q.eq('confirmado', false);
   const { data, error } = await q;
   if (error) throw error;
-  res.json(data);
+
+  // Pendência presa a currículo cujo código já tem destino global: a tela
+  // precisa dizer POR QUE ela existe (a grade não tem o componente) mesmo
+  // com o filtro "Somente pendentes", que tira os globais da lista. Sem
+  // isso ela oferecia o mesmo componente de novo, e escolher apagava a
+  // linha — que voltava na importação seguinte.
+  type Linha = { tipo: string; versao_id: string | null; confirmado: boolean; codigo_origem: string; global?: unknown };
+  const linhas = (data || []) as Linha[];
+  const presas = linhas.filter(m => m.tipo === 'disciplina' && m.versao_id && !m.confirmado);
+  if (presas.length) {
+    const { data: globais, error: eG } = await client.from('mapeamento_activesoft')
+      .select('codigo_origem, componente_id, componente:componente(nome_canonico)')
+      .eq('tipo', 'disciplina').is('versao_id', null).eq('confirmado', true).not('componente_id', 'is', null)
+      .in('codigo_origem', [...new Set(presas.map(m => m.codigo_origem))]);
+    if (eG) throw eG;
+    const globalPorCodigo = new Map((globais || []).map(g => {
+      const comp = g.componente as unknown as { nome_canonico: string } | { nome_canonico: string }[] | null;
+      return [g.codigo_origem as string, { componente_id: g.componente_id as string, nome: (Array.isArray(comp) ? comp[0] : comp)?.nome_canonico || 'componente' }];
+    }));
+    const faltas = await seriesSemComponente(client, presas.flatMap(m => {
+      const g = globalPorCodigo.get(m.codigo_origem);
+      return g ? [{ versao_id: m.versao_id!, componente_id: g.componente_id }] : [];
+    }));
+    for (const m of presas) {
+      const g = globalPorCodigo.get(m.codigo_origem);
+      m.global = g ? { ...g, series_sem_componente: faltas.get(`${m.versao_id}|${g.componente_id}`) || [] } : null;
+    }
+  }
+  res.json(linhas);
 }));
 
 /**
@@ -123,7 +197,7 @@ importacoesRouter.put('/mapeamentos/:id', exigirPapel('admin', 'secretaria'), se
   // global já resolvia tudo. Se o destino escolhido é o mesmo do global,
   // esta linha não tem função nenhuma — some, em vez de dar erro.
   if (body.componente_id) {
-    const { data: atual, error: eA } = await client.from('mapeamento_activesoft').select('codigo_origem').eq('id', req.params.id).single();
+    const { data: atual, error: eA } = await client.from('mapeamento_activesoft').select('codigo_origem, versao_id').eq('id', req.params.id).single();
     if (eA) throw eA;
     const { data: global, error: eG } = await client.from('mapeamento_activesoft')
       .select('id, componente_id, componente:componente(nome_canonico)')
@@ -132,8 +206,28 @@ importacoesRouter.put('/mapeamentos/:id', exigirPapel('admin', 'secretaria'), se
     if (eG) throw eG;
     if (global) {
       if (global.componente_id === body.componente_id) {
-        const { error: eD } = await client.from('mapeamento_activesoft').delete().eq('id', req.params.id);
+        // Só é repetida se o global de fato alcança todas as séries deste
+        // currículo. Se a grade de alguma série não tem o componente, a
+        // pendência é verdadeira: apagá-la só a escondia até a próxima
+        // importação, que a recriava — o "volta sempre" que motivou isto.
+        if (atual.versao_id) {
+          const faltam = (await seriesSemComponente(client, [{ versao_id: atual.versao_id, componente_id: global.componente_id as string }]))
+            .get(`${atual.versao_id}|${global.componente_id}`) || [];
+          if (faltam.length) {
+            const comp = global.componente as unknown as { nome_canonico: string } | { nome_canonico: string }[] | null;
+            const nome = (Array.isArray(comp) ? comp[0] : comp)?.nome_canonico || 'esse componente';
+            return void res.status(409).json({
+              error: `"${nome}" já é o destino deste código em todos os cursos — o que falta é a grade: ${listar(faltam)} deste currículo não ${faltam.length > 1 ? 'têm' : 'tem'} "${nome}". Inclua o componente nessa série em Configuração › Currículos e rode a importação de novo. Se a nota não deve entrar no histórico, escolha uma exceção.`
+            });
+          }
+        }
+        // service_role: a policy de delete da tabela é só admin (regra geral
+        // da 004), e com o client da secretaria o delete passava sem erro e
+        // sem apagar nada — a tela dizia "saiu da lista" e a linha ficava.
+        // Quem pode chegar aqui já foi barrado por exigirPapel acima.
+        const { data: apagadas, error: eD } = await getServiceClient().from('mapeamento_activesoft').delete().eq('id', req.params.id).select('id');
         if (eD) throw eD;
+        if (!apagadas?.length) return void res.status(409).json({ error: 'A linha não pôde ser removida. Recarregue a página e tente de novo.' });
         return void res.json({ absorvido: true, id: global.id });
       }
       const comp = global.componente as unknown as { nome_canonico: string } | { nome_canonico: string }[] | null;
