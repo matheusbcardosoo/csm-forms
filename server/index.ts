@@ -26,6 +26,7 @@ import { carteirinhasRouter } from './rotas/carteirinhas';
 import { carteirinhasPdfInternoRouter } from './rotas/carteirinhas-pdf-interno';
 import { verificacaoRouter } from './rotas/verificacao';
 import { relatoriosRouter } from './rotas/relatorios';
+import { auditoriaRouter } from './rotas/auditoria';
 import { iniciarAgendador } from './servicos/agendador';
 
 const RAIZ = path.resolve(__dirname, '..');
@@ -47,6 +48,7 @@ app.use(express.static(path.join(RAIZ, 'public')));
 // Módulos novos do painel (TypeScript, autorização por papel)
 app.use('/api/painel', painelRouter);
 app.use('/api/usuarios', usuariosRouter);
+app.use('/api/auditoria', auditoriaRouter);
 app.use('/api/instituicao', instituicaoRouter);
 app.use('/api/anos-letivos', anosLetivosRouter);
 app.use('/api/cadastros', cadastrosRouter);

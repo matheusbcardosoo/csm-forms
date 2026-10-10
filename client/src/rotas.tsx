@@ -10,6 +10,7 @@ import { Inicio } from '@/app/inicio/Inicio';
 import { Alunos } from '@/app/alunos/Alunos';
 import { AlunoFicha } from '@/app/alunos/AlunoFicha';
 import { Historicos } from '@/app/historicos/Historicos';
+import { Auditoria } from '@/app/auditoria/Auditoria';
 import { HistoricoNovo } from '@/app/historicos/HistoricoNovo';
 import { HistoricoLote } from '@/app/historicos/HistoricoLote';
 import { HistoricoDetalhe } from '@/app/historicos/HistoricoDetalhe';
@@ -78,6 +79,7 @@ export const roteador = createBrowserRouter([
       { path: 'historicos/lote', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [{ index: true, element: <HistoricoLote /> }] },
       { path: 'historicos/:id', element: <HistoricoDetalhe /> },
       { path: 'relatorios', element: <Relatorios /> },
+      { path: 'auditoria', element: <SoPapel papeis={['admin']} />, children: [{ index: true, element: <Auditoria /> }] },
       // invisível para coordenação e leitura (RNF-CART-01)
       { path: 'carteirinhas', element: <SoPapel papeis={['admin', 'secretaria']} />, children: [
         { index: true, element: <Pastas /> },
